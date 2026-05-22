@@ -1,0 +1,138 @@
+/* ---------------------------------------------------------------------------
+ * SDONE — Full-Page Layout & z-Index Layer Architecture
+ * Story 2.1: Dual Canvas DOM Setup
+ * --------------------------------------------------------------------------- */
+
+/* ---- Reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* ---- z-Index Custom Properties ---- */
+:root {
+  --z-canvas: 0;         /* Main scene canvas — base layer */
+  --z-panel: 1;          /* Left + Right panels */
+  --z-control-bar: 2;    /* Top control bar — above panels */
+  --z-minimap: 3;        /* Minimap overlay — above everything */
+}
+
+/* ---- App Root Container ---- */
+.app-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =========================================================================
+   Layer: Main Canvas (z-index: 0)
+   ========================================================================= */
+.layer-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-canvas);
+  /* No pointer-events override — canvas accepts events naturally */
+}
+
+.layer-canvas canvas {
+  display: block;        /* Remove inline gap below canvas */
+  width: 100%;
+  height: 100%;
+}
+
+/* =========================================================================
+   Layer: Left Panel (z-index: 1)
+   ========================================================================= */
+.layer-panel-left {
+  position: absolute;
+  top: 40px;             /* Below control bar */
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  z-index: var(--z-panel);
+  pointer-events: none;  /* Allow clicks through empty areas to canvas */
+  /* Future: panels will have pointer-events: auto on their interactive children */
+}
+
+/* =========================================================================
+   Layer: Right Panel (z-index: 1)
+   ========================================================================= */
+.layer-panel-right {
+  position: absolute;
+  top: 40px;             /* Below control bar */
+  right: 0;
+  bottom: 0;
+  width: 280px;
+  z-index: var(--z-panel);
+  pointer-events: none;
+}
+
+/* =========================================================================
+   Layer: Control Bar (z-index: 2)
+   ========================================================================= */
+.layer-control-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: var(--z-control-bar);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: #1e1e2e;
+  border-bottom: 1px solid #313244;
+  color: #cdd6f4;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.layer-control-bar .btn-run {
+  background: #a6e3a1;
+  color: #1e1e2e;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: default;       /* Placeholder — not functional yet */
+  user-select: none;
+}
+
+/* =========================================================================
+   Layer: Minimap (z-index: 3)
+   ========================================================================= */
+.layer-minimap {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 200px;
+  height: 150px;
+  z-index: var(--z-minimap);
+  border: 2px solid #45475a;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #1e1e2e;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  /* pointer-events: auto by default — minimap can receive events */
+}
+
+.layer-minimap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

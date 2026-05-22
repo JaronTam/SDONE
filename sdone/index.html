@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SDONE</title>
+  </head>
+  <body>
+    <!-- z-Index Layer Architecture (Architecture Decision 2: Dual-Canvas) -->
+    <div class="app-root">
+      <!-- z:0 — Main scene canvas layer -->
+      <div class="layer-canvas">
+        <canvas id="scene" willReadFrequently></canvas>
+      </div>
+
+      <!-- z:1 — Left panel placeholder -->
+      <div class="layer-panel-left"></div>
+
+      <!-- z:1 — Right panel placeholder -->
+      <div class="layer-panel-right"></div>
+
+      <!-- z:2 — Top control bar -->
+      <div class="layer-control-bar">
+        <button class="btn-run">▶ Run</button>
+        <button class="btn-reset-viewport" title="重置视口 (Ctrl+0)">↺ Fit All</button>
+      </div>
+
+      <!-- z:3 — Minimap overlay -->
+      <div class="layer-minimap">
+        <canvas id="minimap"></canvas>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
