@@ -1,10 +1,10 @@
 /**
- * Unit tests for SceneRenderer pure logic.
+ * Unit tests for SceneRenderer pure logic and fill animation.
  *
  * Tests for getHitRadius, getModuleBoundingRadius, computeFillRatio,
- * and getEdgePoint.
+ * getEdgePoint, and Story 5.2 fill animation (resetAnimatedFills).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getHitRadius,
   getModuleBoundingRadius,
@@ -19,6 +19,8 @@ import {
   SINK_RADIUS,
   SINK_HIT_RADIUS,
 } from '../SceneRenderer.js';
+import { SceneRenderer } from '../SceneRenderer.js';
+import type { ViewportManager } from '../Viewport.js';
 
 // ── Story 2.3: getHitRadius ─────────────────────────────────────────
 
@@ -88,8 +90,8 @@ describe('computeFillRatio', () => {
     expect(computeFillRatio(100, 100)).toBe(1);
   });
 
-  it('returns 1 when value exceeds capacity (clamped)', () => {
-    expect(computeFillRatio(150, 100)).toBe(1);
+  it('returns ratio > 1 when value exceeds capacity (overflow for red tint)', () => {
+    expect(computeFillRatio(150, 100)).toBeGreaterThan(1);
   });
 
   it('returns correct ratio for partial fill', () => {
@@ -157,7 +159,7 @@ describe('getEdgePoint', () => {
 
   // ── Stock ─────────────────────────────────────────────────────
   describe('stock', () => {
-    const hw = STOCK_WIDTH / 2;  // 60
+    const hw = STOCK_WIDTH / 2; // 60
     const hh = STOCK_HEIGHT / 2; // 40
 
     it('returns point on right edge toward the right', () => {
@@ -186,11 +188,6 @@ describe('getEdgePoint', () => {
 
     it('returns point on corner for diagonal approach', () => {
       const p = getEdgePoint(node('stock'), { x: 200, y: 200 });
-      // Stock is 120×80: aspect ratio means top/bottom edges are closer
-      // than left/right for a 45° diagonal ray.
-      // t_y = hh / |ny| = 40 / (1/√2) ≈ 56.6
-      // t_x = hw / |nx| = 60 / (1/√2) ≈ 84.9
-      // t = min(84.9, 56.6) = 56.6 → hits top edge at (140, 140)
       expect(p.x).toBeCloseTo(140, 5);
       expect(p.y).toBeCloseTo(140, 5);
     });
@@ -236,5 +233,111 @@ describe('getEdgePoint', () => {
       expect(p.x).toBeCloseTo(100 + SINK_RADIUS, 5);
       expect(p.y).toBeCloseTo(100, 5);
     });
+  });
+});
+
+// ── Story 5.2: Fill Animation ──────────────────────────────────────
+
+function createMockCanvas(width = 800, height = 600): {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+} {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = {
+    canvas,
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 0,
+    globalAlpha: 1,
+    fillRect: vi.fn(),
+    strokeRect: vi.fn(),
+    clearRect: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    stroke: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    closePath: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    scale: vi.fn(),
+    translate: vi.fn(),
+    rotate: vi.fn(),
+    clip: vi.fn(),
+    resetTransform: vi.fn(),
+    setLineDash: vi.fn(),
+    shadowBlur: 0,
+    shadowColor: '',
+    measureText: vi.fn().mockReturnValue({ width: 0 }),
+    fillText: vi.fn(),
+    strokeText: vi.fn(),
+  } as unknown as CanvasRenderingContext2D;
+
+  vi.spyOn(canvas, 'getContext').mockReturnValue(ctx as never);
+
+  return { canvas, ctx };
+}
+
+describe('SceneRenderer fill animation (Story 5.2)', () => {
+  let renderer: SceneRenderer;
+  let viewport: ViewportManager;
+
+  beforeEach(() => {
+    const { canvas } = createMockCanvas();
+    viewport = {
+      applyTransform: vi.fn(),
+      viewport: { zoom: 1, offset: { x: 0, y: 0 } },
+    } as unknown as ViewportManager;
+    renderer = new SceneRenderer(canvas, viewport);
+  });
+
+  it('creates SceneRenderer without error', () => {
+    expect(renderer).toBeDefined();
+  });
+
+  it('resetAnimatedFills clears the internal fill ratio map', () => {
+    // Populate the map to simulate active animation state
+    (renderer as any).animatedFillRatios.set('stock-1', 0.5);
+    (renderer as any).animatedFillRatios.set('stock-2', 0.75);
+    expect((renderer as any).animatedFillRatios.size).toBe(2);
+
+    renderer.resetAnimatedFills();
+
+    expect((renderer as any).animatedFillRatios.size).toBe(0);
+  });
+
+  it('resetAnimatedFills is idempotent (safe to call on empty map)', () => {
+    renderer.resetAnimatedFills();
+    renderer.resetAnimatedFills();
+    // No throw on empty map
+    expect((renderer as any).animatedFillRatios.size).toBe(0);
+  });
+
+  it('stop and resetAnimatedFills sequence clears state correctly', () => {
+    // Populate some animation state
+    (renderer as any).animatedFillRatios.set('s1', 0.3);
+    renderer.stop();
+    renderer.resetAnimatedFills();
+    expect((renderer as any).animatedFillRatios.size).toBe(0);
+  });
+
+  // Story 5.2 AC5: fill animation resets on RESET event
+  it('AC5: after reset, next tickAnimatedFillRatios snaps to target (no stale lerp)', () => {
+    // Simulate a stale animated value far from the correct target
+    (renderer as any).animatedFillRatios.set('s1', 0.1);
+    const nodes = {
+      s1: { type: 'stock', value: 100, capacity: 100 },
+    };
+
+    renderer.resetAnimatedFills();
+
+    // After reset, calling tickAnimatedFillRatios should snap to target = 1.0
+    // because the map was cleared, so `?? target` gives target directly
+    (renderer as any).tickAnimatedFillRatios(nodes);
+    expect((renderer as any).animatedFillRatios.get('s1')).toBe(1);
   });
 });

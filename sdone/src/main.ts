@@ -441,6 +441,7 @@ eventBus.on('RESET', () => {
   historyManager.push(currentState);
   minimapRenderer.markDirty();
   particleEngine.reset(); // Story 5.1 AC6: clear particles on RESET
+  sceneRenderer.resetAnimatedFills(); // Story 5.2 AC5: snap fill to restored values
   updateRunButton(); // reset → idle, button shows "▶ Run"
 });
 

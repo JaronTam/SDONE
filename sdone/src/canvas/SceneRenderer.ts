@@ -126,7 +126,7 @@ export function getEdgePoint(
 
 export function computeFillRatio(value: number, capacity: number): number {
   if (!Number.isFinite(value) || !(capacity > 0)) return 0;
-  return Math.max(0, Math.min(1, value / capacity));
+  return Math.max(0, value / capacity);
 }
 
 export function computePulseAlpha(
@@ -173,6 +173,13 @@ const PARTICLE_COLOR = '#ffb74d';
 /** Radius of each particle dot in world-pixels. */
 const PARTICLE_RADIUS = 4;
 
+// ── Story 5.2 — Fill animation constants ──────────────────────────────
+/** Lerp speed — fraction of remaining distance covered per 16ms frame.
+ *  At 60fps, reaches ~95% of target in ~300ms. */
+const FILL_LERP_SPEED = 0.15;
+/** AC4: Red/warning tint for stock overflow (value > capacity). */
+const STOCK_FILL_OVERFLOW = '#EF9A9A';
+
 // ═══════════════════════════════════════════════════════════════════════
 // SceneRenderer
 // ═══════════════════════════════════════════════════════════════════════
@@ -205,6 +212,11 @@ export class SceneRenderer {
   public onPreFrame: ((dt: number) => void) | null = null;
   public particleStateProvider: (() => import('./ParticleEngine.js').ParticleState | null) | null = null;
 
+  // ── Story 5.2 — Fill animation state ─────────────────────────────────
+  /** Per-stock animated fill ratios for smooth fill/shrink transitions.
+   *  Keyed by stock node id, value is the currently-displayed fill ratio (0.0–1.0+).
+   *  Each frame lerps toward the target ratio computed from node.value / node.capacity. */
+  private animatedFillRatios = new Map<string, number>();
   constructor(canvas: HTMLCanvasElement, viewportManager: ViewportManager) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
@@ -244,6 +256,8 @@ export class SceneRenderer {
     const clampedDt = Math.min(Math.max(0, rawDt), 0.1);
     if (this.onPreFrame) this.onPreFrame(clampedDt);
     if (this.stateProvider) this.graphState = this.stateProvider();
+    // Story 5.2: advance fill animations before drawing
+    if (this.graphState) this.tickAnimatedFillRatios(this.graphState.nodes);
     this.drawFrame();
   }
 
@@ -263,6 +277,43 @@ export class SceneRenderer {
     this.drawGhost();
     this.drawConnectionDragPreview();
     this.drawParticles();
+  }
+
+  // ── Story 5.2 — Fill Animation ───────────────────────────────────────
+
+  /**
+   * Advance animated fill ratios toward their targets.
+   * Called once per frame before drawStock so all stocks lerp in sync.
+   *
+   * @param nodes - Current graph nodes (read-only for target computation).
+   */
+  private tickAnimatedFillRatios(nodes: Record<string, { type: string }>): void {
+    for (const [id, node] of Object.entries(nodes)) {
+      if ((node as { type: string }).type !== 'stock') continue;
+      const stock = node as unknown as StockNode;
+      const target = computeFillRatio(stock.value, stock.capacity);
+      const current = this.animatedFillRatios.get(id) ?? target;
+      if (Math.abs(target - current) < 0.001) {
+        this.animatedFillRatios.set(id, target);
+        continue;
+      }
+      const next = current + (target - current) * FILL_LERP_SPEED;
+      this.animatedFillRatios.set(id, next);
+    }
+    // Clean up stale entries for stocks that no longer exist in the graph.
+    // Without this, deleted stocks accumulate forever (memory leak) and
+    // stale values resurface after undo/redo cycles as wrong animation start points.
+    for (const id of this.animatedFillRatios.keys()) {
+      const node = nodes[id];
+      if (!node || (node as { type: string }).type !== 'stock') {
+        this.animatedFillRatios.delete(id);
+      }
+    }
+  }
+
+  /** Story 5.2 AC5: Clear animated fills so next frame snaps to target (no stale lerp). */
+  public resetAnimatedFills(): void {
+    this.animatedFillRatios.clear();
   }
 
   // ── Ghost ───────────────────────────────────────────────────────────
@@ -444,14 +495,18 @@ export class SceneRenderer {
     this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
     ctx.fill();
     ctx.stroke();
-    const ratio = computeFillRatio(node.value, node.capacity);
-    if (ratio > 0) {
+    const targetRatio = computeFillRatio(node.value, node.capacity);
+    const ratio = this.animatedFillRatios.get(node.id) ?? targetRatio;
+    // AC3: Infinity capacity → no fill. Guard fill drawing.
+    if (ratio > 0 && Number.isFinite(node.capacity) && node.capacity > 0) {
       ctx.save();
       ctx.beginPath();
       this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
       ctx.clip();
       const fillHeight = STOCK_HEIGHT * ratio;
-      ctx.fillStyle = STOCK_FILL_BLUE;
+      // AC4: Overflow tint — red when value exceeds capacity
+      const isOverflow = targetRatio > 1.0;
+      ctx.fillStyle = isOverflow ? STOCK_FILL_OVERFLOW : STOCK_FILL_BLUE;
       ctx.fillRect(x - hw, y + hh - fillHeight, STOCK_WIDTH, fillHeight);
       ctx.restore();
       ctx.beginPath();
