@@ -1,0 +1,114 @@
+/**
+ * ModulePanel Styles — Story 3.1
+ *
+ * Left sidebar panel with module primitive icons.
+ * Follows the CSS architecture from the story spec (DOM Structure
+ * and CSS Architecture sections).
+ */
+
+/* ── Root Panel ─────────────────────────────────────────────────────── */
+
+.module-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #1e1e2e;
+  border-right: 1px solid #313244;
+  color: #cdd6f4;
+  font-size: 13px;
+  transition: transform 300ms ease;
+  transform: translateX(0);
+  pointer-events: auto; /* Capture events for interactive children */
+}
+
+/* AC7 — Hidden state: slides panel off-screen left */
+.module-panel--hidden {
+  transform: translateX(-100%);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+
+.module-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #313244;
+  height: 40px; /* Match control bar height */
+}
+
+.module-panel__title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #cdd6f4;
+  user-select: none;
+}
+
+/* AC5 — Pin button: visible but no-op in 3.1 */
+.module-panel__pin-btn {
+  background: none;
+  border: none;
+  color: #6c7086;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 150ms ease;
+  line-height: 1;
+}
+
+.module-panel__pin-btn:hover {
+  color: #cdd6f4;
+}
+
+/* ── Icon List ──────────────────────────────────────────────────────── */
+
+.module-panel__icon-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 12px;
+}
+
+/* ── Individual Icon Item ───────────────────────────────────────────── */
+
+.module-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: grab;
+  transition: transform 150ms ease, background-color 150ms ease;
+
+  /* AC6 — Must override layer-panel-left's pointer-events: none
+     so hover effects and future drag-start events register. */
+  pointer-events: auto;
+}
+
+/* AC3 — Hover: subtle highlight + slight scale-up */
+.module-icon:hover {
+  transform: scale(1.05);
+  background-color: #313244;
+}
+
+/* Icon canvas — AC2: 64×64px display */
+.module-icon canvas,
+.module-icon__canvas {
+  display: block;
+  width: 64px;
+  height: 64px;
+}
+
+/* AC3 — Label hover: brighter text */
+.module-icon__label {
+  font-size: 12px;
+  color: #6c7086;
+  transition: color 150ms ease;
+  user-select: none;
+}
+
+.module-icon:hover .module-icon__label {
+  color: #cdd6f4;
+}

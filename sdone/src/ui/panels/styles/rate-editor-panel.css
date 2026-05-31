@@ -1,0 +1,120 @@
+/**
+ * RateEditorPanel — Right Sidebar Rate Editor Styles (Story 4.5)
+ *
+ * Matches existing dark theme tokens from layout.css.
+ * CRITICAL: Overrides parent .layer-panel-right { pointer-events: none }
+ * to make the panel and all its children interactive.
+ */
+
+/* ════════════════════════════════════════════════════════════════════════
+   Panel Root
+   ════════════════════════════════════════════════════════════════════════ */
+.rate-editor {
+  pointer-events: auto;
+  padding: 12px;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  font-family: inherit;
+  font-size: 13px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #313244;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Title Bar
+   ════════════════════════════════════════════════════════════════════════ */
+.rate-editor__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cdd6f4;
+  margin-bottom: 10px;
+  user-select: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Empty State
+   ════════════════════════════════════════════════════════════════════════ */
+.rate-editor__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  opacity: 0.5;
+  color: #6c7086;
+  gap: 6px;
+  user-select: none;
+}
+
+.rate-editor__empty-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.rate-editor__empty-text {
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Editor Form
+   ════════════════════════════════════════════════════════════════════════ */
+.rate-editor__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.rate-editor__connection-label {
+  font-size: 12px;
+  color: #a6adc8;
+  padding: 4px 8px;
+  background: #313244;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.rate-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rate-editor__field-label {
+  font-size: 11px;
+  color: #6c7086;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.rate-editor__input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  background: #313244;
+  color: #cdd6f4;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 300ms ease;
+}
+
+.rate-editor__input:focus {
+  border-color: #a6e3a1;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Error State
+   ════════════════════════════════════════════════════════════════════════ */
+.rate-editor__input--error {
+  border-color: #f38ba8;
+}

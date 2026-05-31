@@ -24,6 +24,7 @@ function emptyState(): GraphState {
     connections: {},
     version: 0,
     selectedModuleIds: [],
+    selectedConnectionIds: [],
   };
 }
 
@@ -98,11 +99,10 @@ describe('addModule', () => {
 
     const [, node] = Object.entries(result.nodes)[0];
     expect(node.type).toBe('source');
-    // color should not be present — or if present, undefined
     expect('color' in node ? node.color : undefined).toBeUndefined();
   });
 
-  it('AC3: sink has no color property', () => {
+  it('AC3: sink has no color property (placement layer assigns)', () => {
     const state = emptyState();
     const result = addModule(state, 'sink', { x: 300, y: 400 });
 
@@ -481,6 +481,7 @@ describe('edge cases', () => {
       connections: {},
       version: 0,
       selectedModuleIds: ['sel-1', 'sel-2'],
+      selectedConnectionIds: [],
     };
     withStock(state, 'n1');
 

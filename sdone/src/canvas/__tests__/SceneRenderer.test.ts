@@ -1,17 +1,18 @@
 /**
- * Story 2.3 & 2.4 — Unit tests for SceneRenderer pure logic.
+ * Unit tests for SceneRenderer pure logic.
  *
- * The canvas rendering pipeline cannot be directly tested without
- * a full Canvas API mock, but the pure math functions (bounding
- * radius, edge-clipping, arrowhead geometry) are extracted and
- * independently testable.
+ * Tests for getHitRadius, getModuleBoundingRadius, computeFillRatio,
+ * and getEdgePoint.
  */
 import { describe, it, expect } from 'vitest';
 import {
   getHitRadius,
-  getModuleBoundingRadiusForConnection,
+  getModuleBoundingRadius,
+  computeFillRatio,
+  getEdgePoint,
   SOURCE_CLOUD_RADIUS,
   SOURCE_HIT_RADIUS,
+  SELECTION_RING_OFFSET,
   STOCK_WIDTH,
   STOCK_HEIGHT,
   STOCK_HIT_RADIUS,
@@ -39,156 +40,201 @@ describe('getHitRadius', () => {
   });
 });
 
-// ── Story 2.4: getModuleBoundingRadiusForConnection ─────────────────
+// ── Story 2.3: getModuleBoundingRadius ──────────────────────────────
 
-describe('getModuleBoundingRadiusForConnection', () => {
-  it('returns SOURCE_CLOUD_RADIUS * 2 for source (udx/udy ignored for circle)', () => {
-    expect(getModuleBoundingRadiusForConnection({ type: 'source' }, 1, 0)).toBe(
-      SOURCE_CLOUD_RADIUS * 2,
+describe('getModuleBoundingRadius', () => {
+  it('returns SOURCE_CLOUD_RADIUS * 2 + SELECTION_RING_OFFSET for source', () => {
+    expect(getModuleBoundingRadius({ type: 'source' })).toBe(
+      SOURCE_CLOUD_RADIUS * 2 + SELECTION_RING_OFFSET,
     );
   });
 
-  it('returns correct rectangle-edge distance for stock along X axis', () => {
-    // Horizontal direction: edge is at half-width (STOCK_WIDTH/2 = 60)
-    expect(getModuleBoundingRadiusForConnection({ type: 'stock' }, 1, 0)).toBe(
-      STOCK_WIDTH / 2,
+  it('returns half-diagonal + SELECTION_RING_OFFSET for stock', () => {
+    const halfDiagonal = Math.sqrt(STOCK_WIDTH ** 2 + STOCK_HEIGHT ** 2) / 2;
+    expect(getModuleBoundingRadius({ type: 'stock' })).toBe(
+      halfDiagonal + SELECTION_RING_OFFSET,
     );
   });
 
-  it('returns correct rectangle-edge distance for stock along Y axis', () => {
-    // Vertical direction: edge is at half-height (STOCK_HEIGHT/2 = 40)
-    expect(getModuleBoundingRadiusForConnection({ type: 'stock' }, 0, 1)).toBe(
-      STOCK_HEIGHT / 2,
+  it('returns SINK_RADIUS + SELECTION_RING_OFFSET for sink', () => {
+    expect(getModuleBoundingRadius({ type: 'sink' })).toBe(
+      SINK_RADIUS + SELECTION_RING_OFFSET,
     );
   });
 
-  it('returns correct rectangle-edge distance for stock along diagonal', () => {
-    // 3-4-5 triangle direction: tx = 60/(0.6) = 100, ty = 40/(0.8) = 50
-    // min(100, 50) = 50 — the shorter reach hits the top/bottom edge first
-    expect(
-      getModuleBoundingRadiusForConnection({ type: 'stock' }, 0.6, 0.8),
-    ).toBeCloseTo(50);
-  });
-
-  it('returns SINK_RADIUS for sink', () => {
-    expect(getModuleBoundingRadiusForConnection({ type: 'sink' }, 1, 0)).toBe(
-      SINK_RADIUS,
+  it('returns SINK_RADIUS + SELECTION_RING_OFFSET as fallback for unknown type', () => {
+    expect(getModuleBoundingRadius({ type: 'bogus' as string })).toBe(
+      SINK_RADIUS + SELECTION_RING_OFFSET,
     );
-  });
-
-  it('returns SINK_RADIUS as fallback for unknown type', () => {
-    expect(
-      getModuleBoundingRadiusForConnection(
-        { type: 'unknown' as string },
-        1,
-        0,
-      ),
-    ).toBe(SINK_RADIUS);
   });
 });
 
-// ── Story 2.4: Edge-clipping math ───────────────────────────────────
+// ── Story 2.3: computeFillRatio ─────────────────────────────────────
 
-describe('Connection edge-clipping math', () => {
-  /**
-   * Pure function that mirrors the clipping logic from
-   * `SceneRenderer.drawConnections()`.
-   */
-  function clipEndpoints(
-    fromX: number,
-    fromY: number,
-    toX: number,
-    toY: number,
-    fromRadius: number,
-    toRadius: number,
-  ): { startX: number; startY: number; endX: number; endY: number } | null {
-    const dx = toX - fromX;
-    const dy = toY - fromY;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 0.001) return null;
-
-    const udx = dx / dist;
-    const udy = dy / dist;
-
-    return {
-      startX: fromX + udx * fromRadius,
-      startY: fromY + udy * fromRadius,
-      endX: toX - udx * toRadius,
-      endY: toY - udy * toRadius,
-    };
-  }
-
-  it('clips start and end to module edges on horizontal line', () => {
-    const result = clipEndpoints(0, 0, 200, 0, 30, 50);
-    expect(result).not.toBeNull();
-    expect(result!.startX).toBeCloseTo(30);
-    expect(result!.startY).toBeCloseTo(0);
-    expect(result!.endX).toBeCloseTo(150);
-    expect(result!.endY).toBeCloseTo(0);
+describe('computeFillRatio', () => {
+  it('returns 0 when capacity is 0', () => {
+    expect(computeFillRatio(50, 0)).toBe(0);
   });
 
-  it('clips start and end to module edges on diagonal', () => {
-    // 3-4-5 triangle: dx=60, dy=80, dist=100
-    const result = clipEndpoints(0, 0, 60, 80, 10, 20);
-    expect(result).not.toBeNull();
-    // unit vector (0.6, 0.8)
-    expect(result!.startX).toBeCloseTo(6);   // 0 + 0.6*10
-    expect(result!.startY).toBeCloseTo(8);   // 0 + 0.8*10
-    expect(result!.endX).toBeCloseTo(48);    // 60 - 0.6*20
-    expect(result!.endY).toBeCloseTo(64);    // 80 - 0.8*20
+  it('returns 0 when capacity is negative', () => {
+    expect(computeFillRatio(10, -5)).toBe(0);
   });
 
-  it('returns null for overlapping modules (dist < 0.001)', () => {
-    // Same position = dir vector zero length
-    const result = clipEndpoints(5, 5, 5, 5, 20, 20);
-    expect(result).toBeNull();
+  it('returns 0 when value is 0', () => {
+    expect(computeFillRatio(0, 100)).toBe(0);
   });
 
-  it('handles vertical line correctly', () => {
-    const result = clipEndpoints(100, 0, 100, 200, 10, 30);
-    expect(result).not.toBeNull();
-    expect(result!.startX).toBeCloseTo(100);
-    expect(result!.startY).toBeCloseTo(10);
-    expect(result!.endX).toBeCloseTo(100);
-    expect(result!.endY).toBeCloseTo(170); // 200 - 30
+  it('returns 1 when value equals capacity', () => {
+    expect(computeFillRatio(100, 100)).toBe(1);
+  });
+
+  it('returns 1 when value exceeds capacity (clamped)', () => {
+    expect(computeFillRatio(150, 100)).toBe(1);
+  });
+
+  it('returns correct ratio for partial fill', () => {
+    expect(computeFillRatio(25, 100)).toBeCloseTo(0.25);
+    expect(computeFillRatio(75, 100)).toBeCloseTo(0.75);
+  });
+
+  it('returns correct ratio with float values', () => {
+    expect(computeFillRatio(33.3, 100)).toBeCloseTo(0.333);
+  });
+
+  it('returns 0 when value is NaN', () => {
+    expect(computeFillRatio(NaN, 100)).toBe(0);
+  });
+
+  it('returns 0 when value is Infinity', () => {
+    expect(computeFillRatio(Infinity, 100)).toBe(0);
   });
 });
 
-// ── Story 2.4: Edge cases for drawConnections ───────────────────────
+// ── Story 3.6: getEdgePoint ─────────────────────────────────────────
 
-describe('drawConnections logic edge cases', () => {
-  /**
-   * Simulates the filtering step: for each connection, if either
-   * endpoint node is missing, skip it.
-   */
-  function getVisibleConnections(
-    connections: Array<{ id: string; fromId: string; toId: string }>,
-    nodeIds: Set<string>,
-  ): string[] {
-    const visible: string[] = [];
-    for (const conn of connections) {
-      if (nodeIds.has(conn.fromId) && nodeIds.has(conn.toId)) {
-        visible.push(conn.id);
-      }
-    }
-    return visible;
-  }
-
-  it('skips connection when fromNode is missing', () => {
-    const conn = { id: 'c1', fromId: 'ghost', toId: 'n2' };
-    const nodeIds = new Set(['n2']);
-    expect(getVisibleConnections([conn], nodeIds)).toEqual([]);
+describe('getEdgePoint', () => {
+  const node = (type: string, x = 100, y = 100) => ({
+    type,
+    position: { x, y },
   });
 
-  it('skips connection when toNode is missing', () => {
-    const conn = { id: 'c2', fromId: 'n1', toId: 'ghost' };
-    const nodeIds = new Set(['n1']);
-    expect(getVisibleConnections([conn], nodeIds)).toEqual([]);
+  // ── Source ────────────────────────────────────────────────────
+  describe('source', () => {
+    const expectedR = SOURCE_CLOUD_RADIUS * 1.6; // cloud cluster bounding radius
+
+    it('returns point on bounding circle toward the right', () => {
+      const p = getEdgePoint(node('source'), { x: 200, y: 100 });
+      expect(p.x).toBeCloseTo(100 + expectedR, 5);
+      expect(p.y).toBeCloseTo(100, 5);
+    });
+
+    it('returns point on bounding circle toward the left', () => {
+      const p = getEdgePoint(node('source'), { x: 0, y: 100 });
+      expect(p.x).toBeCloseTo(100 - expectedR, 5);
+      expect(p.y).toBeCloseTo(100, 5);
+    });
+
+    it('returns point on bounding circle toward the top', () => {
+      const p = getEdgePoint(node('source'), { x: 100, y: 0 });
+      expect(p.x).toBeCloseTo(100, 5);
+      expect(p.y).toBeCloseTo(100 - expectedR, 5);
+    });
+
+    it('returns point on bounding circle toward the bottom', () => {
+      const p = getEdgePoint(node('source'), { x: 100, y: 200 });
+      expect(p.x).toBeCloseTo(100, 5);
+      expect(p.y).toBeCloseTo(100 + expectedR, 5);
+    });
+
+    it('returns point on bounding circle for diagonal approach', () => {
+      const p = getEdgePoint(node('source'), { x: 200, y: 200 });
+      const dx = p.x - 100;
+      const dy = p.y - 100;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      expect(dist).toBeCloseTo(expectedR, 5);
+    });
   });
 
-  it('includes connection when both nodes exist', () => {
-    const conn = { id: 'c3', fromId: 'n1', toId: 'n2' };
-    const nodeIds = new Set(['n1', 'n2']);
-    expect(getVisibleConnections([conn], nodeIds)).toEqual(['c3']);
+  // ── Stock ─────────────────────────────────────────────────────
+  describe('stock', () => {
+    const hw = STOCK_WIDTH / 2;  // 60
+    const hh = STOCK_HEIGHT / 2; // 40
+
+    it('returns point on right edge toward the right', () => {
+      const p = getEdgePoint(node('stock'), { x: 200, y: 100 });
+      expect(p.x).toBeCloseTo(100 + hw, 5);
+      expect(p.y).toBeCloseTo(100, 5);
+    });
+
+    it('returns point on left edge toward the left', () => {
+      const p = getEdgePoint(node('stock'), { x: 0, y: 100 });
+      expect(p.x).toBeCloseTo(100 - hw, 5);
+      expect(p.y).toBeCloseTo(100, 5);
+    });
+
+    it('returns point on top edge toward the top', () => {
+      const p = getEdgePoint(node('stock'), { x: 100, y: 0 });
+      expect(p.x).toBeCloseTo(100, 5);
+      expect(p.y).toBeCloseTo(100 - hh, 5);
+    });
+
+    it('returns point on bottom edge toward the bottom', () => {
+      const p = getEdgePoint(node('stock'), { x: 100, y: 200 });
+      expect(p.x).toBeCloseTo(100, 5);
+      expect(p.y).toBeCloseTo(100 + hh, 5);
+    });
+
+    it('returns point on corner for diagonal approach', () => {
+      const p = getEdgePoint(node('stock'), { x: 200, y: 200 });
+      // Stock is 120×80: aspect ratio means top/bottom edges are closer
+      // than left/right for a 45° diagonal ray.
+      // t_y = hh / |ny| = 40 / (1/√2) ≈ 56.6
+      // t_x = hw / |nx| = 60 / (1/√2) ≈ 84.9
+      // t = min(84.9, 56.6) = 56.6 → hits top edge at (140, 140)
+      expect(p.x).toBeCloseTo(140, 5);
+      expect(p.y).toBeCloseTo(140, 5);
+    });
+
+    it('returns point for near-horizontal approach (nx ≈ 1, ny ≈ 0)', () => {
+      const p = getEdgePoint(node('stock'), { x: 200, y: 100.01 });
+      expect(p.x).toBeCloseTo(100 + hw, 4);
+      expect(p.y).toBeCloseTo(100, 1); // ~0.006 off
+    });
+
+    it('returns point for near-vertical approach (nx ≈ 0, ny ≈ 1)', () => {
+      const p = getEdgePoint(node('stock'), { x: 100.01, y: 200 });
+      expect(p.x).toBeCloseTo(100, 2);
+      expect(p.y).toBeCloseTo(100 + hh, 4);
+    });
+  });
+
+  // ── Sink ──────────────────────────────────────────────────────
+  describe('sink', () => {
+    it('returns point on sink radius toward the right', () => {
+      const p = getEdgePoint(node('sink'), { x: 200, y: 100 });
+      expect(p.x).toBeCloseTo(100 + SINK_RADIUS, 5);
+      expect(p.y).toBeCloseTo(100, 5);
+    });
+
+    it('returns point on sink radius toward the left', () => {
+      const p = getEdgePoint(node('sink'), { x: 0, y: 100 });
+      expect(p.x).toBeCloseTo(100 - SINK_RADIUS, 5);
+      expect(p.y).toBeCloseTo(100, 5);
+    });
+  });
+
+  // ── Edge cases ────────────────────────────────────────────────
+  describe('edge cases', () => {
+    it('returns default top-edge point when dist === 0 (same position)', () => {
+      const p = getEdgePoint(node('source'), { x: 100, y: 100 });
+      expect(p.x).toBe(100);
+      expect(p.y).toBe(80); // cy - 20
+    });
+
+    it('returns sink-radius fallback for unknown module type', () => {
+      const p = getEdgePoint(node('bogus' as string), { x: 200, y: 100 });
+      expect(p.x).toBeCloseTo(100 + SINK_RADIUS, 5);
+      expect(p.y).toBeCloseTo(100, 5);
+    });
   });
 });

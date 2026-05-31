@@ -1,31 +1,69 @@
 import type { Vec2 } from '../shared/Vec2.js';
 import { vec2 } from '../shared/Vec2.js';
-import type { GraphState, StockNode, SourceNode, SinkNode } from '../state/GraphState.js';
+import {
+  CLOUD_RADIUS,
+  SHAPE_STOCK_WIDTH,
+  SHAPE_STOCK_HEIGHT,
+  SHAPE_STOCK_CORNER_RADIUS,
+  SINK_RADIUS as SHARED_SINK_RADIUS,
+  drawCloud,
+  drawStock as drawStockShape,
+  drawSink as drawSinkShape,
+} from '../shared/ShapePaths.js';
+import type { GraphState, StockNode, SourceNode, SinkNode, ModuleType } from '../state/GraphState.js';
 import type { ViewportManager } from './Viewport.js';
 
 // ── Module size constants (exported for InputManager hit-testing) ──────
-/** Source cloud circle base radius for the individual circles forming the cloud. */
-export const SOURCE_CLOUD_RADIUS = 16;
-/** Effective hit-test radius for source (cloud cluster extent). */
+export const SOURCE_CLOUD_RADIUS = CLOUD_RADIUS;
 export const SOURCE_HIT_RADIUS = SOURCE_CLOUD_RADIUS * 2;
-/** Stock rounded-rectangle dimensions (width × height). */
-export const STOCK_WIDTH = 120;
-export const STOCK_HEIGHT = 80;
-export const STOCK_CORNER_RADIUS = 12;
-/** Effective hit-test radius for stock (half diagonal). */
+export const STOCK_WIDTH = SHAPE_STOCK_WIDTH;
+export const STOCK_HEIGHT = SHAPE_STOCK_HEIGHT;
+export const STOCK_CORNER_RADIUS = SHAPE_STOCK_CORNER_RADIUS;
 export const STOCK_HIT_RADIUS = Math.sqrt(STOCK_WIDTH ** 2 + STOCK_HEIGHT ** 2) / 2;
-/** Sink infinity-shape bounding radius. */
-export const SINK_RADIUS = 24;
-/** Effective hit-test radius for sink. */
+export const SINK_RADIUS = SHARED_SINK_RADIUS;
 export const SINK_HIT_RADIUS = SINK_RADIUS;
 
-/** How far beyond the module edge the selection glow ring extends. */
-const SELECTION_RING_OFFSET = 6;
+export const SELECTION_RING_OFFSET = 6;
+
+// ── Story 4.6 AC1–AC4 — Warning arc constants (exported for rendering tests) ──
+/** Muted grey arc color. */
+export const WARNING_ARC_COLOR = '#6c7086';
+/** Opacity level for warning arcs (0 = fully transparent, 1 = fully opaque). */
+export const WARNING_ARC_OPACITY = 0.4;
+/** Warning arc stroke width in world-pixels. */
+export const WARNING_ARC_LINE_WIDTH = 2;
+/** Dash pattern for warning arcs [solid_len, gap_len] in world-pixels. */
+export const WARNING_ARC_DASH = [3, 3] as const;
+/** Angular sweep of each warning arc in radians (π/6 = 30°). */
+export const WARNING_ARC_SWEEP_RAD = Math.PI / 6;
+/** Arc radius in world-pixels (drawn just outside the stock edge). */
+export const WARNING_ARC_RADIUS = 10;
 
 /**
- * Return the hit-test radius for a module of the given type.
- * Used by InputManager for per-type hit detection.
+ * Story 4.6 — Pure function: compute the world-space arc center for an
+ * inflow or outflow warning arc on a stock's edge.
+ *
+ * AC1: Inflow arc on left edge midpoint, outflow arc on right edge midpoint.
+ * AC3: Arc centre offset by WARNING_ARC_RADIUS just outside the edge.
+ *
+ * @param nodePosition - Stock module world position (centre).
+ * @param side - Which side: `'inflow'` (left edge) or `'outflow'` (right edge).
+ * @returns World-space centre point for the warning arc.
  */
+export function getWarningArcCenter(
+  nodePosition: { x: number; y: number },
+  side: 'inflow' | 'outflow',
+): { x: number; y: number } {
+  const hw = STOCK_WIDTH / 2;
+  const { x, y } = nodePosition;
+  if (side === 'inflow') {
+    return { x: x - hw - WARNING_ARC_RADIUS, y };
+  }
+  return { x: x + hw + WARNING_ARC_RADIUS, y };
+}
+
+// ── Exported helpers ──────────────────────────────────────────────────
+
 export function getHitRadius(moduleType: string): number {
   switch (moduleType) {
     case 'source':
@@ -39,63 +77,100 @@ export function getHitRadius(moduleType: string): number {
   }
 }
 
-/**
- * Story 2.6 — Pure function: compute pulsing opacity values for
- * phantom stock and slot dots from elapsed time.
- *
- * @param elapsedMs  Time since pulse origin (performance.now() delta).
- * @param periodMs   Full cycle period in ms (default 2000 = 2s).
- * @returns          { phantomAlpha: [0.3, 0.6], dotAlpha: [0.4, 0.8] }
- */
+export function getModuleBoundingRadius(node: { type: string }): number {
+  switch (node.type) {
+    case 'source':
+      return SOURCE_CLOUD_RADIUS * 2 + SELECTION_RING_OFFSET;
+    case 'stock':
+      return Math.sqrt(STOCK_WIDTH ** 2 + STOCK_HEIGHT ** 2) / 2 + SELECTION_RING_OFFSET;
+    case 'sink':
+      return SINK_RADIUS + SELECTION_RING_OFFSET;
+    default:
+      return SINK_RADIUS + SELECTION_RING_OFFSET;
+  }
+}
+
+export function getEdgePoint(
+  node: { type: string; position: { x: number; y: number } },
+  towardWorld: { x: number; y: number },
+): { x: number; y: number } {
+  const cx = node.position.x;
+  const cy = node.position.y;
+  const dx = towardWorld.x - cx;
+  const dy = towardWorld.y - cy;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 1e-10) return { x: cx, y: cy - 20 };
+  const nx = dx / dist;
+  const ny = dy / dist;
+  switch (node.type) {
+    case 'source': {
+      const r = SOURCE_CLOUD_RADIUS * 1.6;
+      return { x: cx + nx * r, y: cy + ny * r };
+    }
+    case 'sink': {
+      return { x: cx + nx * SINK_RADIUS, y: cy + ny * SINK_RADIUS };
+    }
+    case 'stock': {
+      const hw = STOCK_WIDTH / 2;
+      const hh = STOCK_HEIGHT / 2;
+      const tx = nx !== 0 ? hw / Math.abs(nx) : Infinity;
+      const ty = ny !== 0 ? hh / Math.abs(ny) : Infinity;
+      const t = Math.min(tx, ty);
+      return { x: cx + nx * t, y: cy + ny * t };
+    }
+    default: {
+      return { x: cx + nx * SINK_RADIUS, y: cy + ny * SINK_RADIUS };
+    }
+  }
+}
+
+export function computeFillRatio(value: number, capacity: number): number {
+  if (!Number.isFinite(value) || !(capacity > 0)) return 0;
+  return Math.max(0, Math.min(1, value / capacity));
+}
+
 export function computePulseAlpha(
   elapsedMs: number,
   periodMs: number = 2000,
 ): { phantomAlpha: number; dotAlpha: number } {
-  const normalized = (elapsedMs % periodMs) / periodMs; // 0.0 → 1.0 cyclic
-  const radians = normalized * Math.PI * 2; // 0.0 → 2π cyclic
-  // t=0 → phantom=0.3 (min), t=half → phantom=0.6 (max)
-  // Use -cos so that at radians=0, value=-1 giving phantom=0.3
-  const wave = -Math.cos(radians); // -1.0 → 1.0, starts at -1
-
-  // phantom: 0.3 + (wave + 1) * 0.15  → range [0.3, 0.6]
-  // dot:     0.4 + (-wave + 1) * 0.2  → range [0.4, 0.8]
+  const normalized = (elapsedMs % periodMs) / periodMs;
+  const radians = normalized * Math.PI * 2;
+  const wave = -Math.cos(radians);
   const phantomAlpha = 0.3 + (wave + 1) * 0.15;
   const dotAlpha = 0.4 + (-wave + 1) * 0.2;
-
   return { phantomAlpha, dotAlpha };
 }
 
-/** Color palette — per UX-DR3 and Story 2.3 AC. */
-const SOURCE_DEFAULT_FILL = '#90EE90'; // light green
-const SINK_DEFAULT_FILL = '#8B0000'; // dark red
-const STOCK_FILL = '#ffffff'; // white body
-const STOCK_STROKE = '#000000'; // black border
-const STOCK_FILL_BLUE = '#BBDEFB'; // blue tint for value fill
-const STOCK_VALUE_TEXT = '#333333'; // dark text for stock value
-const STOCK_LABEL_TEXT = '#000000'; // black for stock label
-const MODULE_LABEL_COLOR = '#cccccc'; // label for source/sink
-const CONNECTION_COLOR = '#ff79c6';
-const CONNECTION_LINE_WIDTH = 2;
+// ── Internal colour palette constants ─────────────────────────────────
 
-/** Story 2.6 — Empty-canvas affordance constants */
+const SOURCE_DEFAULT_FILL = '#90EE90';
+const SINK_DEFAULT_FILL = '#8B0000';
+const STOCK_FILL = '#ffffff';
+const STOCK_STROKE = '#000000';
+const STOCK_FILL_BLUE = '#BBDEFB';
+const STOCK_VALUE_TEXT = '#333333';
+const STOCK_LABEL_TEXT = '#000000';
+const MODULE_LABEL_COLOR = '#cccccc';
+
 const PHANTOM_BORDER_COLOR = '#888888';
 const PHANTOM_DASH_SEGMENTS: number[] = [8, 4];
 const SLOT_DOT_RADIUS = 4;
 const SLOT_DOT_COLOR = '#aaaaaa';
 const PULSE_PERIOD_MS = 2000;
 
-/** Arrowhead dimensions — Story 2.4 AC2 */
-const ARROWHEAD_HEIGHT = 10;
-const ARROWHEAD_HALF_WIDTH = 5;
-const SELECTION_COLOR = '#f9e2af'; // warm yellow highlight
+const CONNECTION_LINE_COLOR = '#4fc3f7';
+const CONNECTION_LINE_WIDTH = 2.5;
+const CONNECTION_ARROW_COLOR = '#4fc3f7';
+const ARROWHEAD_LENGTH = 14;
+const ARROWHEAD_HALF_WIDTH = 7;
+const SNAP_ZONE_RADIUS = 14;
 
-/**
- * rAF-based render loop.
- *
- * Story 2.2 — Viewport transform + grid + placeholder module rendering.
- * Story 2.3 — Module shape renderer: source cloud, stock rounded-rect with
- *            fill level, sink infinity/funnel shape.
- */
+const SELECTION_COLOR = '#f9e2af';
+
+// ═══════════════════════════════════════════════════════════════════════
+// SceneRenderer
+// ═══════════════════════════════════════════════════════════════════════
+
 export class SceneRenderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
@@ -103,34 +178,33 @@ export class SceneRenderer {
 
   private rafId: number | null = null;
   private graphState: GraphState | null = null;
-
-  /** Story 2.6 — Timestamp captured at construction for pulse animation origin. */
   private readonly pulseStartTime: number;
 
-  /** Callback invoked each frame to pull latest GraphState. Set by main.ts. */
   public stateProvider: (() => GraphState) | null = null;
+  public ghostProvider: (() => { moduleType: ModuleType; worldPosition: Vec2 } | null) | null = null;
+  public connectionDragProvider: (() => {
+    sourceWorldPos: Vec2;
+    cursorWorldPos: Vec2;
+    snapTargetWorldPos?: { x: number; y: number };
+    snapTargetId?: string;
+  } | null) | null = null;
+  public selectedConnectionProvider: (() => string | null) | null = null;
+  public stockWarningProvider: (() => Record<
+    string,
+    { inflowMissing: boolean; outflowMissing: boolean }
+  >) | null = null;
 
-  constructor(
-    canvas: HTMLCanvasElement,
-    viewportManager: ViewportManager,
-  ) {
+  constructor(canvas: HTMLCanvasElement, viewportManager: ViewportManager) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error(
-        'SceneRenderer: Cannot acquire 2D rendering context for scene canvas.',
-      );
-    }
+    if (!ctx) throw new Error('SceneRenderer: Cannot acquire 2D rendering context for scene canvas.');
     this.ctx = ctx;
     this.viewportManager = viewportManager;
     this.pulseStartTime = performance.now();
   }
 
-  // -------------------------------------------------------------------
-  // Lifecycle
-  // -------------------------------------------------------------------
+  // ── Lifecycle ───────────────────────────────────────────────────────
 
-  /** Start the render loop. No-op if already running. */
   start(): void {
     if (this.rafId !== null) return;
     const loop = () => {
@@ -140,7 +214,6 @@ export class SceneRenderer {
     this.rafId = requestAnimationFrame(loop);
   }
 
-  /** Stop the render loop. */
   stop(): void {
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
@@ -148,157 +221,130 @@ export class SceneRenderer {
     }
   }
 
-  // -------------------------------------------------------------------
-  // Frame
-  // -------------------------------------------------------------------
+  // ── Frame ───────────────────────────────────────────────────────────
 
   private tick(): void {
-    if (this.stateProvider) {
-      this.graphState = this.stateProvider();
-    }
+    if (this.stateProvider) this.graphState = this.stateProvider();
     this.drawFrame();
   }
 
-  /**
-   * Master draw pipeline.
-   *
-   * Order: clear → applyTransform → drawEmptyCanvasAffordance →
-   *        drawGrid → drawModules → drawConnections
-   */
   private drawFrame(): void {
     const { ctx, canvas } = this;
-
     ctx.resetTransform();
     ctx.fillStyle = '#11111b';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     const canvasCenter = vec2(canvas.width / 2, canvas.height / 2);
-
     this.viewportManager.applyTransform(ctx, canvasCenter);
-
-    // Story 2.6 — Empty-canvas affordance (above background, below grid)
-    // Renders BEFORE grid per AC4 pipeline requirement.
-    // Rendering check per AC5: only when truly empty.
     this.drawEmptyCanvasAffordance();
-
     this.drawGrid();
-
     if (this.graphState) {
       this.drawModules(this.graphState);
       this.drawConnections(this.graphState);
     }
+    this.drawGhost();
+    this.drawConnectionDragPreview();
   }
 
-  // -------------------------------------------------------------------
-  // Story 2.6 — Empty-Canvas Visual Affordance
-  // -------------------------------------------------------------------
+  // ── Ghost ───────────────────────────────────────────────────────────
 
-  /**
-   * AC1–AC5, AC8: Render phantom stock with dashed border and pulsing
-   * slot dots at world-space origin (0, 0) when the canvas is empty.
-   *
-   * Uses save/restore to isolate style changes (AC8).
-   * Driven by performance.now() – one call per frame (AC2, AC7).
-   * Renders at world-space origin and moves with viewport (AC6).
-   */
+  private static readonly GHOST_ALPHA = 0.5;
+  private static readonly GHOST_PULSE_PERIOD_MS = 800;
+
+  private drawGhost(): void {
+    const ghostData = this.ghostProvider?.();
+    if (!ghostData) return;
+    const { moduleType, worldPosition } = ghostData;
+    const { ctx } = this;
+    const elapsed = performance.now() - this.pulseStartTime;
+    const pulse = Math.sin(((elapsed % SceneRenderer.GHOST_PULSE_PERIOD_MS) / SceneRenderer.GHOST_PULSE_PERIOD_MS) * Math.PI * 2);
+    const alpha = SceneRenderer.GHOST_ALPHA + pulse * 0.1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const { x, y } = worldPosition;
+    switch (moduleType) {
+      case 'source': {
+        ctx.fillStyle = SOURCE_DEFAULT_FILL;
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1.5;
+        drawCloud(ctx, x, y, CLOUD_RADIUS * 3.2);
+        break;
+      }
+      case 'stock': {
+        ctx.fillStyle = STOCK_FILL;
+        ctx.strokeStyle = STOCK_STROKE;
+        ctx.lineWidth = 2;
+        drawStockShape(ctx, x, y, STOCK_WIDTH);
+        break;
+      }
+      case 'sink': {
+        ctx.fillStyle = SINK_DEFAULT_FILL;
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1.5;
+        drawSinkShape(ctx, x, y, SINK_RADIUS * 2);
+        break;
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── Empty-Canvas Affordance ─────────────────────────────────────────
+
   private drawEmptyCanvasAffordance(): void {
     const { ctx } = this;
-
-    // AC5 — only render when empty
     if (!this.graphState) return;
     if (Object.keys(this.graphState.nodes).length > 0) return;
-
-    // AC2 — pulse animation via elapsed time
     const elapsed = performance.now() - this.pulseStartTime;
-    const { phantomAlpha, dotAlpha } = computePulseAlpha(
-      elapsed,
-      PULSE_PERIOD_MS,
-    );
-
-    // AC1 — phantom stock at world origin, centered
+    const { phantomAlpha, dotAlpha } = computePulseAlpha(elapsed, PULSE_PERIOD_MS);
     const hw = STOCK_WIDTH / 2;
     const hh = STOCK_HEIGHT / 2;
     const cx = 0;
     const cy = 0;
-
-    ctx.save(); // AC8 — isolate all style changes
-
-    // ── Phantom stock dashed border ──────────────────────
+    ctx.save();
     ctx.globalAlpha = phantomAlpha;
     ctx.strokeStyle = PHANTOM_BORDER_COLOR;
     ctx.lineWidth = 2;
     ctx.setLineDash(PHANTOM_DASH_SEGMENTS);
-
     ctx.beginPath();
     this.roundedRect(ctx, cx - hw, cy - hh, STOCK_WIDTH, STOCK_HEIGHT, STOCK_CORNER_RADIUS);
     ctx.stroke();
-
-    // Reset line dash for dots
     ctx.setLineDash([]);
-
-    // ── Slot pulse dots at edge midpoints ─────────────────
-    // AC3 — counter-phase: brighter when phantom is dimmest
     ctx.globalAlpha = dotAlpha;
     ctx.fillStyle = SLOT_DOT_COLOR;
-
-    // Top midpoint
     ctx.beginPath();
     ctx.arc(cx, cy - hh, SLOT_DOT_RADIUS, 0, Math.PI * 2);
     ctx.fill();
-
-    // Bottom midpoint
     ctx.beginPath();
     ctx.arc(cx, cy + hh, SLOT_DOT_RADIUS, 0, Math.PI * 2);
     ctx.fill();
-
-    // Left midpoint
     ctx.beginPath();
     ctx.arc(cx - hw, cy, SLOT_DOT_RADIUS, 0, Math.PI * 2);
     ctx.fill();
-
-    // Right midpoint
     ctx.beginPath();
     ctx.arc(cx + hw, cy, SLOT_DOT_RADIUS, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.restore(); // AC8 — restore all style changes
+    ctx.restore();
   }
 
-  // -------------------------------------------------------------------
-  // Grid
-  // -------------------------------------------------------------------
+  // ── Grid ────────────────────────────────────────────────────────────
 
-  /** Subtle infinite reference grid. */
   private drawGrid(): void {
     const { ctx, canvas } = this;
     const { viewport } = this.viewportManager;
     const spacing = 100;
-
     const halfW = (canvas.width / 2) / viewport.zoom;
     const halfH = (canvas.height / 2) / viewport.zoom;
     const worldLeft = viewport.offset.x - halfW;
     const worldRight = viewport.offset.x + halfW;
     const worldTop = viewport.offset.y - halfH;
     const worldBottom = viewport.offset.y + halfH;
-
     const startX = Math.floor(worldLeft / spacing) * spacing;
     const startY = Math.floor(worldTop / spacing) * spacing;
-
     ctx.strokeStyle = '#2a2a3a';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-
-    for (let x = startX; x <= worldRight; x += spacing) {
-      ctx.moveTo(x, worldTop);
-      ctx.lineTo(x, worldBottom);
-    }
-    for (let y = startY; y <= worldBottom; y += spacing) {
-      ctx.moveTo(worldLeft, y);
-      ctx.lineTo(worldRight, y);
-    }
+    for (let x = startX; x <= worldRight; x += spacing) { ctx.moveTo(x, worldTop); ctx.lineTo(x, worldBottom); }
+    for (let y = startY; y <= worldBottom; y += spacing) { ctx.moveTo(worldLeft, y); ctx.lineTo(worldRight, y); }
     ctx.stroke();
-
-    // Axis lines
     ctx.strokeStyle = '#444466';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
@@ -309,38 +355,15 @@ export class SceneRenderer {
     ctx.stroke();
   }
 
-  // -------------------------------------------------------------------
-  // Modules — Story 2.3 per-type shape rendering
-  // -------------------------------------------------------------------
-
-  /** Return the rough bounding radius of a module for selection-glow purposes. */
-  private getModuleBoundingRadius(node: { type: string }): number {
-    switch (node.type) {
-      case 'source':
-        // cloud: circle cluster ≈ height of 3 circles
-        return SOURCE_CLOUD_RADIUS * 2 + SELECTION_RING_OFFSET;
-      case 'stock':
-        // rounded-rect: half diagonal
-        return (
-          Math.sqrt(STOCK_WIDTH ** 2 + STOCK_HEIGHT ** 2) / 2 +
-          SELECTION_RING_OFFSET
-        );
-      case 'sink':
-        return SINK_RADIUS + SELECTION_RING_OFFSET;
-      default:
-        return SINK_RADIUS + SELECTION_RING_OFFSET; // fallback
-    }
-  }
+  // ── Modules ─────────────────────────────────────────────────────────
 
   private drawModules(state: GraphState): void {
     const { ctx } = this;
     const selectedIds = new Set(state.selectedModuleIds);
-
-    // ── First pass: draw selection glow ──
     for (const id of selectedIds) {
       const node = state.nodes[id];
       if (!node) continue;
-      const r = this.getModuleBoundingRadius(node);
+      const r = getModuleBoundingRadius(node);
       ctx.save();
       ctx.strokeStyle = SELECTION_COLOR;
       ctx.lineWidth = 3;
@@ -351,71 +374,42 @@ export class SceneRenderer {
       ctx.stroke();
       ctx.restore();
     }
-
-    // ── Second pass: draw each module shape ──
     for (const [_id, node] of Object.entries(state.nodes)) {
       switch (node.type) {
-        case 'source':
-          this.drawSource(node as SourceNode);
-          break;
-        case 'stock':
-          this.drawStock(node as StockNode);
-          break;
-        case 'sink':
-          this.drawSink(node as SinkNode);
-          break;
-        default:
-          this.drawFallback(node.position.x, node.position.y);
+        case 'source': this.drawSource(node as SourceNode); break;
+        case 'stock': this.drawStock(node as StockNode); break;
+        case 'sink': this.drawSink(node as SinkNode); break;
+        default: this.drawFallback(node.position.x, node.position.y);
       }
-
-      // Module label (below shape)
       if (node.label) {
         ctx.fillStyle = node.type === 'stock' ? STOCK_LABEL_TEXT : MODULE_LABEL_COLOR;
         ctx.font = '12px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        const labelY =
-          node.position.y + this.getModuleBoundingRadius(node) + 4;
-        ctx.fillText(node.label, node.position.x, labelY);
+        ctx.fillText(node.label, node.position.x, node.position.y + getModuleBoundingRadius(node) + 4);
       }
     }
+    this.drawWarningArcs(state);
   }
-
-  // ── Source: cloud shape (overlapping circles) ─────────────────────
 
   private drawSource(node: SourceNode): void {
     const { ctx } = this;
+    ctx.save();
     const { x, y } = node.position;
     const fillColor = node.color ?? SOURCE_DEFAULT_FILL;
     const r = SOURCE_CLOUD_RADIUS;
-    const offsets: Vec2[] = [
-      vec2(-r * 0.7, 0),
-      vec2(r * 0.7, 0),
-      vec2(0, -r * 0.5),
-      vec2(-r * 0.5, -r * 0.5),
-      vec2(r * 0.5, -r * 0.5),
-    ];
-
+    const offsets: Vec2[] = [vec2(-r * 0.7, 0), vec2(r * 0.7, 0), vec2(0, -r * 0.5), vec2(-r * 0.5, -r * 0.5), vec2(r * 0.5, -r * 0.5)];
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = 'rgba(0,0,0,0.3)';
     ctx.lineWidth = 1.5;
-
-    for (const off of offsets) {
-      ctx.beginPath();
-      ctx.arc(x + off.x, y + off.y, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    // Type label
+    for (const off of offsets) { ctx.beginPath(); ctx.arc(x + off.x, y + off.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
     ctx.fillStyle = MODULE_LABEL_COLOR;
     ctx.font = '10px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText('source', x, y + r * 2 + 2);
+    ctx.restore();
   }
-
-  // ── Stock: rounded rectangle with fill level ──────────────────────
 
   private drawStock(node: StockNode): void {
     const { ctx } = this;
@@ -423,8 +417,6 @@ export class SceneRenderer {
     const hw = STOCK_WIDTH / 2;
     const hh = STOCK_HEIGHT / 2;
     const cr = STOCK_CORNER_RADIUS;
-
-    // White body
     ctx.fillStyle = STOCK_FILL;
     ctx.strokeStyle = STOCK_STROKE;
     ctx.lineWidth = 2;
@@ -432,41 +424,26 @@ export class SceneRenderer {
     this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
     ctx.fill();
     ctx.stroke();
-
-    // Blue fill from bottom proportional to value/capacity
-    const ratio =
-      node.capacity > 0
-        ? Math.max(0, Math.min(1, node.value / node.capacity))
-        : 0;
+    const ratio = computeFillRatio(node.value, node.capacity);
     if (ratio > 0) {
       ctx.save();
       ctx.beginPath();
       this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
       ctx.clip();
-
       const fillHeight = STOCK_HEIGHT * ratio;
       ctx.fillStyle = STOCK_FILL_BLUE;
       ctx.fillRect(x - hw, y + hh - fillHeight, STOCK_WIDTH, fillHeight);
       ctx.restore();
-
-      // Re-draw border over fill so it stays crisp
       ctx.beginPath();
       this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
       ctx.stroke();
     }
-
-    // Value text centered
     ctx.fillStyle = STOCK_VALUE_TEXT;
     ctx.font = 'bold 14px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const valueStr =
-      node.value === Math.floor(node.value)
-        ? String(node.value)
-        : node.value.toFixed(1);
+    const valueStr = node.value === Math.floor(node.value) ? String(node.value) : node.value.toFixed(1);
     ctx.fillText(valueStr, x, y);
-
-    // Type label below
     ctx.fillStyle = STOCK_LABEL_TEXT;
     ctx.font = '10px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -474,33 +451,23 @@ export class SceneRenderer {
     ctx.fillText('stock', x, y + hh + 4);
   }
 
-  // ── Sink: infinity (∞) shape approximated by two circles + waist ──
-
   private drawSink(node: SinkNode): void {
     const { ctx } = this;
+    ctx.save();
     const { x, y } = node.position;
     const fillColor = node.color ?? SINK_DEFAULT_FILL;
     const r = SINK_RADIUS;
-
-    // Draw as a stylized funnel / infinity shape:
-    // two overlapping circles with a connecting waist line
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = 'rgba(0,0,0,0.3)';
     ctx.lineWidth = 1.5;
-
-    // Left circle
     ctx.beginPath();
     ctx.arc(x - r * 0.55, y, r * 0.75, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    // Right circle
     ctx.beginPath();
     ctx.arc(x + r * 0.55, y, r * 0.75, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    // Waist connector lines (top and bottom)
     ctx.strokeStyle = 'rgba(0,0,0,0.4)';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -509,16 +476,13 @@ export class SceneRenderer {
     ctx.moveTo(x - r * 0.05, y + r * 0.45);
     ctx.lineTo(x + r * 0.05, y + r * 0.45);
     ctx.stroke();
-
-    // Type label
     ctx.fillStyle = MODULE_LABEL_COLOR;
     ctx.font = '10px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText('sink', x, y + r + 4);
+    ctx.restore();
   }
-
-  // ── Fallback for unknown types ────────────────────────────────────
 
   private drawFallback(x: number, y: number): void {
     const { ctx } = this;
@@ -531,15 +495,8 @@ export class SceneRenderer {
     ctx.stroke();
   }
 
-  /** Helper: draw a rounded rectangle path. */
-  private roundedRect(
-    ctx: CanvasRenderingContext2D,
-    left: number,
-    top: number,
-    w: number,
-    h: number,
-    r: number,
-  ): void {
+  private roundedRect(ctx: CanvasRenderingContext2D, left: number, top: number, w: number, h: number, r: number): void {
+    if (w <= 0 || h <= 0) return;
     ctx.moveTo(left + r, top);
     ctx.lineTo(left + w - r, top);
     ctx.arcTo(left + w, top, left + w, top + r, r);
@@ -552,121 +509,167 @@ export class SceneRenderer {
     ctx.closePath();
   }
 
-  // Connections — Story 2.4 edge-clipped lines + directional arrowheads
-  // -------------------------------------------------------------------
+  // ── Connections ─────────────────────────────────────────────────────
 
-  /**
-   * Draw lines between connected modules with edge-clipped endpoints and
-   * directional arrowheads.  The line is clipped to each module's bounding
-   * radius (center→center direction vector), and the arrowhead at the
-   * destination edge points in the flow direction (fromId → toId).
-   *
-   * AC 1–6: clipped lines, arrowheads, direction, viewport-transform,
-   *         live update on module reposition.
-   */
   private drawConnections(state: GraphState): void {
     const { ctx } = this;
+    const connections = Object.values(state.connections);
+    if (connections.length === 0) return;
+    const selectedId = this.selectedConnectionProvider?.() ?? null;
     ctx.save();
-
-    for (const [_id, conn] of Object.entries(state.connections)) {
+    if (selectedId) {
+      const selectedConn = state.connections[selectedId];
+      if (selectedConn) {
+        const fromNode = state.nodes[selectedConn.fromId];
+        const toNode = state.nodes[selectedConn.toId];
+        if (fromNode && toNode) {
+          const fromEdge = getEdgePoint(fromNode, toNode.position);
+          const toEdge = getEdgePoint(toNode, fromNode.position);
+          if (!(fromEdge.x === toEdge.x && fromEdge.y === toEdge.y)) {
+            ctx.strokeStyle = SELECTION_COLOR;
+            ctx.lineWidth = CONNECTION_LINE_WIDTH + 6;
+            ctx.globalAlpha = 0.5;
+            ctx.shadowColor = SELECTION_COLOR;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.moveTo(fromEdge.x, fromEdge.y);
+            ctx.lineTo(toEdge.x, toEdge.y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    for (const conn of connections) {
       const fromNode = state.nodes[conn.fromId];
       const toNode = state.nodes[conn.toId];
       if (!fromNode || !toNode) continue;
-
-      const dx = toNode.position.x - fromNode.position.x;
-      const dy = toNode.position.y - fromNode.position.y;
-      const dist = Math.hypot(dx, dy);
-
-      // Overlapping modules — skip rendering (AC 4 edge-case)
-      if (dist < 0.001) continue;
-
-      const udx = dx / dist;
-      const udy = dy / dist;
-
-      const fromRadius = getModuleBoundingRadiusForConnection(fromNode, udx, udy);
-      const toRadius = getModuleBoundingRadiusForConnection(toNode, udx, udy);
-
-      const startX = fromNode.position.x + udx * fromRadius;
-      const startY = fromNode.position.y + udy * fromRadius;
-      const endX = toNode.position.x - udx * toRadius;
-      const endY = toNode.position.y - udy * toRadius;
-
-      // Draw clipped line
-      ctx.strokeStyle = CONNECTION_COLOR;
-      ctx.lineWidth = CONNECTION_LINE_WIDTH;
+      const fromEdge = getEdgePoint(fromNode, toNode.position);
+      const toEdge = getEdgePoint(toNode, fromNode.position);
+      if (fromEdge.x === toEdge.x && fromEdge.y === toEdge.y) continue;
+      const isSelected = conn.id === selectedId;
+      const lineColor = isSelected ? SELECTION_COLOR : CONNECTION_LINE_COLOR;
+      const lineWidth = isSelected ? CONNECTION_LINE_WIDTH + 2 : CONNECTION_LINE_WIDTH;
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = lineWidth;
       ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, endY);
+      ctx.moveTo(fromEdge.x, fromEdge.y);
+      ctx.lineTo(toEdge.x, toEdge.y);
       ctx.stroke();
-
-      // Draw directional arrowhead at destination edge
-      const angle = Math.atan2(dy, dx);
-      this.drawArrowhead(endX, endY, angle);
+      const arrowColor = isSelected ? SELECTION_COLOR : CONNECTION_ARROW_COLOR;
+      this.drawArrowhead(ctx, fromEdge.x, fromEdge.y, toEdge.x, toEdge.y, arrowColor);
+      const midX = (fromEdge.x + toEdge.x) / 2;
+      const midY = (fromEdge.y + toEdge.y) / 2;
+      ctx.fillStyle = isSelected ? SELECTION_COLOR : '#c0c0c0';
+      ctx.font = '11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`${conn.rate}x`, midX, midY - 4);
     }
-
     ctx.restore();
   }
+
+  private drawConnectionDragPreview(): void {
+    const preview = this.connectionDragProvider?.();
+    if (!preview) return;
+    const { ctx } = this;
+    const snapped = !!(preview.snapTargetId && preview.snapTargetWorldPos);
+    const endX = snapped ? preview.snapTargetWorldPos!.x : preview.cursorWorldPos.x;
+    const endY = snapped ? preview.snapTargetWorldPos!.y : preview.cursorWorldPos.y;
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = CONNECTION_LINE_COLOR;
+    ctx.lineWidth = CONNECTION_LINE_WIDTH * 0.8;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(preview.sourceWorldPos.x, preview.sourceWorldPos.y);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (snapped) {
+      ctx.strokeStyle = 'rgba(79, 195, 247, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = CONNECTION_LINE_COLOR;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(endX, endY, 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    ctx.strokeStyle = 'rgba(79, 195, 247, 0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(endX, endY, SNAP_ZONE_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Story 4.6 — Warning Arcs ────────────────────────────────────────
 
   /**
-   * Draw a filled triangular arrowhead.
+   * Story 4.6 — Iterate over stock nodes and draw warning arcs for
+   * edges with missing inflow/outflow connections.
    *
-   * @param tipX  Arrow tip x-coordinate (world space)
-   * @param tipY  Arrow tip y-coordinate (world space)
-   * @param angle Direction the arrow is pointing (radians, from positive x-axis)
+   * AC1: Arc drawn at edge midpoint when inflow/outflow is missing.
+   * AC2: Muted grey (#6c7086) dashed [3,3] 2px line at 40% opacity.
+   * AC3: 30° arc drawn just outside the stock's bounding rectangle.
+   * AC4: Arc disappears once the missing connection is added.
    */
-  private drawArrowhead(tipX: number, tipY: number, angle: number): void {
+  private drawWarningArcs(state: GraphState): void {
+    const warnings = this.stockWarningProvider?.();
+    if (!warnings) return;
     const { ctx } = this;
-    ctx.save();
+    for (const [stockId, w] of Object.entries(warnings)) {
+      if (!w.inflowMissing && !w.outflowMissing) continue;
+      const node = state.nodes[stockId];
+      if (!node || node.type !== 'stock') continue;
+      const sweep = WARNING_ARC_SWEEP_RAD;
+      ctx.save();
+      ctx.globalAlpha = WARNING_ARC_OPACITY;
+      ctx.strokeStyle = WARNING_ARC_COLOR;
+      ctx.lineWidth = WARNING_ARC_LINE_WIDTH;
+      ctx.setLineDash(WARNING_ARC_DASH);
+      if (w.inflowMissing) {
+        const pos = getWarningArcCenter(node.position, 'inflow');
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, WARNING_ARC_RADIUS, Math.PI - sweep / 2, Math.PI + sweep / 2);
+        ctx.stroke();
+      }
+      if (w.outflowMissing) {
+        const pos = getWarningArcCenter(node.position, 'outflow');
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, WARNING_ARC_RADIUS, -sweep / 2, sweep / 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
 
-    const baseX = tipX - Math.cos(angle) * ARROWHEAD_HEIGHT;
-    const baseY = tipY - Math.sin(angle) * ARROWHEAD_HEIGHT;
+  // ── Arrowhead ───────────────────────────────────────────────────────
 
-    const perpX = Math.cos(angle + Math.PI / 2) * ARROWHEAD_HALF_WIDTH;
-    const perpY = Math.sin(angle + Math.PI / 2) * ARROWHEAD_HALF_WIDTH;
-
-    ctx.fillStyle = CONNECTION_COLOR;
+  private drawArrowhead(ctx: CanvasRenderingContext2D, fromX: number, fromY: number, toX: number, toY: number, fillColor?: string): void {
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (!Number.isFinite(len) || len < 1) return;
+    const ux = dx / len;
+    const uy = dy / len;
+    const tipX = toX;
+    const tipY = toY;
+    const leftX = tipX - ux * ARROWHEAD_LENGTH + uy * ARROWHEAD_HALF_WIDTH;
+    const leftY = tipY - uy * ARROWHEAD_LENGTH - ux * ARROWHEAD_HALF_WIDTH;
+    const rightX = tipX - ux * ARROWHEAD_LENGTH - uy * ARROWHEAD_HALF_WIDTH;
+    const rightY = tipY - uy * ARROWHEAD_LENGTH + ux * ARROWHEAD_HALF_WIDTH;
+    ctx.fillStyle = fillColor ?? CONNECTION_ARROW_COLOR;
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
-    ctx.lineTo(baseX + perpX, baseY + perpY);
-    ctx.lineTo(baseX - perpX, baseY - perpY);
+    ctx.lineTo(leftX, leftY);
+    ctx.lineTo(rightX, rightY);
     ctx.closePath();
     ctx.fill();
-
-    ctx.restore();
-  }
-}
-
-// ── Pure helper (exported for testing) ────────────────────────────
-
-/**
- * Return the bounding radius used for edge-clipping connection lines.
- * For rectangular modules (stock), computes the actual distance from
- * center to the rectangle boundary along the given direction, so
- * connections meet the visual edge rather than floating at the
- * half-diagonal circle.
- *
- * @param node  The module node (must have `type` property).
- * @param udx   Unit direction x-component (from→to).
- * @param udy   Unit direction y-component (from→to).
- */
-export function getModuleBoundingRadiusForConnection(
-  node: { type: string },
-  udx: number,
-  udy: number,
-): number {
-  switch (node.type) {
-    case 'source':
-      return SOURCE_CLOUD_RADIUS * 2;
-    case 'stock': {
-      const hw = STOCK_WIDTH / 2;   // half-width
-      const hh = STOCK_HEIGHT / 2;  // half-height
-      const tx = Math.abs(udx) > 1e-6 ? hw / Math.abs(udx) : Infinity;
-      const ty = Math.abs(udy) > 1e-6 ? hh / Math.abs(udy) : Infinity;
-      return Math.min(tx, ty);
-    }
-    case 'sink':
-      return SINK_RADIUS;
-    default:
-      return SINK_RADIUS;
   }
 }

@@ -20,6 +20,7 @@ function bump(state: GraphState): GraphState {
     connections: state.connections,
     version: state.version + 1,
     selectedModuleIds: state.selectedModuleIds,
+    selectedConnectionIds: state.selectedConnectionIds,
   };
 }
 
@@ -30,6 +31,7 @@ function unchanged(state: GraphState): GraphState {
     connections: state.connections,
     version: state.version,
     selectedModuleIds: state.selectedModuleIds,
+    selectedConnectionIds: state.selectedConnectionIds,
   };
 }
 
@@ -45,7 +47,7 @@ function unchanged(state: GraphState): GraphState {
  *
  * **Defaults by type:**
  *   - `stock`: `value: 0`, `capacity: Infinity`, `initialValue: 0`
- *   - `source`: no `color` property — the placement layer assigns color
+ *   - `source`: no `color` property — the placement layer assigns color via palette cycling
  *   - `sink`:   no `color` property — same reasoning
  */
 export function addModule(
@@ -72,14 +74,14 @@ export function addModule(
         id,
         type: 'source',
         position,
-      } satisfies SourceNode;
+      } satisfies SourceNode as SourceNode;
       break;
     case 'sink':
       node = {
         id,
         type: 'sink',
         position,
-      } satisfies SinkNode;
+      } satisfies SinkNode as SinkNode;
       break;
   }
 

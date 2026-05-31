@@ -31,6 +31,8 @@ export interface ModuleNode {
   position: Vec2;
   /** Optional user-facing label. */
   label?: string;
+  /** Optional semantic color (e.g. '#90EE90' for source, '#8B0000' for sink). */
+  color?: string;
 }
 
 /**
@@ -150,4 +152,11 @@ export interface GraphState {
    * require separate selection-restoration logic.
    */
   selectedModuleIds: string[];
+  /**
+   * Story 3.7 — Currently selected connection ids.
+   *
+   * Stored in GraphState so undo/redo automatically restore connection
+   * selection state alongside module selection.
+   */
+  selectedConnectionIds: string[];
 }

@@ -7,7 +7,7 @@
  *  - Conditional rendering based on node count
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // ── Import pure function ── (will be exported from SceneRenderer.ts)
 import { computePulseAlpha } from './SceneRenderer.js';

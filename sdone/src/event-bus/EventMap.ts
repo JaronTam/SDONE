@@ -12,7 +12,7 @@ export interface EventMap {
   MODULE_PLACED: { type: ModuleType; position: Vec2 };
   DRAG_START: { moduleId: string; position: Vec2 };
   DRAG_END: { moduleId: string; fromPosition: Vec2; toPosition: Vec2 };
-  CONNECTION_DELETE: { connectionId: string };
+  CONNECTION_DELETED: { connectionId: string };
 
   // ── UI → Canvas: Control Commands ──────────────────────────
   RUN: undefined;
@@ -26,8 +26,19 @@ export interface EventMap {
 
   // ── Canvas → UI: Selection State ───────────────────────────
   MODULE_SELECTED: { moduleId: string | null };
+  MODULE_DELETED: { moduleId: string };
   HOVER_CHANGED: { moduleId: string | null; connectionId: string | null };
 
   // ── Canvas → UI: Achievements ──────────────────────────────
   ACHIEVEMENT_UNLOCKED: { achievementId: string; message: string };
+
+  // ── Canvas: Module Drag-Move ────────────────────────────────
+  MODULE_MOVED: { type: string; moduleId: string; from: Vec2; to: Vec2 };
+
+  // ── Canvas: Connections ────────────────────────────────────
+  CONNECTION_CREATED: { connectionId: string; fromId: string; toId: string; rate: number };
+
+  // ── Canvas: Undo/Redo ───────────────────────────────────────
+  UNDO: { fromState: GraphState; toState: GraphState };
+  REDO: { fromState: GraphState; toState: GraphState };
 }

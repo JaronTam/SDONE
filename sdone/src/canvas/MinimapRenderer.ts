@@ -1,5 +1,6 @@
-import type { ModuleNode } from '../state/GraphState.js';
+import type { Connection, ModuleNode, ModuleType } from '../state/GraphState.js';
 import type { ViewportManager } from './Viewport.js';
+import type { Vec2 } from '../shared/Vec2.js';
 
 // ── Minimap constants ──────────────────────────────────────────────────
 const MINIMAP_WIDTH = 200;
@@ -35,6 +36,7 @@ const DOT_FALLBACK_BORDER = '#666666';
  * scene (AC 3 — Idle rendering).
  *
  * Story 2.5 — Minimap: Scaled Scene Overview
+ * Story 3.2 — Ghost preview + connections list support.
  */
 export class MinimapRenderer {
   private readonly minimapCanvas: HTMLCanvasElement;
@@ -45,15 +47,23 @@ export class MinimapRenderer {
   /** Callback that returns live module map. Set by main.ts after construction. */
   public nodesProvider: (() => Record<string, ModuleNode>) | null = null;
 
+  /** Story 3.2 — Connections provider for minimap rendering. */
+  public connectionsProvider: (() => Connection[]) | null = null;
+
+  /** Story 3.2 — Ghost preview provider for drag-and-drop preview. */
+  public ghostProvider: (() => { moduleType: ModuleType; worldPosition: Vec2 } | null) | null = null;
+
   private rafId: number | null = null;
   private stopped = false;
   private lastVpHash = '';
   private lastNodesHash = '';
+  private lastGhostHash = '';
 
   /** External consumers call this when modules change. */
   public markDirty(): void {
     this.lastVpHash = '';   // force next loop to repaint
     this.lastNodesHash = '';
+    this.lastGhostHash = '';
   }
 
   constructor(
@@ -98,6 +108,8 @@ export class MinimapRenderer {
   destroy(): void {
     this.stop();
     this.nodesProvider = null;
+    this.connectionsProvider = null;
+    this.ghostProvider = null;
   }
 
   // --------------------------------------------------------------------
@@ -111,10 +123,14 @@ export class MinimapRenderer {
     const nodes = this.nodesProvider ? this.nodesProvider() : {};
     const nodesHash = this.computeNodesHash(nodes);
 
-    if (vpHash !== this.lastVpHash || nodesHash !== this.lastNodesHash) {
+    const ghost = this.ghostProvider ? this.ghostProvider() : null;
+    const ghostHash = ghost ? `${ghost.moduleType}:${ghost.worldPosition.x}:${ghost.worldPosition.y}` : '';
+
+    if (vpHash !== this.lastVpHash || nodesHash !== this.lastNodesHash || ghostHash !== this.lastGhostHash) {
       this.lastVpHash = vpHash;
       this.lastNodesHash = nodesHash;
-      this.paint(nodes);
+      this.lastGhostHash = ghostHash;
+      this.paint(nodes, ghost);
     }
 
     if (!this.stopped) {
@@ -144,7 +160,7 @@ export class MinimapRenderer {
   // Paint — AC 1, 2, 5
   // --------------------------------------------------------------------
 
-  private paint(nodes: Record<string, ModuleNode>): void {
+  private paint(nodes: Record<string, ModuleNode>, ghost: { moduleType: string; worldPosition: Vec2 } | null): void {
     const { ctx } = this;
     const w = this.minimapCanvas.width;
     const h = this.minimapCanvas.height;
@@ -160,6 +176,14 @@ export class MinimapRenderer {
     const moduleList = Object.values(nodes);
     let minX = Infinity, maxX = -Infinity;
     let minY = Infinity, maxY = -Infinity;
+
+    // Include ghost in world bounds if present
+    if (ghost) {
+      if (ghost.worldPosition.x < minX) minX = ghost.worldPosition.x;
+      if (ghost.worldPosition.x > maxX) maxX = ghost.worldPosition.x;
+      if (ghost.worldPosition.y < minY) minY = ghost.worldPosition.y;
+      if (ghost.worldPosition.y > maxY) maxY = ghost.worldPosition.y;
+    }
 
     if (moduleList.length > 0) {
       for (const node of moduleList) {
@@ -184,12 +208,18 @@ export class MinimapRenderer {
         minY -= MIN_WORLD_RANGE / 2;
         maxY += MIN_WORLD_RANGE / 2;
       }
-    } else {
+    } else if (!ghost) {
       // Zero modules — default range (AC 7 edge case)
       minX = -200;
       maxX = 200;
       minY = -200;
       maxY = 200;
+    } else {
+      // Only ghost present — center on ghost
+      minX = ghost.worldPosition.x - MIN_WORLD_RANGE / 2;
+      maxX = ghost.worldPosition.x + MIN_WORLD_RANGE / 2;
+      minY = ghost.worldPosition.y - MIN_WORLD_RANGE / 2;
+      maxY = ghost.worldPosition.y + MIN_WORLD_RANGE / 2;
     }
 
     // ── Uniform scale (AC 5 — no distortion) ──
@@ -232,6 +262,28 @@ export class MinimapRenderer {
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = 0.5;
       ctx.stroke();
+    }
+
+    // ── Story 3.2: Draw ghost preview dot (semi-transparent pulsing) ──
+    if (ghost) {
+      const gp = worldToMinimap(ghost.worldPosition.x, ghost.worldPosition.y);
+      const ghostFillColor = this.getGhostDotColor(ghost.moduleType);
+
+      ctx.fillStyle = ghostFillColor;
+      ctx.globalAlpha = 0.5;
+      ctx.beginPath();
+      ctx.arc(gp.x, gp.y, MODULE_DOT_RADIUS + 1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Thin dashed ring for extra visibility
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.arc(gp.x, gp.y, MODULE_DOT_RADIUS + 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     // ── Draw viewport rectangle (AC 2) ──
@@ -284,5 +336,18 @@ export class MinimapRenderer {
 
   private getDotBorderColor(node: ModuleNode): string {
     return DOT_BORDER_COLORS[node.type] ?? DOT_FALLBACK_BORDER;
+  }
+
+  private getGhostDotColor(moduleType: string): string {
+    switch (moduleType) {
+      case 'source':
+        return SOURCE_COLOR;
+      case 'stock':
+        return STOCK_COLOR;
+      case 'sink':
+        return SINK_COLOR;
+      default:
+        return FALLBACK_COLOR;
+    }
   }
 }

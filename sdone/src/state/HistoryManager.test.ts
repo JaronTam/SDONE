@@ -43,6 +43,7 @@ function makeGraphState(overrides: Partial<GraphState> = {}): GraphState {
     },
     version: 1,
     selectedModuleIds: [],
+    selectedConnectionIds: [],
     ...overrides,
   };
 }
@@ -432,6 +433,7 @@ describe('HistoryManager', () => {
         connections: {},
         version: 0,
         selectedModuleIds: [],
+        selectedConnectionIds: [],
       };
 
       hm.push(empty);

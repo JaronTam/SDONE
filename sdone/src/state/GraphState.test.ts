@@ -149,6 +149,7 @@ describe('GraphState', () => {
       connections: {},
       version: 0,
       selectedModuleIds: [],
+      selectedConnectionIds: [],
     };
     expect(typeof state.version).toBe('number');
     expect(state.version).toBe(0);
@@ -169,6 +170,7 @@ describe('GraphState', () => {
       connections: {},
       version: 1,
       selectedModuleIds: ['a', 'b'],
+      selectedConnectionIds: [],
     };
     expect(Array.isArray(state.selectedModuleIds)).toBe(true);
     expect(state.selectedModuleIds).toEqual(['a', 'b']);
@@ -198,6 +200,7 @@ describe('Serialization round-trip', () => {
       connections,
       version: 7,
       selectedModuleIds: ['src', 'stk'],
+      selectedConnectionIds: [],
     };
 
     const json = JSON.stringify(original);
@@ -245,6 +248,7 @@ describe('Serialization round-trip', () => {
       connections: {},
       version: 0,
       selectedModuleIds: [],
+      selectedConnectionIds: [],
     };
     const json = JSON.stringify(empty);
     const restored: GraphState = JSON.parse(json);
