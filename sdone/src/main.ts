@@ -11,7 +11,7 @@
 import './ui/styles/layout.css';
 import './ui/panels/styles/module-panel.css';
 import './ui/panels/styles/rate-editor-panel.css';
-import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint } from './canvas/index.js';
+import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine } from './canvas/index.js';
 import { ModulePanel, RateEditorPanel } from './ui/panels/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
@@ -25,6 +25,8 @@ import { SimulationEngine, FormulaEngine, getAllEdgeWarnings } from './simulatio
 const historyManager = new HistoryManager();
 const eventBus = new EventBus();
 const simEngine = new SimulationEngine();
+// ── Story 5.1: Particle Engine ──────────────────────────────────────────
+const particleEngine = new ParticleEngine();
 
 // ── Story 4.4: Formula Engine ──────────────────────────────────────────
 simEngine.formulaEngine = new FormulaEngine();
@@ -438,6 +440,7 @@ eventBus.on('RESET', () => {
   historyManager.clear();
   historyManager.push(currentState);
   minimapRenderer.markDirty();
+  particleEngine.reset(); // Story 5.1 AC6: clear particles on RESET
   updateRunButton(); // reset → idle, button shows "▶ Run"
 });
 
@@ -478,6 +481,8 @@ void import.meta.hot?.dispose(() => {
   sceneRenderer.stop();
   // Story 4.6: Clean up stock warning provider (follows provider dereference pattern)
   sceneRenderer.stockWarningProvider = null;
+  sceneRenderer.onPreFrame = null;
+  sceneRenderer.particleStateProvider = null;
   minimapRenderer.destroy();
   inputManager.destroy();
   modulePanel.destroy();
@@ -598,6 +603,12 @@ sceneRenderer.selectedConnectionProvider = () => currentState.selectedConnection
 
 // Story 4.6: Stock edge-warning provider for SceneRenderer warning arcs
 sceneRenderer.stockWarningProvider = () => getAllEdgeWarnings(currentState);
+
+// ── Story 5.1 — Particle providers wired at composition root ────────────
+sceneRenderer.onPreFrame = (dt: number) => {
+  particleEngine.update(dt, currentState.connections, currentState.nodes, simEngine.state);
+};
+sceneRenderer.particleStateProvider = () => particleEngine.getState();
 
 // Ghost provider: expose InputManager ghost state to renderers
 sceneRenderer.ghostProvider = () => {

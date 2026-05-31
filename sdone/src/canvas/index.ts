@@ -12,3 +12,4 @@ export {
   WARNING_ARC_RADIUS,
 } from './SceneRenderer.js';
 export { MinimapRenderer } from './MinimapRenderer.js';
+export { ParticleEngine, type ParticleState } from './ParticleEngine.js';

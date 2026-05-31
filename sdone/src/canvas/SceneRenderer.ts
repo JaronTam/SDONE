@@ -167,6 +167,12 @@ const SNAP_ZONE_RADIUS = 14;
 
 const SELECTION_COLOR = '#f9e2af';
 
+// ── Story 5.1 — Particle rendering constants ──────────────────────────
+/** Warm amber glow colour for particles. */
+const PARTICLE_COLOR = '#ffb74d';
+/** Radius of each particle dot in world-pixels. */
+const PARTICLE_RADIUS = 4;
+
 // ═══════════════════════════════════════════════════════════════════════
 // SceneRenderer
 // ═══════════════════════════════════════════════════════════════════════
@@ -193,6 +199,11 @@ export class SceneRenderer {
     string,
     { inflowMissing: boolean; outflowMissing: boolean }
   >) | null = null;
+
+  // ── Story 5.1 — Particle providers ──────────────────────────────────
+  /** Called before each frame render; receives dt in seconds since last frame. */
+  public onPreFrame: ((dt: number) => void) | null = null;
+  public particleStateProvider: (() => import('./ParticleEngine.js').ParticleState | null) | null = null;
 
   constructor(canvas: HTMLCanvasElement, viewportManager: ViewportManager) {
     this.canvas = canvas;
@@ -223,7 +234,15 @@ export class SceneRenderer {
 
   // ── Frame ───────────────────────────────────────────────────────────
 
+  private lastFrameTime: number = 0;
+
   private tick(): void {
+    const now = performance.now();
+    const rawDt = this.lastFrameTime > 0 ? (now - this.lastFrameTime) / 1000 : 1 / 60;
+    this.lastFrameTime = now;
+    // Clamp dt to avoid spiral of death (e.g. tab was backgrounded) and guard against negative values
+    const clampedDt = Math.min(Math.max(0, rawDt), 0.1);
+    if (this.onPreFrame) this.onPreFrame(clampedDt);
     if (this.stateProvider) this.graphState = this.stateProvider();
     this.drawFrame();
   }
@@ -243,6 +262,7 @@ export class SceneRenderer {
     }
     this.drawGhost();
     this.drawConnectionDragPreview();
+    this.drawParticles();
   }
 
   // ── Ghost ───────────────────────────────────────────────────────────
@@ -647,6 +667,49 @@ export class SceneRenderer {
       }
       ctx.restore();
     }
+  }
+
+  // ── Story 5.1 — Particles ───────────────────────────────────────────
+
+  /**
+   * Draw all particles on their respective connection paths.
+   *
+   * AC1: Particles are small amber dots (#ffb74d) moving from source to
+   *   destination along the connection line.
+   * AC2: Particle speed is proportional to connection rate.
+   * AC3: Zero-rate connections show no particles.
+   * AC4: Paused state freezes particles in place.
+   * AC5: Particles have a lifespan; they fade in at spawn and disappear
+   *   at arrival.
+   */
+  private drawParticles(): void {
+    const particleState = this.particleStateProvider?.();
+    if (!particleState) return;
+    if (!this.graphState) return;
+    const { ctx } = this;
+    ctx.save();
+    for (const [connId, particles] of particleState.particlesByConnection) {
+      if (particles.length === 0) continue;
+      const conn = this.graphState.connections[connId];
+      if (!conn) continue;
+      const fromNode = this.graphState.nodes[conn.fromId];
+      const toNode = this.graphState.nodes[conn.toId];
+      if (!fromNode || !toNode) continue;
+      const fromEdge = getEdgePoint(fromNode, toNode.position);
+      const toEdge = getEdgePoint(toNode, fromNode.position);
+      if (fromEdge.x === toEdge.x && fromEdge.y === toEdge.y) continue;
+      for (const p of particles) {
+        // Linear interpolation along connection path
+        const x = fromEdge.x + (toEdge.x - fromEdge.x) * p.t;
+        const y = fromEdge.y + (toEdge.y - fromEdge.y) * p.t;
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = PARTICLE_COLOR;
+        ctx.beginPath();
+        ctx.arc(x, y, PARTICLE_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   // ── Arrowhead ───────────────────────────────────────────────────────

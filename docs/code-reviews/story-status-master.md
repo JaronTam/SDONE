@@ -1,7 +1,7 @@
 # SDONE 故事状态总览
 
-**最后更新：** 2026-05-31 03:52
-**更新原因：** Story 4.6 实现完成 — 存量边缘连接警告弧线渲染（454 测试 / 21 文件 / Epic 4 完成）
+**最后更新：** 2026-05-31 11:58
+**更新原因：** Story 5.1 实现完成 — 粒子引擎（468 测试 / 22 文件 / Epic 5 开始）
 
 ---
 
@@ -13,7 +13,7 @@
 | Epic 2 — Canvas & Viewport | ✅ 完成 | 3 (2.1–2.3) | 全部审查 |
 | Epic 3 — Interactions & DnD | ✅ 完成 | 7 (3.1–3.7) | 6 个审查报告 + 4 个深度审计 |
 | Epic 4 — Simulation & Formula | ✅ 完成 | 6 (4.1–4.6) | 3 个深度审计报告 |
-| Epic 5 — Particles & Visual Feedback | 🔜 待开始 | 2+ | 未开始 |
+| Epic 5 — Particles & Visual Feedback | 🚧 进行中 | 2+ | 1/2+（Story 5.1 review） |
 | Epic 6 — Countdown & Grouping | 🔜 待开始 | 2+ | 未开始 |
 
 ---
@@ -136,9 +136,9 @@
 
 | 指标 | 数值 |
 |------|------|
-| 测试文件数 | 21 |
-| 测试总数 | **454** |
-| 通过 | **454** |
+| 测试文件数 | 22 |
+| 测试总数 | **468** |
+| 通过 | **468** |
 | 失败 | 0 |
 | `npx tsc --noEmit` | **0 错误** |
 | 已实现故事数 | ≥18 |
@@ -154,7 +154,8 @@
 | 2 — Canvas & Viewport | SceneRenderer(33) + Viewport(31) + ShapePaths(7) + NudgeDebouncer(7) + EmptyCanvasAffordance(1) | 79 |
 | 3 — Interactions | InputManager(57) + ModulePanel(25) + MinimapRenderer(12) | 94 |
 | 4 — Simulation | SimulationEngine(43) + FormulaEngine(13) + tokenizer(19) + parser(23) + evaluator(33) + RateEditorPanel(8) + StackValidator(17) + StackValidator-rendering(26) | 182 |
-| **合计** | **21 文件** | **454** |
+| 5 — Particles & Visual Feedback | ParticleEngine(14) | 14 |
+| **合计** | **22 文件** | **468** |
 
 ---
 
@@ -184,7 +185,8 @@ docs/code-reviews/
 └── epic-2-retrospective-confession-report.md ← Epic 2 回顾独立审计
 
 docs/stories/
-└── 3-4-module-deletion-click-delete-key.md  ← Story 3.4 规格文件
+├── 3-4-module-deletion-click-delete-key.md  ← Story 3.4 规格文件
+└── 5.1-particle-engine.md                   ← Story 5.1 规格文件
 
 docs/retrospectives/
 ├── epic-1.md                                 ← Epic 1 回顾
@@ -221,14 +223,28 @@ docs/retrospectives/
 
 ---
 
-## 下一步：Epic 5 — Particles & Visual Feedback
+## Epic 5 — Particles & Visual Feedback 🚧
+
+| 故事 | 描述 | 审查状态 | 测试 | 备注 |
+|------|------|----------|------|------|
+| 5.1 | ParticleEngine — 连接流可视化粒子 | ✅ review | 14 测试 (ParticleEngine.test.ts) | 等待审查 |
+
+### Epic 5 测试统计
+
+| 测试文件 | 测试数 |
+|----------|--------|
+| ParticleEngine.test.ts | 14 |
+| **小计** | **14** |
+
+### 下一步：Epic 5 剩余故事
 
 根据 `idea.md` 需求：
 
-1. **流线粒子光特效** — 直观呈现源对存量的产出和汇对存量的吸收
+1. ~~**流线粒子光特效**~~ → Story 5.1 ✅ 已实现
 2. **最小地图增强** — 支持位置调整到四角
+3. **更多粒子/视觉反馈** — 按需扩展
 
-详见 `docs/stories/` 中待创建的故事文件。
+详见 `docs/stories/` 中的故事文件。
 
 ---
 
