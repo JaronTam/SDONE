@@ -17,6 +17,12 @@ const SNAP_RADIUS_PX = 20;
 /** Story 3.7 AC1 — Max screen-pixel distance from a connection line for a click to count as a hit. */
 const CONNECTION_HIT_THRESHOLD_PX = 10;
 
+/** Story 5.3 — Max ms between two clicks on the same module to count as double-click. */
+const DOUBLE_CLICK_WINDOW_MS = 300;
+
+/** Story 5.3 — Max screen-pixel distance between two clicks to count as double-click. */
+const DOUBLE_CLICK_MAX_PX = 5;
+
 /**
  * Story 3.7 — Pure function (module-level, exported for testing).
  * Computes the shortest distance from point p to the line segment ab.
@@ -186,6 +192,14 @@ export class InputManager {
   public snapTargetId: string | null = null;
   /** Story 3.6 AC2: World-space edge point on snap target module nearest to cursor. */
   public snapTargetEdgeWorldPos: Vec2 | null = null;
+
+  // ── Story 5.3: Double-click detection ────────────────────────
+  /** Called when user double-clicks a module (same module, <300ms, <5px). */
+  public onModuleDoubleClick: ((moduleId: string) => void) | null = null;
+
+  private lastClickModuleId: string | null = null;
+  private lastClickTime = 0;
+  private lastClickScreenPos: Vec2 = vec2(0, 0);
 
   /** Whether the user is currently dragging something (module or connection). */
   public get isDragging(): boolean {
@@ -657,15 +671,37 @@ export class InputManager {
         const hitId = this.hitTest(screenPos);
         // Only treat as a select if we're still on the same module
         if (hitId === this.mouseDownModuleId) {
-          // Story 3.7: connection hit-test BEFORE module (thin lines need priority)
-          const connId = this.hitTestConnection(screenPos);
-          if (connId) {
-            this.onConnectionSelect?.(connId);
+          // ── Story 5.3: Double-click detection ──────────────────
+          const now = performance.now();
+          if (
+            this.onModuleDoubleClick &&
+            this.lastClickModuleId === hitId &&
+            now - this.lastClickTime <= DOUBLE_CLICK_WINDOW_MS &&
+            distance(screenPos, this.lastClickScreenPos) <= DOUBLE_CLICK_MAX_PX
+          ) {
+            this.onModuleDoubleClick(hitId);
+            // Reset last-click to prevent triple-click being treated as two double-clicks
+            this.lastClickModuleId = null;
+            this.lastClickTime = 0;
           } else {
-            this.onModuleSelect?.(hitId);
+            // Not a double-click — record as last click for future double-click check
+            this.lastClickModuleId = hitId;
+            this.lastClickTime = now;
+            this.lastClickScreenPos = screenPos;
+
+            // Story 3.7: connection hit-test BEFORE module (thin lines need priority)
+            const connId = this.hitTestConnection(screenPos);
+            if (connId) {
+              this.onConnectionSelect?.(connId);
+            } else {
+              this.onModuleSelect?.(hitId);
+            }
           }
         } else {
-          // Click on empty space → try connection hit-test fallback
+          // Click on empty space — reset double-click tracking
+          this.lastClickModuleId = null;
+          this.lastClickTime = 0;
+
           const connId = this.hitTestConnection(screenPos);
           if (connId) {
             this.onConnectionSelect?.(connId);
@@ -674,7 +710,10 @@ export class InputManager {
           }
         }
       } else {
-        // Clicked empty space initially → try connection hit-test
+        // Clicked empty space initially — reset double-click tracking
+        this.lastClickModuleId = null;
+        this.lastClickTime = 0;
+
         const screenPos = vec2(e.clientX, e.clientY);
         const connId = this.hitTestConnection(screenPos);
         if (connId) {

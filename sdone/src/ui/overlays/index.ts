@@ -1,3 +1,3 @@
-// SDONE UI Overlays — placeholder barrel
-// Future: re-export minimap overlay module (Story 2.5+)
-export {};
+// SDONE UI Overlays barrel
+export { ColorPickerPopover } from './ColorPickerPopover.js';
+export type { OpenOptions as ColorPickerOpenOptions } from './ColorPickerPopover.js';

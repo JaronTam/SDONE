@@ -257,6 +257,43 @@ export function deleteConnection(
 }
 
 // ---------------------------------------------------------------------------
+// changeModuleColor
+// ---------------------------------------------------------------------------
+
+/**
+ * Update the `color` of a source or sink module.
+ *
+ * @returns A NEW `GraphState` with the module's `color` changed and `version`
+ *   incremented. Returns no-op (unchanged version) if:
+ *   - The module `id` is not found
+ *   - The module is a `stock` type (AC8: stock color is fixed white)
+ *   - The module already has the target `color` value
+ *
+ * **Design note:** The color string is NOT validated. Palette enforcement is
+ * done at the UI layer (ColorPickerPopover only offers 5 swatches). This keeps
+ * the mutation pure and future-proof for free-form color input.
+ */
+export function changeModuleColor(
+  state: GraphState,
+  moduleId: string,
+  color: string,
+): GraphState {
+  const existing = state.nodes[moduleId];
+  if (!existing) return unchanged(state);
+  // AC8: stock color is fixed white — no-op
+  if (existing.type === 'stock') return unchanged(state);
+  if (existing.color === color) return unchanged(state);
+
+  return {
+    ...bump(state),
+    nodes: {
+      ...state.nodes,
+      [moduleId]: { ...existing, color },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // updateRate
 // ---------------------------------------------------------------------------
 

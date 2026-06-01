@@ -11,11 +11,13 @@
 import './ui/styles/layout.css';
 import './ui/panels/styles/module-panel.css';
 import './ui/panels/styles/rate-editor-panel.css';
+import './ui/overlays/styles/color-picker-popover.css';
 import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine } from './canvas/index.js';
 import { ModulePanel, RateEditorPanel } from './ui/panels/index.js';
+import { ColorPickerPopover } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
-import { moveModule, deleteModule, addModule, addConnection, deleteConnection, updateRate } from './state/mutations.js';
+import { moveModule, deleteModule, addModule, addConnection, deleteConnection, updateRate, changeModuleColor } from './state/mutations.js';
 import { HistoryManager } from './state/HistoryManager.js';
 import { EventBus } from './event-bus/EventBus.js';
 import { NudgeDebouncer } from './shared/NudgeDebouncer.js';
@@ -27,6 +29,9 @@ const eventBus = new EventBus();
 const simEngine = new SimulationEngine();
 // ── Story 5.1: Particle Engine ──────────────────────────────────────────
 const particleEngine = new ParticleEngine();
+
+// ── Story 5.3: Color Picker Popover ─────────────────────────────────────
+const colorPickerPopover = new ColorPickerPopover();
 
 // ── Story 4.4: Formula Engine ──────────────────────────────────────────
 simEngine.formulaEngine = new FormulaEngine();
@@ -286,6 +291,46 @@ function syncRateEditorPanel(state: GraphState): void {
   });
 }
 
+// ── Story 5.3: Color picker popover callback ──────────────────────────
+colorPickerPopover.onColorPicked = (moduleId: string, color: string) => {
+  const nextState = changeModuleColor(currentState, moduleId, color);
+  // No-op guard: mutation returns same state if unchanged
+  if (nextState.version === currentState.version) return;
+  currentState = nextState;
+  // POST-mutation push: stack top reflects current state so redo restores
+  // the colour-changed state (not the pre-change state).
+  historyManager.push(currentState);
+  minimapRenderer.markDirty();
+};
+
+// ── Story 5.3: Double-click → open color picker popover ───────────────
+inputManager.onModuleDoubleClick = (moduleId: string) => {
+  const node = currentState.nodes[moduleId];
+  if (!node) return;
+  // AC8: stock modules have fixed white colour — no popover
+  if (node.type === 'stock') return;
+
+  // Compute module center in screen space
+  const canvasCenter = {
+    x: sceneCanvas.clientWidth / 2,
+    y: sceneCanvas.clientHeight / 2,
+  };
+  const worldPos = { x: node.position.x, y: node.position.y };
+  const screenPos = viewportManager.worldToScreen(worldPos, canvasCenter);
+
+  const palette = node.type === 'source' ? SOURCE_PALETTE : SINK_PALETTE;
+  const currentColor = node.color ?? palette[0];
+
+  colorPickerPopover.open({
+    moduleId,
+    moduleType: node.type,
+    currentColor,
+    anchorScreenX: screenPos.x,
+    anchorScreenY: screenPos.y,
+    palette,
+  });
+};
+
 // ── Story 3.5: Enter → place module at viewport center (AC4) ─────────────────
 inputManager.onModulePlaceAtCenter = () => {
   const highlightedType = modulePanel.getSelectedType();
@@ -488,6 +533,7 @@ void import.meta.hot?.dispose(() => {
   inputManager.destroy();
   modulePanel.destroy();
   rateEditorPanel.destroy();
+  colorPickerPopover.destroy();
 });
 
 // ── Story 3.1: Left Sidebar Module Panel ──────────────────────────────
@@ -512,12 +558,12 @@ const rateEditorPanel = new RateEditorPanel(panelRightContainer);
     // Guard: no-op if connection missing or rate unchanged
     if (!conn || conn.rate === newRate) return;
 
-    // AC2/AC7: Push history snapshot BEFORE mutation for correct undo
-    historyManager.push(currentState);
     const nextState = updateRate(currentState, selectedConnId, newRate);
     // No-op guard: mutation returns same state if connection not found
     if (nextState.version === currentState.version) return;
+    // AC2/AC7: POST-mutation push — stack top reflects current state for correct redo
     currentState = nextState;
+    historyManager.push(currentState);
     minimapRenderer.markDirty();
   };
 

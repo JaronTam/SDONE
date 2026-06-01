@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import type {
   Connection,
   GraphState,
+  SinkNode,
   StockNode,
   SourceNode,
 } from './GraphState.js';
 import {
   addModule,
+  changeModuleColor,
   deleteModule,
   moveModule,
   addConnection,
@@ -45,6 +47,13 @@ function withStock(state: GraphState, id: string, x = 0, y = 0): StockNode {
 /** Insert a source node into state. */
 function withSource(state: GraphState, id: string, x = 0, y = 0): SourceNode {
   const node: SourceNode = { id, type: 'source', position: { x, y } };
+  state.nodes[id] = node;
+  return node;
+}
+
+/** Insert a sink node into state. */
+function withSink(state: GraphState, id: string, x = 0, y = 0): SinkNode {
+  const node: SinkNode = { id, type: 'sink', position: { x, y } };
   state.nodes[id] = node;
   return node;
 }
@@ -347,6 +356,76 @@ describe('updateRate', () => {
     expect(rNeg.connections['c1'].rate).toBe(-5);
     expect(rNeg.connections['c1'].formulaStr).toBe('-5');
     expect(rNeg.version).toBe(rZero.version + 1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// changeModuleColor
+// ---------------------------------------------------------------------------
+
+describe('changeModuleColor', () => {
+  it('should change color of existing source and increment version', () => {
+    const state = emptyState();
+    const src = withSource(state, 'src1', 100, 100);
+    src.color = '#90EE90';
+
+    const result = changeModuleColor(state, 'src1', '#87CEEB');
+    expect(result).not.toBe(state);
+    const updated = result.nodes['src1'] as SourceNode;
+    expect(updated.color).toBe('#87CEEB');
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('should change color of existing sink and increment version', () => {
+    const state = emptyState();
+    const sink = withSink(state, 'sink1', 200, 200);
+    sink.color = '#8B0000';
+
+    const result = changeModuleColor(state, 'sink1', '#00008B');
+    expect(result).not.toBe(state);
+    const updated = result.nodes['sink1'] as SinkNode;
+    expect(updated.color).toBe('#00008B');
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('should no-op for stock type (AC8)', () => {
+    const state = emptyState();
+    withStock(state, 'st1', 0, 0);
+
+    const result = changeModuleColor(state, 'st1', '#FF0000');
+    expect(result).not.toBe(state);
+    expect(result.version).toBe(state.version);
+    // Stock should remain unchanged
+    expect(result.nodes['st1']).toEqual(state.nodes['st1']);
+  });
+
+  it('should no-op if color is unchanged', () => {
+    const state = emptyState();
+    const src = withSource(state, 'src1', 100, 100);
+    src.color = '#90EE90';
+
+    const result = changeModuleColor(state, 'src1', '#90EE90');
+    expect(result).not.toBe(state);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('should no-op for non-existent module', () => {
+    const state = emptyState();
+
+    const result = changeModuleColor(state, 'nonexistent', '#FF0000');
+    expect(result).not.toBe(state);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('should be pure — original state unchanged', () => {
+    const state = emptyState();
+    const src = withSource(state, 'src1', 0, 0);
+    src.color = '#90EE90';
+
+    const originalColor = (state.nodes['src1'] as SourceNode).color;
+    const result = changeModuleColor(state, 'src1', '#87CEEB');
+    expect((state.nodes['src1'] as SourceNode).color).toBe(originalColor);
+    expect((result.nodes['src1'] as SourceNode).color).toBe('#87CEEB');
   });
 });
 

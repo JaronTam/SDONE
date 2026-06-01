@@ -1,0 +1,75 @@
+/**
+ * ColorPickerPopover — Module Color Swatch Picker Styles (Story 5.3)
+ *
+ * Matches existing dark theme tokens from layout.css.
+ * Positioned as a floating popover near the double-clicked module.
+ * Theme tokens: #1e1e2e (bg), #313244 (surface), #45475a (border), #cdd6f4 (text)
+ */
+
+/* ════════════════════════════════════════════════════════════════════════
+   Popover Root
+   ════════════════════════════════════════════════════════════════════════ */
+.color-picker-popover {
+  position: fixed;
+  z-index: 1000;
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+  pointer-events: auto;
+  user-select: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Title
+   ════════════════════════════════════════════════════════════════════════ */
+.color-picker-popover__title {
+  font-size: 11px;
+  color: #6c7086;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 4px;
+  margin-bottom: 2px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Swatch Row
+   ════════════════════════════════════════════════════════════════════════ */
+.color-picker-popover__swatches {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Individual Swatch
+   ════════════════════════════════════════════════════════════════════════ */
+.color-picker-popover__swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 150ms ease, transform 150ms ease;
+  box-sizing: border-box;
+}
+
+.color-picker-popover__swatch:hover {
+  border-color: #cdd6f4;
+  transform: scale(1.15);
+}
+
+.color-picker-popover__swatch:active {
+  transform: scale(0.95);
+}
+
+/* Selected / current color indicator */
+.color-picker-popover__swatch--current {
+  border-color: #a6e3a1;
+  box-shadow: 0 0 4px rgba(166, 227, 161, 0.4);
+}

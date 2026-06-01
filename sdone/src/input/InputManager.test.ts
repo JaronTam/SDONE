@@ -1141,4 +1141,191 @@ describe('InputManager', () => {
       input.destroy();
     });
   });
+
+  // ── Story 5.3: Double-click module ──────────────────────────────────
+
+  describe('module double-click (Story 5.3)', () => {
+    it('fires onModuleDoubleClick on two rapid clicks on the same module (AC2)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dblClickSpy = vi.fn();
+      const selectSpy = vi.fn();
+      input.onModuleDoubleClick = dblClickSpy;
+      input.onModuleSelect = selectSpy;
+
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'Test' } as any,
+      });
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+
+      // First click — single select, no double-click
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+      expect(dblClickSpy).not.toHaveBeenCalled();
+
+      // Second click within 300ms, <5px away → double-click fires
+      dispatchMouseEvent(canvas, 'mousedown', 0, 101, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 101, clientY: 100 }));
+      expect(dblClickSpy).toHaveBeenCalledTimes(1);
+      expect(dblClickSpy).toHaveBeenCalledWith('node1');
+      // onModuleSelect should NOT fire on the second click (double-click consumes it)
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+
+      input.destroy();
+    });
+
+    it('does NOT fire double-click if two clicks are on different modules', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dblClickSpy = vi.fn();
+      const selectSpy = vi.fn();
+      input.onModuleDoubleClick = dblClickSpy;
+      input.onModuleSelect = selectSpy;
+
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        node2: { id: 'node2', type: 'source', position: { x: 300, y: 100 }, label: 'B' } as any,
+      });
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+
+      // Click on node1
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+      expect(selectSpy).toHaveBeenCalledWith('node1');
+
+      // Click on node2 — different module, should NOT be double-click
+      dispatchMouseEvent(canvas, 'mousedown', 0, 300, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 300, clientY: 100 }));
+      expect(dblClickSpy).not.toHaveBeenCalled();
+      expect(selectSpy).toHaveBeenCalledTimes(2);
+      expect(selectSpy).toHaveBeenLastCalledWith('node2');
+
+      input.destroy();
+    });
+
+    it('does NOT fire double-click if second click is too far away (≥5px, AC2)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dblClickSpy = vi.fn();
+      const selectSpy = vi.fn();
+      input.onModuleDoubleClick = dblClickSpy;
+      input.onModuleSelect = selectSpy;
+
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'Test' } as any,
+      });
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+
+      // First click
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+
+      // Second click 10px away — exceeds DOUBLE_CLICK_MAX_PX (5px)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 110, 105);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 110, clientY: 105 }));
+      expect(dblClickSpy).not.toHaveBeenCalled();
+      expect(selectSpy).toHaveBeenCalledTimes(2);
+
+      input.destroy();
+    });
+
+    it('does NOT fire double-click if clicks are too far apart in time (>300ms, AC2)', async () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dblClickSpy = vi.fn();
+      const selectSpy = vi.fn();
+      input.onModuleDoubleClick = dblClickSpy;
+      input.onModuleSelect = selectSpy;
+
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'Test' } as any,
+      });
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+
+      // First click
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+      expect(selectSpy).toHaveBeenCalledTimes(1);
+
+      // Wait >300ms
+      await new Promise(resolve => setTimeout(resolve, 350));
+
+      // Second click — should NOT be double-click due to time threshold
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+      expect(dblClickSpy).not.toHaveBeenCalled();
+      expect(selectSpy).toHaveBeenCalledTimes(2);
+
+      input.destroy();
+    });
+
+    it('resets double-click state on click to empty space', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dblClickSpy = vi.fn();
+      const selectSpy = vi.fn();
+      input.onModuleDoubleClick = dblClickSpy;
+      input.onModuleSelect = selectSpy;
+
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'Test' } as any,
+      });
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+
+      // Click on module
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+
+      // Click on empty space — resets double-click tracking
+      dispatchMouseEvent(canvas, 'mousedown', 0, 500, 500);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 500, clientY: 500 }));
+
+      // Now click module again rapidly — should NOT trigger double-click
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+      expect(dblClickSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('does NOT fire double-click if onModuleDoubleClick is null (no callback set)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      // Deliberately NOT setting onModuleDoubleClick
+      input.onModuleSelect = selectSpy;
+
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'Test' } as any,
+      });
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+
+      // Two rapid clicks — both should fire onModuleSelect since double-click is not handled
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+      expect(selectSpy).toHaveBeenCalledTimes(2);
+
+      input.destroy();
+    });
+
+    it('does NOT produce double-click on mousedown-only (no mouseup) — just a guard', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dblClickSpy = vi.fn();
+      input.onModuleDoubleClick = dblClickSpy;
+
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'Test' } as any,
+      });
+
+      // Two mousedown events without mouseup — double-click should NOT fire
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      dispatchMouseEvent(canvas, 'mousedown', 0, 101, 100);
+
+      expect(dblClickSpy).not.toHaveBeenCalled();
+      input.destroy();
+    });
+  });
 });
