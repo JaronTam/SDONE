@@ -87,6 +87,46 @@ inputManager.nodesProvider = () => currentState.nodes;
 // Story 3.7: Provide connections for hit-testing
 inputManager.connectionsProvider = () => currentState.connections;
 
+// ── Story 5.4: Connection hover → scene glow + tooltip + HOVER_CHANGED ─
+/** Story 5.4 AC3 — Chinese type labels for connection tooltip direction. */
+const getModuleLabel = (type: string): string => {
+  switch (type) {
+    case 'source': return '源';
+    case 'stock': return '存量';
+    case 'sink': return '汇';
+    default: return type;
+  }
+};
+
+inputManager.onConnectionHover = (connectionId, screenPos) => {
+  if (connectionId) {
+    const conn = currentState.connections[connectionId];
+    if (conn) {
+      const fromNode = currentState.nodes[conn.fromId];
+      const toNode = currentState.nodes[conn.toId];
+      if (fromNode && toNode) {
+        const dirLine = `${getModuleLabel(fromNode.type)} → ${getModuleLabel(toNode.type)}`;
+        const rateLine = `速率: ${conn.rate}`;
+        const parts = [dirLine, rateLine];
+        // AC3: Show formula only when it differs from the evaluated rate
+        if (conn.formulaStr && conn.formulaStr !== String(conn.rate)) {
+          parts.push(`公式: ${conn.formulaStr}`);
+        }
+        sceneRenderer.tooltipText = parts.join('\n');
+      } else {
+        sceneRenderer.tooltipText = null;
+      }
+    } else {
+      sceneRenderer.tooltipText = null;
+    }
+  } else {
+    sceneRenderer.tooltipText = null;
+  }
+  sceneRenderer.tooltipScreenPos = screenPos;
+  eventBus.emit('HOVER_CHANGED', { moduleId: null, connectionId, screenPos });
+};
+sceneRenderer.hoveredConnectionProvider = () => inputManager.getHoveredConnectionId();
+
 // ── Story 2.3: Module Selection ──────────────────────────────────────
 inputManager.onModuleSelect = (moduleId: string | null) => {
   if (moduleId === null) {
@@ -643,6 +683,14 @@ sceneRenderer.connectionDragProvider = () => {
     cursorWorldPos: worldPos,
     ...(snapId && snapPos ? { snapTargetId: snapId, snapTargetWorldPos: snapPos } : {}),
   };
+};
+
+// ── Story 5.4: Snap target edge glow provider ──────────────────────────
+sceneRenderer.snapTargetEdgeGlowProvider = () => {
+  const snapId = inputManager.snapTargetId;
+  const snapPos = inputManager.snapTargetEdgeWorldPos;
+  if (!snapId || !snapPos) return null;
+  return { worldPos: snapPos, moduleId: snapId };
 };
 
 // Story 3.7: Selected connection provider for SceneRenderer highlight

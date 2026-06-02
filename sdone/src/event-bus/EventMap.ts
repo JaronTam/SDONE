@@ -27,7 +27,7 @@ export interface EventMap {
   // ── Canvas → UI: Selection State ───────────────────────────
   MODULE_SELECTED: { moduleId: string | null };
   MODULE_DELETED: { moduleId: string };
-  HOVER_CHANGED: { moduleId: string | null; connectionId: string | null };
+  HOVER_CHANGED: { moduleId: string | null; connectionId: string | null; screenPos: { x: number; y: number } | null };
 
   // ── Canvas → UI: Achievements ──────────────────────────────
   ACHIEVEMENT_UNLOCKED: { achievementId: string; message: string };

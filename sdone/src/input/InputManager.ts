@@ -197,6 +197,18 @@ export class InputManager {
   /** Called when user double-clicks a module (same module, <300ms, <5px). */
   public onModuleDoubleClick: ((moduleId: string) => void) | null = null;
 
+  // ── Story 5.4: Connection hover detection ────────────────────
+  /** Called when user hovers over a connection line (or moves away).
+   *  Fires when the hovered connection changes. Passes null + current
+   *  screen position when cursor moves away from all connections. */
+  public onConnectionHover: ((connectionId: string | null, screenPos: Vec2) => void) | null = null;
+
+  /** Currently hovered connection ID (null if cursor not near any connection). */
+  private hoveredConnectionId: string | null = null;
+
+  /** Story 5.4 — Last known screen-space cursor position (for clearHoveredConnection). */
+  private lastScreenPos: Vec2 = vec2(0, 0);
+
   private lastClickModuleId: string | null = null;
   private lastClickTime = 0;
   private lastClickScreenPos: Vec2 = vec2(0, 0);
@@ -215,6 +227,7 @@ export class InputManager {
   private readonly boundMouseDown: (e: MouseEvent) => void;
   private readonly boundMouseMove: (e: MouseEvent) => void;
   private readonly boundMouseUp: (e: MouseEvent) => void;
+  private readonly boundMouseLeave: (e: MouseEvent) => void;
   private readonly boundWheel: (e: WheelEvent) => void;
   private readonly boundKeyDown: (e: KeyboardEvent) => void;
   private readonly boundKeyUp: (e: KeyboardEvent) => void;
@@ -231,6 +244,7 @@ export class InputManager {
     this.boundMouseDown = this.handleMouseDown.bind(this);
     this.boundMouseMove = this.handleMouseMove.bind(this);
     this.boundMouseUp = this.handleMouseUp.bind(this);
+    this.boundMouseLeave = this.handleMouseLeave.bind(this);
     this.boundWheel = this.handleWheel.bind(this);
     this.boundKeyDown = this.handleKeyDown.bind(this);
     this.boundKeyUp = this.handleKeyUp.bind(this);
@@ -243,6 +257,7 @@ export class InputManager {
     canvas.addEventListener('mousedown', this.boundMouseDown);
     window.addEventListener('mousemove', this.boundMouseMove);
     window.addEventListener('mouseup', this.boundMouseUp);
+    canvas.addEventListener('mouseleave', this.boundMouseLeave);
     canvas.addEventListener('wheel', this.boundWheel, { passive: false });
 
     window.addEventListener('keydown', this.boundKeyDown);
@@ -264,6 +279,7 @@ export class InputManager {
     this.canvas.removeEventListener('mousedown', this.boundMouseDown);
     window.removeEventListener('mousemove', this.boundMouseMove);
     window.removeEventListener('mouseup', this.boundMouseUp);
+    this.canvas.removeEventListener('mouseleave', this.boundMouseLeave);
     this.canvas.removeEventListener('wheel', this.boundWheel);
     window.removeEventListener('keydown', this.boundKeyDown);
     window.removeEventListener('keyup', this.boundKeyUp);
@@ -493,6 +509,52 @@ export class InputManager {
   public pointToSegmentDist = pointToSegmentDistance;
 
   // -------------------------------------------------------------------
+  // Story 5.4 — Connection Hover Detection
+  // -------------------------------------------------------------------
+
+  /** Story 5.4 — Returns the currently hovered connection ID (or null). */
+  public getHoveredConnectionId(): string | null {
+    return this.hoveredConnectionId;
+  }
+
+  /**
+   * Story 5.4 — Mirrors the visibility guard in SceneRenderer.drawConnections().
+   * A connection is "renderable" if its edge-point endpoints are not coincident.
+   * This prevents the hover system from reporting a connection that the renderer will
+   * never draw (e.g., when two modules' centers are perfectly aligned on one axis).
+   */
+  private isConnectionRenderable(connectionId: string): boolean {
+    const nodes = this.nodesProvider?.();
+    const connections = this.connectionsProvider?.();
+    if (!nodes || !connections) return false;
+    const conn = connections[connectionId];
+    if (!conn) return false;
+    const fromNode = nodes[conn.fromId];
+    const toNode = nodes[conn.toId];
+    if (!fromNode || !toNode) return false;
+    const fromEdge = getEdgePoint(fromNode, toNode.position);
+    const toEdge = getEdgePoint(toNode, fromNode.position);
+    return !(fromEdge.x === toEdge.x && fromEdge.y === toEdge.y);
+  }
+
+  /**
+   * Story 5.4 — Clear the hovered connection (called on pointer leave,
+   * drag start, etc.) so the highlight + tooltip are removed.
+   */
+  public clearHoveredConnection(): void {
+    if (this.hoveredConnectionId !== null) {
+      this.hoveredConnectionId = null;
+      this.onConnectionHover?.(null, this.lastScreenPos);
+    }
+  }
+
+  private handleMouseLeave(_e: MouseEvent): void {
+    this.clearHoveredConnection();
+    this.ghostModuleType = null;
+    this.ghostWorldPosition = null;
+  }
+
+  // -------------------------------------------------------------------
   // Mouse Handlers — Pan + Module / Connection Drag
   // -------------------------------------------------------------------
 
@@ -500,6 +562,7 @@ export class InputManager {
     // Middle-mouse → pan (Story 2.2)
     if (e.button === 1) {
       e.preventDefault();
+      this.clearHoveredConnection(); // Story 5.4 — clear hover before pan
       this.startPan(e);
       return;
     }
@@ -507,6 +570,7 @@ export class InputManager {
     // Space + left-click → pan (Story 2.2)
     if (e.button === 0 && this.spaceHeld) {
       e.preventDefault();
+      this.clearHoveredConnection(); // Story 5.4 — clear hover before pan
       this.startPan(e);
       return;
     }
@@ -526,12 +590,15 @@ export class InputManager {
           // Story 3.6 AC1 — edge zone click → will start connection drag
           this.mouseDownInEdgeZone = true;
         }
+        // Story 5.4: on any interaction start, clear connection hover
+        this.clearHoveredConnection();
       }
     }
   }
 
   private handleMouseMove(e: MouseEvent): void {
     const current = vec2(e.clientX, e.clientY);
+    this.lastScreenPos = current; // Story 5.4 — track for clearHoveredConnection
 
     // ── Panning (Story 2.2) ─────────────────────────────────────
     if (this.isPanning) {
@@ -561,6 +628,8 @@ export class InputManager {
     if (this.mouseDownModuleId !== null && !this.mouseDownInEdgeZone) {
       const dist = distance(current, this.mouseDownPos);
       if (dist >= DRAG_THRESHOLD_PX && !this.isDraggingModule) {
+        // Story 5.4: clear hover when module drag starts
+        this.clearHoveredConnection();
         // Start dragging
         this.isDraggingModule = true;
         this.dragModuleId = this.mouseDownModuleId;
@@ -592,6 +661,8 @@ export class InputManager {
     if (this.mouseDownModuleId !== null && this.mouseDownInEdgeZone && !this.isDraggingConnection) {
       const dist = distance(current, this.mouseDownPos);
       if (dist >= DRAG_THRESHOLD_PX) {
+        // Story 5.4: clear hover when connection drag starts
+        this.clearHoveredConnection();
         this.isDraggingConnection = true;
         this.edgeDragSourceId = this.mouseDownModuleId;
         this.connectionDragSourceId = this.mouseDownModuleId;
@@ -600,6 +671,27 @@ export class InputManager {
         this.connectionDragWorldPosition = worldPos;
         this.onConnectionDragStart?.(this.mouseDownModuleId);
         this.canvas.style.cursor = 'crosshair';
+      }
+    }
+
+    // ── Story 5.4: Connection hover detection ───────────────────
+    // Only run when user is idle (not panning, not dragging, not
+    // mousedown on a module).  Fires onConnectionHover when the
+    // hovered connection changes.
+    if (
+      !this.isPanning &&
+      !this.isDraggingModule &&
+      !this.isDraggingConnection &&
+      this.mouseDownModuleId === null
+    ) {
+      let hoveredId = this.hitTestConnection(current);
+      // Story 5.4: suppress non-renderable connections (coincident endpoints)
+      if (hoveredId && !this.isConnectionRenderable(hoveredId)) {
+        hoveredId = null;
+      }
+      if (hoveredId !== this.hoveredConnectionId) {
+        this.hoveredConnectionId = hoveredId;
+        this.onConnectionHover?.(hoveredId, current);
       }
     }
   }

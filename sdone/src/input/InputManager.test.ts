@@ -1328,4 +1328,208 @@ describe('InputManager', () => {
       input.destroy();
     });
   });
+
+  // ── Story 5.4: Connection hover detection ──────────────────────────
+
+  describe('connection hover (Story 5.4)', () => {
+    it('fires onConnectionHover with connection ID + screenPos when cursor moves over a connection line', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const hoverSpy = vi.fn();
+      input.onConnectionHover = hoverSpy;
+
+      // Two stock modules at (100,100) and (400,100) with connection
+      // Edge points: (170,100) → (330,100), midpoint at (250,100)
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: { x: 400, y: 100 }, label: 'B' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+      });
+
+      // Move cursor to connection midpoint — should hit
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+
+      expect(hoverSpy).toHaveBeenCalledTimes(1);
+      expect(hoverSpy).toHaveBeenCalledWith('c1', expect.objectContaining({ x: 250, y: 100 }));
+
+      input.destroy();
+    });
+
+    it('fires onConnectionHover with (null, screenPos) when cursor moves away from all connections', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const hoverSpy = vi.fn();
+      input.onConnectionHover = hoverSpy;
+
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: { x: 400, y: 100 }, label: 'B' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+      });
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+
+      // First hover over the connection
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+      expect(hoverSpy).toHaveBeenLastCalledWith('c1', expect.anything());
+
+      // Move far away — should fire null
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 150 }));
+      expect(hoverSpy).toHaveBeenLastCalledWith(null, expect.objectContaining({ x: 250, y: 150 }));
+
+      input.destroy();
+    });
+
+    it('fires onConnectionHover once when moving directly from one connection to another', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const hoverSpy = vi.fn();
+      input.onConnectionHover = hoverSpy;
+
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: { x: 400, y: 100 }, label: 'B' } as any,
+        modC: { id: 'modC', type: 'stock', position: { x: 100, y: 300 }, label: 'C' } as any,
+        modD: { id: 'modD', type: 'stock', position: { x: 400, y: 300 }, label: 'D' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+        c2: { id: 'c2', fromId: 'modC', toId: 'modD', rate: 2, formulaStr: '2' },
+      });
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+
+      // Hover over c1
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+      expect(hoverSpy).toHaveBeenCalledWith('c1', expect.anything());
+      const callCountBefore = hoverSpy.mock.calls.length;
+
+      // Move directly to c2 midpoint — fires once for c2
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 300 }));
+      expect(hoverSpy).toHaveBeenCalledTimes(callCountBefore + 1);
+      expect(hoverSpy).toHaveBeenLastCalledWith('c2', expect.anything());
+
+      input.destroy();
+    });
+
+    it('does NOT fire onConnectionHover when cursor stays on same connection (idempotency)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const hoverSpy = vi.fn();
+      input.onConnectionHover = hoverSpy;
+
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: { x: 400, y: 100 }, label: 'B' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+      });
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+
+      // First mousemove enters the connection
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+      expect(hoverSpy).toHaveBeenCalledTimes(1);
+
+      // Subsequent moves along the same connection — should NOT fire
+      moveFn(new MouseEvent('mousemove', { clientX: 251, clientY: 100 }));
+      moveFn(new MouseEvent('mousemove', { clientX: 252, clientY: 99 }));
+      moveFn(new MouseEvent('mousemove', { clientX: 253, clientY: 101 }));
+      expect(hoverSpy).toHaveBeenCalledTimes(1); // still only the first call
+
+      input.destroy();
+    });
+
+    it('suppresses hover for connection with coincident endpoints (fromEdge === toEdge)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const hoverSpy = vi.fn();
+      input.onConnectionHover = hoverSpy;
+
+      // Two stock modules at the SAME position → coincident edge points
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: { x: 100, y: 100 }, label: 'B' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+      });
+
+      // Move to center — connection exists but endpoints coincide, so NO hover event
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 100, clientY: 100 }));
+
+      expect(hoverSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('clears hover and fires (null) during drag interaction', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const hoverSpy = vi.fn();
+      input.onConnectionHover = hoverSpy;
+
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: { x: 400, y: 100 }, label: 'B' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+      });
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+
+      // First: hover over connection
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+      expect(hoverSpy).toHaveBeenLastCalledWith('c1', expect.anything());
+
+      // Start module drag — hover should clear
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      // Now hover is cleared by mousedown → clearHoveredConnection
+      // (fires null via onConnectionHover?.(null, ...))
+
+      // Simulate mousemove during drag — should NOT fire hover (guard blocks it)
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+      // The guard !this.isDraggingModule blocks hover detection during drag,
+      // so no additional hover events fire (neither for the connection nor null)
+      // Verify hover was cleared at drag start
+      expect(input.getHoveredConnectionId()).toBeNull();
+
+      input.destroy();
+    });
+
+    it('resumes hover detection after drag ends (next mousemove)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const hoverSpy = vi.fn();
+      input.onConnectionHover = hoverSpy;
+
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: { x: 100, y: 100 }, label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: { x: 400, y: 100 }, label: 'B' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+      });
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+
+      // Hover over connection
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+      expect(hoverSpy).toHaveBeenLastCalledWith('c1', expect.anything());
+
+      // Start and complete a module drag
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      moveFn(new MouseEvent('mousemove', { clientX: 120, clientY: 100 })); // cross threshold, start drag
+      moveFn(new MouseEvent('mousemove', { clientX: 140, clientY: 100 })); // during drag
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 140, clientY: 100 })); // end drag
+
+      // After drag ends, move to connection area — hover should resume
+      moveFn(new MouseEvent('mousemove', { clientX: 250, clientY: 100 }));
+      expect(hoverSpy).toHaveBeenLastCalledWith('c1', expect.objectContaining({ x: 250, y: 100 }));
+
+      input.destroy();
+    });
+  });
 });

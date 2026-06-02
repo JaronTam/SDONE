@@ -167,6 +167,10 @@ const SNAP_ZONE_RADIUS = 14;
 
 const SELECTION_COLOR = '#f9e2af';
 
+// ── Story 5.4 — Hover highlight colour ─────────────────────────
+/** Warm amber-gold used for the hovered connection glow and tooltip border. */
+const HOVER_HIGHLIGHT_COLOR = '#f9e2af';
+
 // ── Story 5.1 — Particle rendering constants ──────────────────────────
 /** Warm amber glow colour for particles. */
 const PARTICLE_COLOR = '#ffb74d';
@@ -202,6 +206,20 @@ export class SceneRenderer {
     snapTargetId?: string;
   } | null) | null = null;
   public selectedConnectionProvider: (() => string | null) | null = null;
+
+  // ── Story 5.4: Hovered connection provider ───────────────────────────
+  public hoveredConnectionProvider: (() => string | null) | null = null;
+
+  // ── Story 5.4: Tooltip state ─────────────────────────────────────────
+  public tooltipScreenPos: { x: number; y: number } | null = null;
+  public tooltipText: string | null = null;
+
+  // ── Story 5.4: Snap target edge glow provider ────────────────────────
+  /** Returns the world-space position where the snap-target edge glow
+   *  ring should be drawn (null = hidden).  Used during connection drag
+   *  when cursor is within snap range of a module edge. */
+  public snapTargetEdgeGlowProvider: (() => { worldPos: { x: number; y: number }; moduleId: string } | null) | null = null;
+
   public stockWarningProvider: (() => Record<
     string,
     { inflowMissing: boolean; outflowMissing: boolean }
@@ -272,11 +290,70 @@ export class SceneRenderer {
     this.drawGrid();
     if (this.graphState) {
       this.drawModules(this.graphState);
+      this.drawSnapTargetEdgeGlow();  // Story 5.4 AC4 — between modules and connections
       this.drawConnections(this.graphState);
     }
     this.drawGhost();
     this.drawConnectionDragPreview();
     this.drawParticles();
+    // Story 5.4 AC3: tooltip drawn last, on top of everything, in screen space
+    this.drawHoverTooltip();
+  }
+
+  // ── Story 5.4 — Hover Tooltip ────────────────────────────────────────
+
+  /**
+   * Story 5.4 AC3 — Draw a multi-line tooltip in screen space showing
+   * the connection direction (源 → 存量), rate (速率: X), and optional
+   * formula (公式: …). Offsets from the cursor so it doesn't occlude
+   * interaction. First line (direction) is dimmed for visual hierarchy.
+   */
+  private drawHoverTooltip(): void {
+    if (!this.tooltipText || !this.tooltipScreenPos) return;
+    const { ctx } = this;
+    const { x, y } = this.tooltipScreenPos;
+    const nlIdx = this.tooltipText.indexOf('\n');
+    const line1 = nlIdx >= 0 ? this.tooltipText.slice(0, nlIdx) : this.tooltipText;
+    const line2 = nlIdx >= 0 ? this.tooltipText.slice(nlIdx + 1) : '';
+    const lines = line2 ? [line1, line2] : [line1];
+    ctx.save();
+    ctx.resetTransform(); // Story 5.4 — tooltip renders in screen space, not world space
+    ctx.font = '12px system-ui, sans-serif';
+    // measure widest line
+    let maxW = 0;
+    for (const ln of lines) {
+      const m = ctx.measureText(ln);
+      if (m.width > maxW) maxW = m.width;
+    }
+    const lineHeight = 16;
+    const pad = 7;
+    const tw = maxW;
+    const th = lines.length * lineHeight;
+    const cr = 5;
+    // Position: offset right and below cursor, clamped to canvas bounds
+    let bx = x + 14;
+    let by = y + 14;
+    if (bx + tw + pad * 2 > this.canvas.width) bx = x - tw - pad * 2 - 14;
+    if (by + th + pad * 2 > this.canvas.height) by = y - th - pad * 2 - 14;
+    // Background with roundedRect
+    ctx.fillStyle = 'rgba(18, 18, 30, 0.94)';
+    ctx.strokeStyle = HOVER_HIGHLIGHT_COLOR;
+    ctx.lineWidth = 1.2;
+    ctx.shadowColor = HOVER_HIGHLIGHT_COLOR;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    this.roundedRect(ctx, bx, by, tw + pad * 2, th + pad * 2, cr);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Text lines — first line (direction) is dimmer per spec
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillStyle = i === 0 ? 'rgba(200, 200, 200, 0.7)' : '#ffffff';
+      ctx.fillText(lines[i], bx + pad, by + pad + i * lineHeight);
+    }
+    ctx.restore();
   }
 
   // ── Story 5.2 — Fill Animation ───────────────────────────────────────
@@ -617,6 +694,37 @@ export class SceneRenderer {
       }
     }
     ctx.restore();
+
+    // ── Story 5.4: Hovered connection glow (behind all lines) ──
+    // Suppressed when the same connection is selected — selection
+    // takes visual priority (Dev Notes Decision 1).
+    const hoveredId = this.hoveredConnectionProvider?.() ?? null;
+    if (hoveredId && hoveredId !== selectedId) {
+      const hoveredConn = state.connections[hoveredId];
+      if (hoveredConn) {
+        const hFromNode = state.nodes[hoveredConn.fromId];
+        const hToNode = state.nodes[hoveredConn.toId];
+        if (hFromNode && hToNode) {
+          const hFromEdge = getEdgePoint(hFromNode, hToNode.position);
+          const hToEdge = getEdgePoint(hToNode, hFromNode.position);
+          if (!(hFromEdge.x === hToEdge.x && hFromEdge.y === hToEdge.y)) {
+            ctx.save();
+            ctx.strokeStyle = HOVER_HIGHLIGHT_COLOR;
+            ctx.lineWidth = CONNECTION_LINE_WIDTH + 2.5;
+            ctx.globalAlpha = 0.35;
+            ctx.shadowColor = HOVER_HIGHLIGHT_COLOR;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(hFromEdge.x, hFromEdge.y);
+            ctx.lineTo(hToEdge.x, hToEdge.y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.restore();
+          }
+        }
+      }
+    }
+
     ctx.save();
     ctx.globalAlpha = 0.85;
     for (const conn of connections) {
@@ -627,19 +735,24 @@ export class SceneRenderer {
       const toEdge = getEdgePoint(toNode, fromNode.position);
       if (fromEdge.x === toEdge.x && fromEdge.y === toEdge.y) continue;
       const isSelected = conn.id === selectedId;
-      const lineColor = isSelected ? SELECTION_COLOR : CONNECTION_LINE_COLOR;
-      const lineWidth = isSelected ? CONNECTION_LINE_WIDTH + 2 : CONNECTION_LINE_WIDTH;
+      const isHovered = conn.id === hoveredId;
+      const lineColor = isSelected ? SELECTION_COLOR : isHovered ? HOVER_HIGHLIGHT_COLOR : CONNECTION_LINE_COLOR;
+      const lineWidth = isSelected
+        ? CONNECTION_LINE_WIDTH + 2
+        : isHovered
+          ? CONNECTION_LINE_WIDTH + 1
+          : CONNECTION_LINE_WIDTH;
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = lineWidth;
       ctx.beginPath();
       ctx.moveTo(fromEdge.x, fromEdge.y);
       ctx.lineTo(toEdge.x, toEdge.y);
       ctx.stroke();
-      const arrowColor = isSelected ? SELECTION_COLOR : CONNECTION_ARROW_COLOR;
+      const arrowColor = isSelected ? SELECTION_COLOR : isHovered ? HOVER_HIGHLIGHT_COLOR : CONNECTION_ARROW_COLOR;
       this.drawArrowhead(ctx, fromEdge.x, fromEdge.y, toEdge.x, toEdge.y, arrowColor);
       const midX = (fromEdge.x + toEdge.x) / 2;
       const midY = (fromEdge.y + toEdge.y) / 2;
-      ctx.fillStyle = isSelected ? SELECTION_COLOR : '#c0c0c0';
+      ctx.fillStyle = isSelected ? SELECTION_COLOR : isHovered ? '#ffffff' : '#c0c0c0';
       ctx.font = '11px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
@@ -680,6 +793,41 @@ export class SceneRenderer {
     ctx.beginPath();
     ctx.arc(endX, endY, SNAP_ZONE_RADIUS, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Story 5.4 — Snap Target Edge Glow ───────────────────────────────
+
+  /**
+   * Story 5.4 AC4 — Draw a pulsing glow ring at the snap-target module
+   * edge during connection drag.  Two concentric filled circles with
+   * animated opacity, using the cyan connection colour (#4fc3f7) for
+   * semantic consistency with the connection preview line.
+   *
+   * Called from drawFrame() between drawModules() and drawConnections()
+   * so the rubber-band line (drawn later) appears on top of the glow.
+   */
+  private drawSnapTargetEdgeGlow(): void {
+    const snapGlow = this.snapTargetEdgeGlowProvider?.();
+    if (!snapGlow) return;
+    const { ctx } = this;
+    const t = performance.now() / 1000;
+    const pulse = 0.3 + 0.3 * Math.sin(t * 4); // oscillate 0.0–0.6
+    ctx.save();
+    // Inner ring — brighter
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = 'rgba(79, 195, 247, 0.6)';
+    ctx.shadowColor = '#4fc3f7';
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.arc(snapGlow.worldPos.x, snapGlow.worldPos.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // Outer ring — softer, larger
+    ctx.globalAlpha = pulse * 0.5;
+    ctx.beginPath();
+    ctx.arc(snapGlow.worldPos.x, snapGlow.worldPos.y, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 
