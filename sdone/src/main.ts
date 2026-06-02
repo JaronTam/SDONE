@@ -12,12 +12,14 @@ import './ui/styles/layout.css';
 import './ui/panels/styles/module-panel.css';
 import './ui/panels/styles/rate-editor-panel.css';
 import './ui/overlays/styles/color-picker-popover.css';
-import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine } from './canvas/index.js';
+import './ui/overlays/styles/achievement-toast.css'; // Story 5.5
+import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, type ConfettiParticle } from './canvas/index.js';
 import { ModulePanel, RateEditorPanel } from './ui/panels/index.js';
-import { ColorPickerPopover } from './ui/overlays/index.js';
+import { ColorPickerPopover, AchievementToast } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
 import { moveModule, deleteModule, addModule, addConnection, deleteConnection, updateRate, changeModuleColor } from './state/mutations.js';
+import { detectFirstCompleteStack } from './state/achievement-detection.js';
 import { HistoryManager } from './state/HistoryManager.js';
 import { EventBus } from './event-bus/EventBus.js';
 import { NudgeDebouncer } from './shared/NudgeDebouncer.js';
@@ -29,6 +31,10 @@ const eventBus = new EventBus();
 const simEngine = new SimulationEngine();
 // ── Story 5.1: Particle Engine ──────────────────────────────────────────
 const particleEngine = new ParticleEngine();
+
+// ── Story 5.5: Confetti Engine + Achievement Toast ──────────────────────
+const confettiEngine = new ConfettiEngine();
+const achievementToast = new AchievementToast();
 
 // ── Story 5.3: Color Picker Popover ─────────────────────────────────────
 const colorPickerPopover = new ColorPickerPopover();
@@ -66,6 +72,12 @@ let currentState: GraphState = {
   selectedModuleIds: [],
   selectedConnectionIds: [],
 };
+
+// ── Story 5.5: Achievement tracking (per-canvas-session) ─────────────
+let hasFirstConnectionFired = false;
+let hasFirstCompleteStackFired = false;
+let borderFlashState: { moduleIds: string[]; life: number; maxLife: number } | null = null;
+let confettiParticles: ConfettiParticle[] | null = null;
 // Seed the undo stack with the initial state so the first action is undoable.
 historyManager.push(currentState);
 
@@ -527,6 +539,13 @@ eventBus.on('RESET', () => {
   minimapRenderer.markDirty();
   particleEngine.reset(); // Story 5.1 AC6: clear particles on RESET
   sceneRenderer.resetAnimatedFills(); // Story 5.2 AC5: snap fill to restored values
+  // Story 5.5 AC3: Reset per-session achievement state
+  hasFirstConnectionFired = false;
+  hasFirstCompleteStackFired = false;
+  confettiEngine.reset();
+  confettiParticles = null;
+  borderFlashState = null;
+  achievementToast.dismissAll();
   updateRunButton(); // reset → idle, button shows "▶ Run"
 });
 
@@ -574,6 +593,7 @@ void import.meta.hot?.dispose(() => {
   modulePanel.destroy();
   rateEditorPanel.destroy();
   colorPickerPopover.destroy();
+  achievementToast.destroy(); // Story 5.5: clean up toast timers + DOM
 });
 
 // ── Story 3.1: Left Sidebar Module Panel ──────────────────────────────
@@ -660,6 +680,50 @@ inputManager.onConnectionDragEnd = (sourceModuleId: string, targetModuleId: stri
     toId: targetModuleId,
     rate: 1,
   });
+
+  // ── Story 5.5: Achievement detection ───────────────────────────
+  if (!hasFirstConnectionFired) {
+    hasFirstConnectionFired = true;
+    // Trigger confetti at connection midpoint
+    const fromNode = currentState.nodes[sourceModuleId];
+    const toNode = currentState.nodes[targetModuleId];
+    if (fromNode && toNode) {
+      const midX = (fromNode.position.x + toNode.position.x) / 2;
+      const midY = (fromNode.position.y + toNode.position.y) / 2;
+      confettiEngine.burst(midX, midY);
+    }
+    achievementToast.show('Great! 🎉');
+    eventBus.emit('ACHIEVEMENT_UNLOCKED', {
+      achievementId: 'first-connection',
+      message: 'Great! 🎉',
+    });
+  }
+  if (!hasFirstCompleteStackFired && detectFirstCompleteStack(currentState)) {
+    hasFirstCompleteStackFired = true;
+    // Collect all modules in the complete source→stock→sink stack
+    const stackModuleIds = new Set<string>();
+    for (const stockNode of Object.values(currentState.nodes)) {
+      if (stockNode.type !== 'stock') continue;
+      const sourceConns = Object.values(currentState.connections).filter(
+        c => c.toId === stockNode.id && currentState.nodes[c.fromId]?.type === 'source'
+      );
+      const sinkConns = Object.values(currentState.connections).filter(
+        c => c.fromId === stockNode.id && currentState.nodes[c.toId]?.type === 'sink'
+      );
+      if (sourceConns.length > 0 && sinkConns.length > 0) {
+        stackModuleIds.add(stockNode.id);
+        for (const sc of sourceConns) stackModuleIds.add(sc.fromId);
+        for (const sk of sinkConns) stackModuleIds.add(sk.toId);
+        break;
+      }
+    }
+    borderFlashState = { moduleIds: [...stackModuleIds], life: 1.5, maxLife: 1.5 };
+    achievementToast.show('恭喜！你构建了第一个完整系统 🎊');
+    eventBus.emit('ACHIEVEMENT_UNLOCKED', {
+      achievementId: 'first-complete-stack',
+      message: '恭喜！你构建了第一个完整系统 🎊',
+    });
+  }
 };
 
 inputManager.onConnectionDragCancel = () => {
@@ -699,11 +763,20 @@ sceneRenderer.selectedConnectionProvider = () => currentState.selectedConnection
 // Story 4.6: Stock edge-warning provider for SceneRenderer warning arcs
 sceneRenderer.stockWarningProvider = () => getAllEdgeWarnings(currentState);
 
-// ── Story 5.1 — Particle providers wired at composition root ────────────
+// ── Story 5.1 + 5.5 — Pre-frame updates wired at composition root ──────
 sceneRenderer.onPreFrame = (dt: number) => {
   particleEngine.update(dt, currentState.connections, currentState.nodes, simEngine.state);
+  // Story 5.5: update confetti engine + border flash lifetime
+  const nextConfetti = confettiEngine.update(dt);
+  confettiParticles = (nextConfetti && nextConfetti.length > 0) ? nextConfetti : null;
+  if (borderFlashState) {
+    borderFlashState = { ...borderFlashState, life: borderFlashState.life - dt };
+    if (borderFlashState.life <= 0) borderFlashState = null;
+  }
 };
 sceneRenderer.particleStateProvider = () => particleEngine.getState();
+sceneRenderer.confettiProvider = () => confettiParticles;
+sceneRenderer.borderFlashProvider = () => borderFlashState;
 
 // Ghost provider: expose InputManager ghost state to renderers
 sceneRenderer.ghostProvider = () => {

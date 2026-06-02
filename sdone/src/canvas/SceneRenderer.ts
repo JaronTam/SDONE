@@ -12,6 +12,7 @@ import {
 } from '../shared/ShapePaths.js';
 import type { GraphState, StockNode, SourceNode, SinkNode, ModuleType } from '../state/GraphState.js';
 import type { ViewportManager } from './Viewport.js';
+import type { ConfettiParticle } from './ConfettiEngine.js';
 
 // ── Module size constants (exported for InputManager hit-testing) ──────
 export const SOURCE_CLOUD_RADIUS = CLOUD_RADIUS;
@@ -230,6 +231,16 @@ export class SceneRenderer {
   public onPreFrame: ((dt: number) => void) | null = null;
   public particleStateProvider: (() => import('./ParticleEngine.js').ParticleState | null) | null = null;
 
+  // ── Story 5.5 — Confetti + border flash providers ────────────────────
+  /** Story 5.5 AC1 — Confetti burst state for achievement celebrations.
+   *  Returns an array of confetti particles to render this frame.
+   *  null = no confetti active. */
+  public confettiProvider: (() => ConfettiParticle[] | null) | null = null;
+
+  /** Story 5.5 AC2 — Border flash around a group of module IDs.
+   *  Returns the set of module IDs to flash and remaining lifetime. */
+  public borderFlashProvider: (() => { moduleIds: string[]; life: number; maxLife: number } | null) | null = null;
+
   // ── Story 5.2 — Fill animation state ─────────────────────────────────
   /** Per-stock animated fill ratios for smooth fill/shrink transitions.
    *  Keyed by stock node id, value is the currently-displayed fill ratio (0.0–1.0+).
@@ -290,12 +301,14 @@ export class SceneRenderer {
     this.drawGrid();
     if (this.graphState) {
       this.drawModules(this.graphState);
+      this.drawBorderFlash(this.graphState);  // Story 5.5 AC2: flash rings around achieved stack
       this.drawSnapTargetEdgeGlow();  // Story 5.4 AC4 — between modules and connections
       this.drawConnections(this.graphState);
     }
     this.drawGhost();
     this.drawConnectionDragPreview();
     this.drawParticles();
+    this.drawConfetti();        // Story 5.5 AC1: confetti above particles, below tooltip
     // Story 5.4 AC3: tooltip drawn last, on top of everything, in screen space
     this.drawHoverTooltip();
   }
@@ -312,10 +325,7 @@ export class SceneRenderer {
     if (!this.tooltipText || !this.tooltipScreenPos) return;
     const { ctx } = this;
     const { x, y } = this.tooltipScreenPos;
-    const nlIdx = this.tooltipText.indexOf('\n');
-    const line1 = nlIdx >= 0 ? this.tooltipText.slice(0, nlIdx) : this.tooltipText;
-    const line2 = nlIdx >= 0 ? this.tooltipText.slice(nlIdx + 1) : '';
-    const lines = line2 ? [line1, line2] : [line1];
+    const lines = this.tooltipText.split('\n');
     ctx.save();
     ctx.resetTransform(); // Story 5.4 — tooltip renders in screen space, not world space
     ctx.font = '12px system-ui, sans-serif';
@@ -331,10 +341,10 @@ export class SceneRenderer {
     const th = lines.length * lineHeight;
     const cr = 5;
     // Position: offset right and below cursor, clamped to canvas bounds
-    let bx = x + 14;
-    let by = y + 14;
-    if (bx + tw + pad * 2 > this.canvas.width) bx = x - tw - pad * 2 - 14;
-    if (by + th + pad * 2 > this.canvas.height) by = y - th - pad * 2 - 14;
+    let bx = Math.max(0, x + 14);
+    let by = Math.max(0, y + 14);
+    if (bx + tw + pad * 2 > this.canvas.width) bx = Math.max(0, x - tw - pad * 2 - 14);
+    if (by + th + pad * 2 > this.canvas.height) by = Math.max(0, y - th - pad * 2 - 14);
     // Background with roundedRect
     ctx.fillStyle = 'rgba(18, 18, 30, 0.94)';
     ctx.strokeStyle = HOVER_HIGHLIGHT_COLOR;
@@ -870,6 +880,55 @@ export class SceneRenderer {
       }
       ctx.restore();
     }
+  }
+
+  // ── Story 5.5 — Confetti ────────────────────────────────────────────
+
+  /**
+   * Story 5.5 AC1 — Draw confetti particles as small rotated rectangles.
+   * Confetti renders above particles but below tooltip.
+   */
+  private drawConfetti(): void {
+    const particles = this.confettiProvider?.();
+    if (!particles || particles.length === 0) return;
+    const { ctx } = this;
+    for (const p of particles) {
+      const alpha = Math.max(0, p.life / p.maxLife);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    }
+  }
+
+  // ── Story 5.5 — Border Flash ────────────────────────────────────────
+
+  /**
+   * Story 5.5 AC2 — Draw a pulsing gold ring around each module in the
+   * achievement group, fading out over ~1.5s.
+   */
+  private drawBorderFlash(state: GraphState): void {
+    const flash = this.borderFlashProvider?.();
+    if (!flash || flash.life <= 0) return;
+    const { ctx } = this;
+    const alpha = flash.life / flash.maxLife;
+    const pulse = 1 + 0.15 * Math.sin(performance.now() / 1000 * 2 * Math.PI * 8); // 8 Hz shimmer
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 4 * pulse;
+    for (const id of flash.moduleIds) {
+      const node = state.nodes[id];
+      if (!node) continue;
+      const r = getModuleBoundingRadius(node);
+      ctx.beginPath();
+      ctx.arc(node.position.x, node.position.y, r + 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // ── Story 5.1 — Particles ───────────────────────────────────────────

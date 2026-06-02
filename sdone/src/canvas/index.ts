@@ -13,3 +13,5 @@ export {
 } from './SceneRenderer.js';
 export { MinimapRenderer } from './MinimapRenderer.js';
 export { ParticleEngine, type ParticleState } from './ParticleEngine.js';
+// Story 5.5: Confetti burst engine
+export { ConfettiEngine, type ConfettiParticle } from './ConfettiEngine.js';
