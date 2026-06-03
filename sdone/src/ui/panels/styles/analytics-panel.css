@@ -1,0 +1,103 @@
+.analytics-panel {
+  pointer-events: auto;
+  padding: 12px 14px;
+  color: #cdd6f4;
+  font-size: 13px;
+  border-top: 1px solid #313244; /* separator from RateEditorPanel above */
+  user-select: none;
+}
+
+.analytics-panel__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c7086;
+  margin-bottom: 10px;
+}
+
+.analytics-panel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 14px;
+  gap: 8px;
+  color: #585b70;
+}
+
+.analytics-panel__empty-icon {
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+.analytics-panel__empty-text {
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.analytics-panel__data {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.analytics-panel__stock-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cdd6f4;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  background: #313244;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analytics-panel__field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.analytics-panel__field--net {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid #45475a;
+}
+
+.analytics-panel__field-label {
+  color: #a6adc8;
+  min-width: 48px;
+  font-size: 12px;
+}
+
+.analytics-panel__field-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 14px;
+  color: #cdd6f4;
+  transition: color 300ms ease;
+}
+
+.analytics-panel__field-value--positive {
+  color: #a6e3a1;
+}
+
+.analytics-panel__field-value--negative {
+  color: #f38ba8;
+}
+
+.analytics-panel__field-unit {
+  font-size: 11px;
+  color: #6c7086;
+  margin-left: 2px;
+}
+
+.analytics-panel__divider {
+  height: 1px;
+  background: #45475a;
+  margin: 4px 0;
+}

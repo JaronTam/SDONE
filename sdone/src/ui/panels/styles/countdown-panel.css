@@ -1,0 +1,141 @@
+/* CountdownPanel — Right Sidebar Countdown Timer Display (Story 6.3) */
+/* Catppuccin Mocha dark theme — consistent with AnalyticsPanel and RateEditorPanel */
+
+.countdown-panel {
+  pointer-events: auto;
+  padding: 12px 14px;
+  color: #cdd6f4;
+  font-size: 13px;
+  border-top: 1px solid #313244; /* separator from AnalyticsPanel above */
+  user-select: none;
+}
+
+.countdown-panel__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c7086;
+  margin-bottom: 10px;
+}
+
+.countdown-panel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 14px;
+  gap: 8px;
+  color: #585b70;
+}
+
+.countdown-panel__empty-icon {
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+.countdown-panel__empty-text {
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.countdown-panel__data {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.countdown-panel__stock-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cdd6f4;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  background: #313244;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.countdown-panel__field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.countdown-panel__field--time {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid #45475a;
+}
+
+.countdown-panel__field-label {
+  color: #a6adc8;
+  min-width: 48px;
+  font-size: 12px;
+}
+
+.countdown-panel__field-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 14px;
+  color: #cdd6f4;
+  transition: color 300ms ease;
+}
+
+.countdown-panel__field-value--direction {
+  font-size: 13px;
+}
+
+/* Direction: approaching capacity — amber warning */
+.countdown-panel__field-value--to-capacity {
+  color: #f9e2af;
+}
+
+/* Direction: approaching zero — blue alert */
+.countdown-panel__field-value--to-zero {
+  color: #89b4fa;
+}
+
+/* Terminal state: countdown reached zero */
+.countdown-panel__field-value--reached {
+  font-weight: 700;
+  animation: countdown-pulse 2s ease-in-out infinite;
+}
+
+/* Terminal state direction colors — combine with --reached */
+.countdown-panel__field-value--reached.countdown-panel__field-value--to-capacity {
+  color: #f9e2af; /* amber — reached capacity ceiling */
+}
+
+.countdown-panel__field-value--reached.countdown-panel__field-value--to-zero {
+  color: #89b4fa; /* blue — reached zero */
+}
+
+@keyframes countdown-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Net rate positive — green */
+.countdown-panel__field-value--rate-positive {
+  color: #a6e3a1;
+}
+
+/* Net rate negative — red */
+.countdown-panel__field-value--rate-negative {
+  color: #f38ba8;
+}
+
+/* Remaining time — large, prominent */
+.countdown-panel__field-value--time {
+  font-size: 20px;
+}
+
+.countdown-panel__field-unit {
+  font-size: 11px;
+  color: #6c7086;
+  margin-left: 2px;
+}

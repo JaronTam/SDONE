@@ -23,6 +23,7 @@ export interface EventMap {
   // ── Canvas → UI: Simulation Updates ────────────────────────
   SNAPSHOT_EMITTED: { state: GraphState };
   COUNTDOWN_TICK: { stockId: string; remainingSeconds: number };
+  COUNTDOWN_ZERO: { stockId: string; direction: 'to-capacity' | 'to-zero' };
 
   // ── Canvas → UI: Selection State ───────────────────────────
   MODULE_SELECTED: { moduleId: string | null };

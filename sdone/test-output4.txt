@@ -1,0 +1,52 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.6 [39m[90mC:/Two/SDONE/sdone[39m
+
+ [32m鉁?[39m src/ui/panels/ControlBar.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 335[2mms[22m[39m
+ [32m鉁?[39m src/ui/panels/ModulePanel.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 1120[2mms[22m[39m
+ [32m鉁?[39m src/input/InputManager.test.ts [2m([22m[2m71 tests[22m[2m)[22m[33m 966[2mms[22m[39m
+       [33m[2m鉁?[22m[39m does NOT fire double-click if clicks are too far apart in time (>300ms, AC2) [33m 365[2mms[22m[39m
+ [32m鉁?[39m src/canvas/Viewport.test.ts [2m([22m[2m31 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m鉁?[39m src/ui/panels/RateEditorPanel.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 281[2mms[22m[39m
+ [32m鉁?[39m src/ui/panels/AnalyticsPanel.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 515[2mms[22m[39m
+ [32m鉁?[39m src/canvas/EmptyCanvasAffordance.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m鉁?[39m src/ui/overlays/ModalDialog.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 243[2mms[22m[39m
+ [32m鉁?[39m src/shared/NudgeDebouncer.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+stderr | src/event-bus/EventBus.test.ts > EventBus > continues to call remaining handlers after one throws
+[EventBus] Handler for "TEST_EVENT" threw: Error: boom
+    at C:/Two/SDONE/sdone/src/event-bus/EventBus.test.ts:53:13
+    at EventBus.emit (C:/Two/SDONE/sdone/src/event-bus/EventBus.ts:46:9)
+    at C:/Two/SDONE/sdone/src/event-bus/EventBus.test.ts:57:7
+    at file:///C:/Two/SDONE/sdone/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11
+    at file:///C:/Two/SDONE/sdone/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26
+    at file:///C:/Two/SDONE/sdone/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/Two/SDONE/sdone/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)
+    at file:///C:/Two/SDONE/sdone/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+
+ [32m鉁?[39m src/event-bus/EventBus.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32m鉁?[39m src/simulation/formula/parser.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m鉁?[39m src/ui/overlays/AchievementToast.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 267[2mms[22m[39m
+ [32m鉁?[39m src/canvas/ConfettiEngine.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m鉁?[39m src/state/HistoryManager.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 217[2mms[22m[39m
+ [32m鉁?[39m src/simulation/SimulationEngine.test.ts [2m([22m[2m48 tests[22m[2m)[22m[33m 397[2mms[22m[39m
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+ [32m鉁?[39m src/canvas/MinimapRenderer.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 337[2mms[22m[39m
+ [32m鉁?[39m src/shared/ShapePaths.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m鉁?[39m src/simulation/formula/tokenizer.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 82[2mms[22m[39m
+ [32m鉁?[39m src/state/achievement-detection.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m鉁?[39m src/simulation/formula/FormulaEngine.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m鉁?[39m src/simulation/StackValidator.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m鉁?[39m src/canvas/__tests__/ParticleEngine.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m鉁?[39m src/state/mutations.test.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m鉁?[39m src/state/GraphState.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m鉁?[39m src/canvas/__tests__/SceneRenderer.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m鉁?[39m src/simulation/formula/evaluator.test.ts [2m([22m[2m33 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [32m鉁?[39m src/canvas/__tests__/StackValidator-rendering.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m鉁?[39m src/shared/utils.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m28 passed[39m[22m[90m (28)[39m
+[2m      Tests [22m [1m[32m573 passed[39m[22m[90m (573)[39m
+[2m   Start at [22m 16:21:07
+[2m   Duration [22m 63.89s[2m (transform 4.63s, setup 0ms, import 6.95s, tests 5.35s, environment 132.66s)[22m
+
