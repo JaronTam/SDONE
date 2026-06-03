@@ -965,3 +965,106 @@ describe('Story 4.4 — Formula Engine Integration', () => {
     expect(state.connections.c0.rate).toBeCloseTo(2, 4); // evaluated at t=0.2 → 2
   });
 });
+
+// =============================================================================
+// Story 6.1 — Tab background throttling mitigation (visibilitychange)
+// =============================================================================
+
+describe('Story 6.1 — visibilitychange handler', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('after start, visibilitychange handler is registered', () => {
+    const engine = new SimulationEngine();
+    const state = makeStateWithOneStockOneSource(10);
+
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    engine.start(() => state);
+
+    expect(addSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+    addSpy.mockRestore();
+
+    engine.pause();
+  });
+
+  it('after pause, visibilitychange handler is removed', () => {
+    const engine = new SimulationEngine();
+    const state = makeStateWithOneStockOneSource(10);
+
+    engine.start(() => state);
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
+    engine.pause();
+
+    expect(removeSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+    removeSpy.mockRestore();
+  });
+
+  it('after reset, visibilitychange handler is removed', () => {
+    const engine = new SimulationEngine();
+    const state = makeStateWithOneStockOneSource(10);
+
+    engine.start(() => state);
+    const removeSpy = vi.spyOn(document, 'removeEventListener');
+    engine.reset();
+
+    expect(removeSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function));
+    removeSpy.mockRestore();
+  });
+
+  it('hidden→visible while running advances t by elapsed time (capped at 5s)', () => {
+    const engine = new SimulationEngine();
+    const state = makeStateWithOneStockOneSource(10);
+
+    engine.start(() => state);
+    vi.advanceTimersByTime(100); // one interval → t ≈ 0.1
+
+    // Simulate tab going hidden
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    // Simulate 10 seconds passing while hidden.
+    // Note: vi.advanceTimersByTime also fires setInterval callbacks,
+    // adding ~10s from interval ticks. The visibility handler adds
+    // capped elapsed (5s max). Total advance ≈ 10s (intervals) + 5s (cap) = 15s.
+    vi.advanceTimersByTime(10000);
+
+    // Simulate tab becoming visible again
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    // The visibility handler caps at 5s. Without the cap, elapsed would be 10s.
+    // We verify the cap by checking that the visibility advance is ≤ 5s.
+    // Total t = 0.1 (first interval) + 10s (100 intervals during hidden) + capped_visibility_advance
+    // The capped_visibility_advance should be exactly 5s (10s elapsed, capped to 5s).
+    // So total t ≈ 0.1 + 10 + 5 = 15.1
+    // We verify the cap by checking t is around 15.1 (not 20.1 which would be uncapped)
+    expect(engine.t).toBeCloseTo(15.1, 0); // approximately 15.1s total
+
+    engine.pause();
+  });
+
+  it('reset clears _lastVisibilityChange state', () => {
+    const engine = new SimulationEngine();
+    const state = makeStateWithOneStockOneSource(10);
+
+    engine.start(() => state);
+
+    // Simulate tab going hidden
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    engine.reset();
+
+    // After reset, t should be 0 and state idle
+    expect(engine.t).toBe(0);
+    expect(engine.state).toBe('idle');
+
+    // Restore document.hidden
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+  });
+});

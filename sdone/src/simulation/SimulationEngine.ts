@@ -60,6 +60,12 @@ export class SimulationEngine {
   /** Reference to the live mutable `GraphState` being driven by the loop. */
   private _stateProvider: (() => GraphState) | null = null;
 
+  /** `visibilitychange` handler reference for cleanup (Story 6.1). */
+  private _visibilityHandler: (() => void) | null = null;
+
+  /** Timestamp when tab was last hidden (0 = never hidden yet). */
+  private _lastVisibilityChange: number = 0;
+
   /**
    * Number of Euler sub-steps per 100ms interval.
    *
@@ -199,6 +205,24 @@ export class SimulationEngine {
       }
       this.onTick?.(state); // Story 4.3 snapshot slot
     }, 100);
+
+    // Story 6.1: Tab background throttling mitigation
+    // When the browser tab is backgrounded, setInterval is throttled to ≤1Hz.
+    // On return to foreground, advance simulated time proportionally (capped at 5s).
+    this._visibilityHandler = () => {
+      if (document.hidden) {
+        this._lastVisibilityChange = performance.now();
+      } else {
+        if (this._lastVisibilityChange === 0) return; // guard: never hidden
+        const elapsed = (performance.now() - this._lastVisibilityChange) / 1000;
+        // Cap at 5 seconds to prevent extreme jumps
+        const cappedElapsed = Math.min(elapsed, 5);
+        // Advance simulated time without running Euler steps
+        this.t += cappedElapsed;
+        this._lastVisibilityChange = 0; // reset for next cycle
+      }
+    };
+    document.addEventListener('visibilitychange', this._visibilityHandler);
   }
 
   /**
@@ -213,6 +237,12 @@ export class SimulationEngine {
    */
   pause(): void {
     if (this.state !== 'running') return; // AC5: double-PAUSE no-op
+
+    // Story 6.1: Remove visibility handler when pausing
+    if (this._visibilityHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityHandler);
+      this._visibilityHandler = null;
+    }
 
     if (this._intervalId !== null) {
       clearInterval(this._intervalId);
@@ -237,6 +267,7 @@ export class SimulationEngine {
     this.t = 0;
     this.state = 'idle';
     this._stateProvider = null;
+    this._lastVisibilityChange = 0; // Story 6.1: clear visibility state
     this.formulaEngine?.clearCache(); // Story 4.4 P2: clear AST + poison caches on reset
   }
 }

@@ -24,10 +24,16 @@ body {
 
 /* ---- z-Index Custom Properties ---- */
 :root {
+  /* Base layers (0–3): DOM layout stack */
   --z-canvas: 0;         /* Main scene canvas — base layer */
   --z-panel: 1;          /* Left + Right panels */
   --z-control-bar: 2;    /* Top control bar — above panels */
-  --z-minimap: 3;        /* Minimap overlay — above everything */
+  --z-minimap: 3;        /* Minimap overlay — above control bar */
+
+  /* Overlay layers (200+): fixed-position UI on top of base layers */
+  --z-modal: 200;        /* Modal dialog backdrop — above minimap, below popover/toast */
+  --z-popover: 1000;     /* Color picker popover — above modal */
+  --z-toast: 1001;       /* Achievement toast — topmost UI layer */
 }
 
 /* ---- App Root Container ---- */

@@ -1,0 +1,26 @@
+/* ---------------------------------------------------------------------------
+ * SDONE — Control Bar Status Indicator Styles (Story 6.1)
+ *
+ * Only adds styles for the programmatically-created status indicator.
+ * Button styles are already defined in layout.css — this file does NOT
+ * modify them.
+ * --------------------------------------------------------------------------- */
+
+.control-bar-status {
+  margin: 0 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #6c7086;
+  user-select: none;
+  min-width: 60px;
+  text-align: center;
+  transition: color 300ms ease;
+}
+
+.control-bar-status--running {
+  color: #a6e3a1; /* green tint when running */
+}
+
+.control-bar-status--paused {
+  color: #f9e2af; /* amber tint when paused */
+}

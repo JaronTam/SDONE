@@ -11,7 +11,7 @@
    ════════════════════════════════════════════════════════════════════════ */
 .color-picker-popover {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-popover);
   background: #1e1e2e;
   border: 1px solid #45475a;
   border-radius: 8px;

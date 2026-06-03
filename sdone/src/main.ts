@@ -11,11 +11,13 @@
 import './ui/styles/layout.css';
 import './ui/panels/styles/module-panel.css';
 import './ui/panels/styles/rate-editor-panel.css';
+import './ui/panels/styles/control-bar.css'; // Story 6.1
 import './ui/overlays/styles/color-picker-popover.css';
 import './ui/overlays/styles/achievement-toast.css'; // Story 5.5
+import './ui/overlays/styles/modal-dialog.css'; // Story 6.1
 import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, type ConfettiParticle } from './canvas/index.js';
-import { ModulePanel, RateEditorPanel } from './ui/panels/index.js';
-import { ColorPickerPopover, AchievementToast } from './ui/overlays/index.js';
+import { ModulePanel, RateEditorPanel, ControlBar } from './ui/panels/index.js';
+import { ColorPickerPopover, AchievementToast, ModalDialog } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
 import { moveModule, deleteModule, addModule, addConnection, deleteConnection, updateRate, changeModuleColor } from './state/mutations.js';
@@ -38,6 +40,9 @@ const achievementToast = new AchievementToast();
 
 // ── Story 5.3: Color Picker Popover ─────────────────────────────────────
 const colorPickerPopover = new ColorPickerPopover();
+
+// ── Story 6.1: Modal Dialog ──────────────────────────────────────────────
+const modalDialog = new ModalDialog();
 
 // ── Story 4.4: Formula Engine ──────────────────────────────────────────
 simEngine.formulaEngine = new FormulaEngine();
@@ -549,31 +554,42 @@ eventBus.on('RESET', () => {
   updateRunButton(); // reset → idle, button shows "▶ Run"
 });
 
-// ── Story 4.2: Run/Pause button text helper ──────────────────────────────
+// ── Story 6.1: Control Bar (replaces ad-hoc updateRunButton + button handlers) ──
+const controlBarContainer = document.querySelector('.layer-control-bar') as HTMLElement | null;
+if (!controlBarContainer) {
+  throw new Error('SDONE: Required container .layer-control-bar not found in DOM.');
+}
+const controlBar = new ControlBar(controlBarContainer);
+
+// Wire Run/Pause callback (replaces ad-hoc btnRun click handler)
+controlBar.onRunPause = () => {
+  if (simEngine.state === 'running') {
+    eventBus.emit('PAUSE', undefined);
+  } else {
+    eventBus.emit('RUN', undefined);
+  }
+};
+
+// Wire Reset callback with confirmation modal (AC5)
+controlBar.onReset = () => {
+  modalDialog.open({
+    title: '重置确认',
+    body: '确定要重置画布吗？所有未保存的进度将丢失。',
+    confirmText: '确认重置',
+    cancelText: '取消',
+    onConfirm: () => {
+      eventBus.emit('RESET', undefined);
+    },
+    onCancel: () => {
+      // No-op — modal auto-closes
+    },
+  });
+};
+
+// ── Story 6.1: Run/Pause button text helper ──────────────────────────────
 // (hoisted function declaration — referenced by EventBus handlers above)
 function updateRunButton(): void {
-  const btnRun = document.querySelector('.btn-run') as HTMLButtonElement | null;
-  if (btnRun) btnRun.textContent = simEngine.state === 'running' ? '⏸ Pause' : '▶ Run';
-}
-
-// ── Story 4.2: Run/Pause/Reset buttons ──────────────────────────────────
-const btnRun = document.querySelector('.btn-run') as HTMLButtonElement | null;
-
-if (btnRun) {
-  btnRun.addEventListener('click', () => {
-    if (simEngine.state === 'running') {
-      eventBus.emit('PAUSE', undefined);
-    } else {
-      eventBus.emit('RUN', undefined);
-    }
-  });
-}
-
-const btnResetSim = document.querySelector('.btn-reset-sim') as HTMLButtonElement | null;
-if (btnResetSim) {
-  btnResetSim.addEventListener('click', () => {
-    eventBus.emit('RESET', undefined);
-  });
+  controlBar.setRunState(simEngine.state);
 }
 
 // ── Lifecycle (hot-reload cleanup) ────────────────────────────────────
@@ -592,6 +608,8 @@ void import.meta.hot?.dispose(() => {
   inputManager.destroy();
   modulePanel.destroy();
   rateEditorPanel.destroy();
+  controlBar.destroy();    // Story 6.1: cleanup button listeners + status element
+  modalDialog.destroy();   // Story 6.1: cleanup modal DOM + keyboard listeners
   colorPickerPopover.destroy();
   achievementToast.destroy(); // Story 5.5: clean up toast timers + DOM
 });

@@ -4,7 +4,7 @@
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 1001; /* above minimap (z:3), above color picker (z:1000) */
+  z-index: var(--z-toast); /* topmost UI layer — above popover (--z-popover: 1000) and modal (--z-modal: 200) */
   min-width: 260px;
   max-width: 400px;
   padding: 12px 20px;

@@ -1,0 +1,115 @@
+/* ---------------------------------------------------------------------------
+ * SDONE — Modal Dialog Styles (Story 6.1)
+ *
+ * Dark theme consistent with the app (#1e1e2e bg, #cdd6f4 text).
+ * Stacking: var(--z-modal) = 200 — above control bar (--z-control-bar: 2)
+ * and minimap (--z-minimap: 3), sits below color picker (--z-popover: 1000)
+ * and achievement toasts (--z-toast: 1001). See layout.css :root.
+ * --------------------------------------------------------------------------- */
+
+/* ── Backdrop ─────────────────────────────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: modal-backdrop-enter 150ms ease-out;
+}
+
+@keyframes modal-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Dialog ───────────────────────────────────────────────────────────── */
+
+.modal-dialog {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: modal-dialog-enter 200ms ease-out;
+}
+
+@keyframes modal-dialog-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Title ────────────────────────────────────────────────────────────── */
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: #cdd6f4;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────── */
+
+.modal-body {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+  color: #a6adc8;
+}
+
+/* ── Actions ──────────────────────────────────────────────────────────── */
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Cancel Button (muted/neutral) ────────────────────────────────────── */
+
+.modal-btn-cancel {
+  padding: 8px 16px;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  background: transparent;
+  color: #a6adc8;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.modal-btn-cancel:hover {
+  background: #313244;
+  border-color: #585b70;
+}
+
+/* ── Confirm Button (red/danger tint) ─────────────────────────────────── */
+
+.modal-btn-confirm {
+  padding: 8px 16px;
+  border: 1px solid #f38ba8;
+  border-radius: 4px;
+  background: rgba(243, 139, 168, 0.15);
+  color: #f38ba8;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.modal-btn-confirm:hover {
+  background: rgba(243, 139, 168, 0.3);
+}
