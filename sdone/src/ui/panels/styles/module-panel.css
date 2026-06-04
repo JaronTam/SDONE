@@ -19,6 +19,8 @@
   transition: transform 300ms ease;
   transform: translateX(0);
   pointer-events: auto; /* Capture events for interactive children */
+  display: flex;
+  flex-direction: column;
 }
 
 /* AC7 — Hidden state: slides panel off-screen left */
@@ -61,6 +63,12 @@
   color: #cdd6f4;
 }
 
+/* Story 6.6 AC2 — Active/pinned state */
+.module-panel__pin-btn--active {
+  color: #f9e2af;  /* Catppuccin Mocha Yellow — "pinned" warmth */
+  text-shadow: 0 0 8px rgba(249, 226, 175, 0.4);
+}
+
 /* ── Icon List ──────────────────────────────────────────────────────── */
 
 .module-panel__icon-list {
@@ -68,6 +76,8 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px 12px;
+  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 /* ── Individual Icon Item ───────────────────────────────────────────── */
@@ -111,4 +121,101 @@
 
 .module-icon:hover .module-icon__label {
   color: #cdd6f4;
+}
+
+/* Story 6.5 AC2 — Selected/highlighted icon state (click-to-place) */
+.module-icon[data-highlighted="true"] {
+  background-color: #45475a;
+  box-shadow: 0 0 0 2px #89b4fa;
+}
+
+.module-icon[data-highlighted="true"] .module-icon__label {
+  color: #cdd6f4;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────── */
+.module-panel__divider {
+  height: 1px;
+  margin: 0 12px;
+  background: #313244;
+}
+
+/* ── Compositions Area (Story 6.5 AC1) ──────────────────────────────── */
+.module-panel__compositions {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+
+.module-panel__compositions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.module-panel__compositions-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #a6adc8;
+  user-select: none;
+}
+
+.module-panel__compositions-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #45475a;
+  border-radius: 8px;
+  min-height: 80px;
+}
+
+.module-panel__compositions-placeholder {
+  font-size: 12px;
+  color: #585b70;
+  text-align: center;
+  line-height: 1.5;
+  padding: 16px;
+  user-select: none;
+}
+
+/* Story 6.5 AC3 — Re-expand tab (visible when panel auto-hidden) */
+.module-panel__re-expand-tab {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease; /* Match .module-panel transform duration */
+  z-index: 1;
+}
+
+.module-panel__re-expand-tab:hover {
+  background: #45475a;
+}
+
+.module-panel__re-expand-arrow {
+  font-size: 10px;
+  color: #cdd6f4;
+  user-select: none;
+}
+
+/* Show tab only when panel is hidden */
+.module-panel--hidden ~ .module-panel__re-expand-tab {
+  opacity: 1;
+  pointer-events: auto;
 }

@@ -514,6 +514,26 @@ inputManager.onModulePlaceAtCenter = () => {
   eventBus.emit('MODULE_PLACED', { type: highlightedType as ModuleType, position: worldPos });
 };
 
+// ── Story 6.5: Click-to-place on empty canvas (AC2) ──────────────────
+inputManager.onCanvasClickEmpty = (worldPos) => {
+  const selectedType = modulePanel.getSelectedType();
+  if (!selectedType) return; // No type selected → normal deselect flow
+
+  // Place module at click position
+  let nextState = addModule(currentState, selectedType as ModuleType, worldPos);
+  if (selectedType === 'source' || selectedType === 'sink') {
+    nextState = applyPaletteColor(currentState, nextState, selectedType);
+  }
+
+  currentState = nextState;
+  historyManager.push(currentState);
+  minimapRenderer.markDirty();
+  eventBus.emit('MODULE_PLACED', { type: selectedType as ModuleType, position: worldPos });
+
+  // Clear the icon selection so next click doesn't place another
+  modulePanel.clearSelection();
+};
+
 // ── Story 2.2: Viewport Reset (Fit All) ───────────────────────────────
 const btnResetViewport = document.querySelector('.btn-reset-viewport') as HTMLButtonElement | null;
 if (btnResetViewport) {
@@ -588,6 +608,32 @@ const handleResetShortcut = (e: KeyboardEvent): void => {
     return;
   }
 
+  // ── Story 6.6: "P" key toggles panel pin state (AC1) ──────────────
+  if (e.code === 'KeyP' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.repeat && !isEditingTarget(e.target as EventTarget | null)) {
+    e.preventDefault();
+    const leftHidden = document.querySelector('.module-panel--hidden') !== null;
+    const rightHidden = rightSidebarContent.classList.contains('right-sidebar__content--hidden');
+
+    if (leftHidden || rightHidden) {
+      // Re-show hidden panels and pin them
+      if (leftHidden) {
+        modulePanel.setHidden(false);
+        modulePanel.setPinned(true);    // Story 6.6 AC1 — re-expand also pins
+      }
+      if (rightHidden) {
+        setRightSidebarHidden(false);
+        if (!rightPanelPinned) {
+          setRightPinned(true);
+        }
+      }
+    } else {
+      // Both visible — toggle both pin states
+      modulePanel.setPinned(!modulePanel.isPinned());
+      setRightPinned(!rightPanelPinned);
+    }
+    return;
+  }
+
   // ── Story 4.2: Space → Run/Pause toggle ────────────────────────────
   if (!e.shiftKey && !e.ctrlKey && !e.metaKey && e.code === 'Space') {
     if (e.repeat) return;                        // ignore key repeat (~30Hz)
@@ -627,11 +673,22 @@ eventBus.on('SNAPSHOT_EMITTED', (payload: { state: GraphState }) => {
 eventBus.on('RUN', () => {
   simEngine.start(() => currentState);
   updateRunButton();
+  modulePanel.clearSelection();   // Story 6.5 — prevent accidental placement during hide animation
+  // Story 6.6: Only auto-hide when not pinned (AC3)
+  if (!modulePanel.isPinned()) {
+    modulePanel.setHidden(true);
+  }
+  // Story 6.6: Right sidebar auto-hide when not pinned (AC4)
+  if (!rightPanelPinned) {
+    setRightSidebarHidden(true);
+  }
 });
 
 eventBus.on('PAUSE', () => {
   simEngine.pause();
   updateRunButton();
+  modulePanel.setHidden(false); // Story 6.5 AC3
+  setRightSidebarHidden(false); // Story 6.6 — re-show on pause
 });
 
 eventBus.on('RESET', () => {
@@ -670,6 +727,8 @@ eventBus.on('RESET', () => {
   borderFlashState = null;
   achievementToast.dismissAll();
   updateRunButton(); // reset → idle, button shows "▶ Run"
+  modulePanel.setHidden(false); // Story 6.5 AC3 — re-show on reset
+  setRightSidebarHidden(false); // Story 6.6 — re-show on reset
 });
 
 // ── Story 6.1: Control Bar (replaces ad-hoc updateRunButton + button handlers) ──
@@ -728,6 +787,15 @@ void import.meta.hot?.dispose(() => {
   rateEditorPanel.destroy();
   analyticsPanel.destroy(); // Story 6.2: cleanup analytics panel DOM
   countdownPanel.destroy(); // Story 6.3: cleanup countdown panel DOM
+  // Story 6.6: Clean up right sidebar event listeners and DOM
+  rightPinBtn.removeEventListener('click', rightPinClickHandler);
+  rightReExpandTab.removeEventListener('click', rightReExpandClickHandler);
+  if (panelRightContainer && rightSidebarContent.parentNode === panelRightContainer) {
+    panelRightContainer.removeChild(rightSidebarContent);
+  }
+  if (panelRightContainer && rightReExpandTab.parentNode === panelRightContainer) {
+    panelRightContainer.removeChild(rightReExpandTab);
+  }
   controlBar.destroy();    // Story 6.1: cleanup button listeners + status element
   modalDialog.destroy();   // Story 6.1: cleanup modal DOM + keyboard listeners
   colorPickerPopover.destroy();
@@ -746,13 +814,81 @@ const panelRightContainer = document.querySelector('.layer-panel-right') as HTML
 if (!panelRightContainer) {
   throw new Error('SDONE: Required container .layer-panel-right not found in DOM.');
 }
-const rateEditorPanel = new RateEditorPanel(panelRightContainer);
+
+// ── Story 6.6: Right sidebar content wrapper (slide target) ─────────────
+const rightSidebarContent = document.createElement('div');
+rightSidebarContent.className = 'right-sidebar__content';
+panelRightContainer.appendChild(rightSidebarContent);
+
+// ── Story 6.6: Right Sidebar Header with Pin Button ──────────────────────
+const rightSidebarHeader = document.createElement('div');
+rightSidebarHeader.className = 'right-sidebar__header';
+
+const rightSidebarTitle = document.createElement('span');
+rightSidebarTitle.className = 'right-sidebar__title';
+rightSidebarTitle.textContent = '数据面板';
+
+const rightPinBtn = document.createElement('button');
+rightPinBtn.className = 'right-sidebar__pin-btn';
+rightPinBtn.textContent = '📌';
+rightPinBtn.setAttribute('aria-label', '固定面板');
+rightPinBtn.setAttribute('aria-pressed', 'false');
+
+let rightPanelPinned = false;
+
+/** Story 6.6 — Set right sidebar pin state directly (used by keyboard shortcut "P" and re-expand tab). */
+function setRightPinned(pinned: boolean): void {
+  rightPanelPinned = pinned;
+  if (pinned) {
+    rightPinBtn.classList.add('right-sidebar__pin-btn--active');
+    rightPinBtn.setAttribute('aria-label', '取消固定面板');
+    rightPinBtn.setAttribute('aria-pressed', 'true');
+  } else {
+    rightPinBtn.classList.remove('right-sidebar__pin-btn--active');
+    rightPinBtn.setAttribute('aria-label', '固定面板');
+    rightPinBtn.setAttribute('aria-pressed', 'false');
+  }
+}
+
+const rightPinClickHandler = () => setRightPinned(!rightPanelPinned);
+rightPinBtn.addEventListener('click', rightPinClickHandler);
+
+rightSidebarHeader.appendChild(rightSidebarTitle);
+rightSidebarHeader.appendChild(rightPinBtn);
+rightSidebarContent.appendChild(rightSidebarHeader);
+
+// ── Story 6.6: Right sidebar visibility control ──────────────────────────
+function setRightSidebarHidden(hidden: boolean): void {
+  if (hidden) {
+    rightSidebarContent.classList.add('right-sidebar__content--hidden');
+  } else {
+    rightSidebarContent.classList.remove('right-sidebar__content--hidden');
+  }
+}
+
+const rateEditorPanel = new RateEditorPanel(rightSidebarContent);
 
 // ── Story 6.2: Right Sidebar Stock Analytics Panel ────────────────────
-const analyticsPanel = new AnalyticsPanel(panelRightContainer);
+const analyticsPanel = new AnalyticsPanel(rightSidebarContent);
 
 // ── Story 6.3: Right Sidebar Countdown Timer Panel ────────────────────
-const countdownPanel = new CountdownPanel(panelRightContainer);
+const countdownPanel = new CountdownPanel(rightSidebarContent);
+
+// ── Story 6.6: Right sidebar re-expand tab ───────────────────────────────
+const rightReExpandTab = document.createElement('div');
+rightReExpandTab.className = 'right-sidebar__re-expand-tab';
+rightReExpandTab.title = '展开面板';
+rightReExpandTab.setAttribute('aria-label', '展开数据面板');
+rightReExpandTab.innerHTML = '<span class="right-sidebar__re-expand-arrow">◀</span>';
+const rightReExpandClickHandler = () => {
+  setRightSidebarHidden(false);
+  // Story 6.6 AC1 — re-expand also pins. Only toggle if not already pinned (idempotent).
+  if (!rightPanelPinned) {
+    setRightPinned(true);
+  }
+};
+rightReExpandTab.addEventListener('click', rightReExpandClickHandler);
+panelRightContainer.appendChild(rightReExpandTab);
 
   // ── Story 4.5: Rate Editor Submit Callback ───────────────────────────
   rateEditorPanel.onRateSubmit = (newRate: number) => {

@@ -69,11 +69,10 @@ function restoreCanvasMock(): void {
 describe('ModulePanel', () => {
   let container: HTMLElement;
   let panel: ModulePanel;
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     container = createContainer();
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
     installCanvasMock();
     panel = new ModulePanel(container);
   });
@@ -81,7 +80,7 @@ describe('ModulePanel', () => {
   afterEach(() => {
     panel.destroy();
     container.remove();
-    consoleLogSpy.mockRestore();
+    vi.restoreAllMocks();
     restoreCanvasMock();
   });
 
@@ -193,22 +192,58 @@ describe('ModulePanel', () => {
     });
   });
 
-  // ── AC5: Pin Button ─────────────────────────────────────────────
+  // ── Story 6.6: Pin Button (functional toggle) ─────────────────────
 
-  describe('pin button', () => {
-    it('should log to console when pin button is clicked', () => {
-      const pinBtn = container.querySelector(
-        '.module-panel__pin-btn',
-      ) as HTMLButtonElement;
-      pinBtn.click();
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[ModulePanel] pin toggle clicked (no-op in 3.1)',
-      );
+  describe('pin button (Story 6.6)', () => {
+    it('should have a pin button that toggles pinned state (AC2)', () => {
+      const pinBtn = container.querySelector('.module-panel__pin-btn');
+      expect(pinBtn).not.toBeNull();
+      expect(pinBtn!.textContent).toBe('📌');
+      // Pin button is functional in 6.6 (no longer logs to console)
+      (pinBtn as HTMLButtonElement).click();
+      expect(panel.isPinned()).toBe(true);
     });
 
-    it('should have aria-label on pin button', () => {
-      const pinBtn = container.querySelector('.module-panel__pin-btn');
-      expect(pinBtn!.getAttribute('aria-label')).toBe('Toggle panel pin');
+    it('isPinned() should return false by default (AC2)', () => {
+      expect(panel.isPinned()).toBe(false);
+    });
+
+    it('clicking pin button should toggle pinned state (AC2)', () => {
+      const pinBtn = container.querySelector('.module-panel__pin-btn') as HTMLElement;
+      expect(panel.isPinned()).toBe(false);
+
+      pinBtn.click();
+      expect(panel.isPinned()).toBe(true);
+      expect(pinBtn.classList.contains('module-panel__pin-btn--active')).toBe(true);
+      expect(pinBtn.getAttribute('aria-pressed')).toBe('true');
+
+      pinBtn.click();
+      expect(panel.isPinned()).toBe(false);
+      expect(pinBtn.classList.contains('module-panel__pin-btn--active')).toBe(false);
+      expect(pinBtn.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('setPinned() should change pinned state programmatically (AC2)', () => {
+      panel.setPinned(true);
+      expect(panel.isPinned()).toBe(true);
+
+      panel.setPinned(false);
+      expect(panel.isPinned()).toBe(false);
+
+      // Idempotent: setting same value again does nothing
+      panel.setPinned(false);
+      expect(panel.isPinned()).toBe(false);
+    });
+
+    it('pin button aria-label should reflect pinned state (AC2)', () => {
+      const pinBtn = container.querySelector('.module-panel__pin-btn') as HTMLElement;
+      expect(pinBtn.getAttribute('aria-label')).toBe('固定面板');
+
+      pinBtn.click();
+      expect(pinBtn.getAttribute('aria-label')).toBe('取消固定面板');
+
+      pinBtn.click();
+      expect(pinBtn.getAttribute('aria-label')).toBe('固定面板');
     });
   });
 
@@ -331,6 +366,96 @@ describe('ModulePanel', () => {
 
       expect(panel.getSelectedType()).toBe('sink');
       expect(sinkIcon.getAttribute('aria-selected')).toBe('true');
+    });
+  });
+
+  // ── Story 6.5 AC1: Compositions Area ──────────────────────────────
+
+  describe('Story 6.5 — Compositions area (AC1)', () => {
+    it('should render compositions area with header and placeholder text (AC1)', () => {
+      const compositionsHeader = container.querySelector('.module-panel__compositions-header');
+      expect(compositionsHeader).not.toBeNull();
+      const title = container.querySelector('.module-panel__compositions-title');
+      expect(title).not.toBeNull();
+      expect(title!.textContent).toBe('组合');
+
+      const placeholder = container.querySelector('.module-panel__compositions-placeholder');
+      expect(placeholder).not.toBeNull();
+      expect(placeholder!.textContent).toBe('选中三个模块后命名此逻辑堆栈');
+    });
+
+    it('should have a divider between icon list and compositions area', () => {
+      const divider = container.querySelector('.module-panel__divider');
+      expect(divider).not.toBeNull();
+    });
+  });
+
+  // ── Story 6.5 AC2: Click-to-place selection ──────────────────────
+
+  describe('Story 6.5 — Click-to-place selection (AC2)', () => {
+    it('clearSelection() should reset selected type to null (AC2)', () => {
+      const sourceIcon = container.querySelector('[data-module-type="source"]') as HTMLElement;
+      sourceIcon.click();
+      expect(panel.getSelectedType()).toBe('source');
+
+      panel.clearSelection();
+      expect(panel.getSelectedType()).toBeNull();
+    });
+
+    it('should show selected state on click and clear on clearSelection (AC2)', () => {
+      const sourceIcon = container.querySelector('[data-module-type="source"]') as HTMLElement;
+      sourceIcon.click();
+      expect(sourceIcon.hasAttribute('data-highlighted')).toBe(true);
+      expect(sourceIcon.getAttribute('aria-selected')).toBe('true');
+
+      panel.clearSelection();
+      expect(sourceIcon.hasAttribute('data-highlighted')).toBe(false);
+      expect(sourceIcon.getAttribute('aria-selected')).toBe('false');
+    });
+  });
+
+  // ── Story 6.5 AC3: Re-expand tab + auto-hide ──────────────────────
+
+  describe('Story 6.5 — Re-expand tab and auto-hide (AC3)', () => {
+    it('should create re-expand tab element (AC3)', () => {
+      const tab = container.querySelector('.module-panel__re-expand-tab');
+      expect(tab).not.toBeNull();
+      expect(tab!.getAttribute('aria-label')).toBe('展开模块面板');
+    });
+
+    it('should hide panel via CSS class, tab becomes interactive via ~ sibling selector (AC3)', () => {
+      panel.setHidden(true);
+      const root = container.querySelector('.module-panel');
+      expect(root!.classList.contains('module-panel--hidden')).toBe(true);
+
+      // Tab exists and is after .module-panel in DOM (sibling for ~ selector)
+      const tab = container.querySelector('.module-panel__re-expand-tab');
+      expect(tab).not.toBeNull();
+      // CSS .module-panel--hidden ~ .module-panel__re-expand-tab { opacity: 1; pointer-events: auto }
+      // In jsdom we verify the sibling relationship, not computed opacity
+      const rootIndex = Array.from(container.children).indexOf(root!);
+      const tabIndex = Array.from(container.children).indexOf(tab!);
+      expect(tabIndex).toBeGreaterThan(rootIndex); // tab is after root (sibling)
+    });
+
+    it('clicking re-expand tab should re-show the panel and pin it (AC1, AC3)', () => {
+      panel.setHidden(true);
+      const root = container.querySelector('.module-panel');
+      expect(root!.classList.contains('module-panel--hidden')).toBe(true);
+
+      const tab = container.querySelector('.module-panel__re-expand-tab') as HTMLElement;
+      tab.click();
+
+      expect(root!.classList.contains('module-panel--hidden')).toBe(false);
+      // Story 6.6 AC1 — re-expand also pins the panel
+      expect(panel.isPinned()).toBe(true);
+    });
+
+    it('setHidden(false) should remove hidden class (AC3)', () => {
+      panel.setHidden(true);
+      panel.setHidden(false);
+      const root = container.querySelector('.module-panel');
+      expect(root!.classList.contains('module-panel--hidden')).toBe(false);
     });
   });
 

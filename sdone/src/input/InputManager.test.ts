@@ -1532,4 +1532,86 @@ describe('InputManager', () => {
       input.destroy();
     });
   });
+
+  // ── Story 6.5: onCanvasClickEmpty (click-to-place) ──────────────────
+
+  describe('onCanvasClickEmpty (Story 6.5)', () => {
+    it('should fire onCanvasClickEmpty with world position when clicking empty canvas space', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      // No nodes → all clicks are on empty space
+      input.nodesProvider = () => ({});
+      input.connectionsProvider = () => ({});
+
+      // Mousedown + mouseup on empty area
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 150);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 200, clientY: 150 }));
+
+      expect(clickEmptySpy).toHaveBeenCalledTimes(1);
+      expect(clickEmptySpy).toHaveBeenCalledWith(expect.objectContaining({ x: 200, y: 150 }));
+
+      input.destroy();
+    });
+
+    it('should NOT fire onCanvasClickEmpty when clicking on a module', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: vec2(100, 100), label: 'Test' } as any,
+      });
+      input.connectionsProvider = () => ({});
+
+      // Click on the module
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
+
+      expect(clickEmptySpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('should NOT fire onCanvasClickEmpty when clicking on a connection', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'source', position: vec2(100, 100), label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: vec2(400, 100), label: 'B' } as any,
+      });
+      input.connectionsProvider = () => ({
+        c1: { id: 'c1', fromId: 'modA', toId: 'modB', rate: 1, formulaStr: '1' },
+      });
+
+      // Click on the connection line (midpoint at ~250, 100)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 250, 100);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 250, clientY: 100 }));
+
+      expect(clickEmptySpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('should NOT fire onCanvasClickEmpty when drag distance exceeds threshold (click vs drag)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      // No nodes → all clicks are on empty space
+      input.nodesProvider = () => ({});
+      input.connectionsProvider = () => ({});
+
+      // Mousedown at (200, 150), mouseup at (250, 200) — distance ~70px > 5px threshold
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 150);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 250, clientY: 200 }));
+
+      expect(clickEmptySpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
 });

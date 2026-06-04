@@ -181,6 +181,9 @@ export class InputManager {
   /** Story 3.7: Called when user clicks on a connection (select) or empty space (deselect). */
   public onConnectionSelect: ((connectionId: string | null) => void) | null = null;
 
+  /** Story 6.5 — Called when user clicks empty canvas space (no module/connection hit). */
+  public onCanvasClickEmpty: ((worldPos: Vec2) => void) | null = null;
+
   /** Story 3.7: Called when user presses Delete and a connection is selected. */
   public onConnectionDelete: (() => void) | null = null;
 
@@ -811,6 +814,14 @@ export class InputManager {
         if (connId) {
           this.onConnectionSelect?.(connId);
         } else {
+          // Story 6.5: Click-to-place — only when truly nothing is hit
+          // Guard: require click (not drag) — threshold matches DOUBLE_CLICK_MAX_PX
+          const clickDist = this.mouseDownPos ? distance(screenPos, this.mouseDownPos) : 0;
+          if (clickDist <= DOUBLE_CLICK_MAX_PX) {
+            const canvasCenter = this.getCanvasCenter();
+            const worldPos = this.viewportManager.screenToWorld(screenPos, canvasCenter);
+            this.onCanvasClickEmpty?.(worldPos);
+          }
           this.onModuleSelect?.(null);
         }
       }

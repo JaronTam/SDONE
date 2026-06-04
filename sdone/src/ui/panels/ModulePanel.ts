@@ -78,6 +78,15 @@ export class ModulePanel {
     handler: (e: DragEvent) => void;
   }> = [];
 
+  /** Story 6.5 AC3 — Re-expand tab (visible when panel auto-hidden). */
+  private readonly reExpandTab: HTMLElement;
+
+  /** Story 6.5 — Bound click handler for reExpandTab cleanup in destroy(). */
+  private readonly boundReExpandClick: () => void;
+
+  /** Story 6.6 — Whether the panel is pinned (prevents auto-hide during simulation). */
+  private _pinned: boolean = false;
+
   constructor(container: HTMLElement) {
     this.container = container;
 
@@ -97,7 +106,8 @@ export class ModulePanel {
     const pinBtn = document.createElement('button');
     pinBtn.className = 'module-panel__pin-btn';
     pinBtn.textContent = '📌';
-    pinBtn.setAttribute('aria-label', 'Toggle panel pin');
+    pinBtn.setAttribute('aria-label', '固定面板');
+    pinBtn.setAttribute('aria-pressed', 'false');
     this.pinBtn = pinBtn;
 
     this.boundPinClick = this.handlePinClick.bind(this);
@@ -117,7 +127,55 @@ export class ModulePanel {
     }
 
     root.appendChild(iconList);
+
+    // ── Story 6.5 AC1: Compositions area (lower half) ──────────────
+    const divider = document.createElement('div');
+    divider.className = 'module-panel__divider';
+
+    const compositionsSection = document.createElement('div');
+    compositionsSection.className = 'module-panel__compositions';
+
+    const compositionsHeader = document.createElement('div');
+    compositionsHeader.className = 'module-panel__compositions-header';
+
+    const compositionsTitle = document.createElement('span');
+    compositionsTitle.className = 'module-panel__compositions-title';
+    compositionsTitle.textContent = '组合';
+
+    compositionsHeader.appendChild(compositionsTitle);
+
+    const compositionsBody = document.createElement('div');
+    compositionsBody.className = 'module-panel__compositions-body';
+
+    const compositionsPlaceholder = document.createElement('p');
+    compositionsPlaceholder.className = 'module-panel__compositions-placeholder';
+    compositionsPlaceholder.textContent = '选中三个模块后命名此逻辑堆栈';
+
+    compositionsBody.appendChild(compositionsPlaceholder);
+    compositionsSection.appendChild(compositionsHeader);
+    compositionsSection.appendChild(compositionsBody);
+
+    root.appendChild(divider);
+    root.appendChild(compositionsSection);
+
     container.appendChild(root);
+
+    // ── Story 6.5 AC3: Re-expand tab (visible when panel auto-hidden) ──
+    const reExpandTab = document.createElement('div');
+    reExpandTab.className = 'module-panel__re-expand-tab';
+    reExpandTab.title = '展开面板';
+    reExpandTab.setAttribute('aria-label', '展开模块面板');
+    reExpandTab.innerHTML = '<span class="module-panel__re-expand-arrow">▶</span>';
+    this.boundReExpandClick = () => {
+      this.setHidden(false);
+      this.setPinned(true);  // Story 6.6 AC1 — re-expand also pins the panel
+    };
+    reExpandTab.addEventListener('click', this.boundReExpandClick);
+    this.reExpandTab = reExpandTab;
+    container.appendChild(reExpandTab);
+
+    // Story 6.6 — Set initial pin button appearance
+    this.updatePinButtonAppearance();
   }
 
   // ── Public API ───────────────────────────────────────────────────────
@@ -131,8 +189,28 @@ export class ModulePanel {
   }
 
   /**
+   * Story 6.5 — Clear highlighted icon selection (e.g., after placement).
+   */
+  clearSelection(): void {
+    this.setHighlightedType(null);
+  }
+
+  /** Story 6.6 — Whether the panel is pinned (prevents auto-hide during simulation). */
+  isPinned(): boolean {
+    return this._pinned;
+  }
+
+  /** Story 6.6 — Programmatically set pin state (used by keyboard shortcut "P"). */
+  setPinned(pinned: boolean): void {
+    if (this._pinned !== pinned) {
+      this._pinned = pinned;
+      this.updatePinButtonAppearance();
+    }
+  }
+
+  /**
    * Show or hide the panel via CSS transform.
-   * Will be wired to EventBus RUN/PAUSE/RESET in Story 6.6.
+   * Wired to EventBus RUN/PAUSE/RESET in Story 6.5.
    */
   setHidden(hidden: boolean): void {
     if (hidden) {
@@ -154,6 +232,13 @@ export class ModulePanel {
     this.dragDisposers.length = 0;
     if (this.rootEl.parentNode === this.container) {
       this.container.removeChild(this.rootEl);
+    }
+    // Story 6.5 AC3: Clean up re-expand tab
+    if (this.reExpandTab) {
+      this.reExpandTab.removeEventListener('click', this.boundReExpandClick);
+      if (this.reExpandTab.parentNode === this.container) {
+        this.container.removeChild(this.reExpandTab);
+      }
     }
   }
 
@@ -264,12 +349,23 @@ export class ModulePanel {
     ctx.restore();
   }
 
-  /**
-   * Pin button click handler — no-op for Story 3.1.
-   * Logs to console per AC5.
-   */
+  /** Story 6.6 — Toggle pin state on pin button click. */
   private handlePinClick(): void {
-    console.log('[ModulePanel] pin toggle clicked (no-op in 3.1)');
+    this._pinned = !this._pinned;
+    this.updatePinButtonAppearance();
+  }
+
+  /** Story 6.6 — Update pin button to reflect current pinned state. */
+  private updatePinButtonAppearance(): void {
+    if (this._pinned) {
+      this.pinBtn.classList.add('module-panel__pin-btn--active');
+      this.pinBtn.setAttribute('aria-label', '取消固定面板');
+      this.pinBtn.setAttribute('aria-pressed', 'true');
+    } else {
+      this.pinBtn.classList.remove('module-panel__pin-btn--active');
+      this.pinBtn.setAttribute('aria-label', '固定面板');
+      this.pinBtn.setAttribute('aria-pressed', 'false');
+    }
   }
 
   /**
