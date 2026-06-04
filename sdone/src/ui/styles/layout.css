@@ -246,3 +246,24 @@ body {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* =========================================================================
+   Story 6.7 — Clear Canvas button
+   ========================================================================= */
+
+.btn-clear-canvas {
+  padding: 6px 14px;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  background: transparent;
+  color: #a6adc8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.btn-clear-canvas:hover {
+  background: rgba(243, 139, 168, 0.12);
+  border-color: #f38ba8;
+  color: #f38ba8;
+}

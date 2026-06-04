@@ -763,6 +763,39 @@ controlBar.onReset = () => {
   });
 };
 
+// ── Story 6.7: Clear Canvas with Modal Confirmation ──────────────────
+controlBar.onClearCanvas = () => {
+  // Guard: no-op if canvas is already empty (check both nodes and connections)
+  const moduleCount = Object.keys(currentState.nodes).length;
+  const connectionCount = Object.keys(currentState.connections).length;
+  if (moduleCount === 0 && connectionCount === 0) return;
+
+  modalDialog.open({
+    title: '清除确认',
+    body: '此操作将清除画布上所有模块和连线，且不可撤销。',
+    confirmText: '确认清除',
+    cancelText: '取消',
+    onConfirm: () => {
+      // Wipe model state: delete all nodes and connections.
+      // Must happen BEFORE emitting RESET so the RESET handler's
+      // stock-restoration loop finds zero stocks to restore.
+      currentState = {
+        nodes: {},
+        connections: {},
+        version: currentState.version,
+        selectedModuleIds: [],
+        selectedConnectionIds: [],
+      };
+      // Delegate ALL downstream cleanup (panels, particles, achievements,
+      // history, simEngine, render state) to the existing RESET handler.
+      eventBus.emit('RESET', undefined);
+    },
+    onCancel: () => {
+      // No-op — modal auto-closes, canvas unchanged (AC6)
+    },
+  });
+};
+
 // ── Story 6.1: Run/Pause button text helper ──────────────────────────────
 // (hoisted function declaration — referenced by EventBus handlers above)
 function updateRunButton(): void {

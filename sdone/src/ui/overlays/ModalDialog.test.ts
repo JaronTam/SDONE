@@ -243,4 +243,26 @@ describe('ModalDialog (Story 6.1)', () => {
       expect(() => modal.destroy()).not.toThrow();
     });
   });
+
+  // ── Story 6.7: Clear Canvas confirmation ────────────────────────────
+
+  describe('Clear Canvas confirmation (Story 6.7)', () => {
+    it('renders Clear Canvas confirmation with correct text', () => {
+      const config = createConfig({
+        title: '清除确认',
+        body: '此操作将清除画布上所有模块和连线，且不可撤销。',
+        confirmText: '确认清除',
+        cancelText: '取消',
+      });
+
+      modal.open(config);
+
+      expect(document.querySelector('.modal-title')?.textContent).toBe('清除确认');
+      expect(document.querySelector('.modal-body')?.textContent).toBe(
+        '此操作将清除画布上所有模块和连线，且不可撤销。'
+      );
+      expect(document.querySelector('.modal-btn-confirm')?.textContent).toBe('确认清除');
+      expect(document.querySelector('.modal-btn-cancel')?.textContent).toBe('取消');
+    });
+  });
 });

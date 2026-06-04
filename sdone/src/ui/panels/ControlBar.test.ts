@@ -17,12 +17,17 @@ function createControlBarContainer(): HTMLElement {
   btnResetSim.className = 'btn-reset-sim';
   btnResetSim.textContent = '↺ Reset';
 
+  const btnClearCanvas = document.createElement('button');
+  btnClearCanvas.className = 'btn-clear-canvas';
+  btnClearCanvas.textContent = '🗑 Clear';
+
   const btnResetViewport = document.createElement('button');
   btnResetViewport.className = 'btn-reset-viewport';
   btnResetViewport.textContent = '↺ Fit All';
 
   container.appendChild(btnRun);
   container.appendChild(btnResetSim);
+  container.appendChild(btnClearCanvas);  // Story 6.7
   container.appendChild(btnResetViewport);
 
   document.body.appendChild(container);
@@ -74,6 +79,12 @@ describe('ControlBar (Story 6.1)', () => {
       const div = document.createElement('div');
       div.innerHTML = '<button class="btn-run">▶ Run</button>';
       expect(() => new ControlBar(div)).toThrow('Required element .btn-reset-sim not found');
+    });
+
+    it('throws if .btn-clear-canvas is missing (Story 6.7)', () => {
+      const div = document.createElement('div');
+      div.innerHTML = '<button class="btn-run">▶ Run</button><button class="btn-reset-sim">↺ Reset</button>';
+      expect(() => new ControlBar(div)).toThrow('Required element .btn-clear-canvas not found');
     });
   });
 
@@ -150,9 +161,11 @@ describe('ControlBar (Story 6.1)', () => {
     it('callbacks are null by default — clicking does not throw', () => {
       const btnRun = container.querySelector('.btn-run') as HTMLButtonElement;
       const btnResetSim = container.querySelector('.btn-reset-sim') as HTMLButtonElement;
+      const btnClearCanvas = container.querySelector('.btn-clear-canvas') as HTMLButtonElement;
 
       expect(() => btnRun.click()).not.toThrow();
       expect(() => btnResetSim.click()).not.toThrow();
+      expect(() => btnClearCanvas.click()).not.toThrow();
     });
   });
 
@@ -177,6 +190,38 @@ describe('ControlBar (Story 6.1)', () => {
       controlBar.destroy();
 
       expect(container.querySelector('.control-bar-status')).toBeNull();
+    });
+  });
+
+  // ── Story 6.7: Clear Canvas button ────────────────────────────────
+
+  describe('Clear Canvas button (Story 6.7)', () => {
+    it('should have a Clear Canvas button', () => {
+      const btn = container.querySelector('.btn-clear-canvas');
+      expect(btn).not.toBeNull();
+      expect(btn!.textContent).toBe('🗑 Clear');
+    });
+
+    it('clicking Clear Canvas button should call onClearCanvas callback (AC1)', () => {
+      const onClearCanvas = vi.fn();
+      controlBar.onClearCanvas = onClearCanvas;
+
+      const btn = container.querySelector('.btn-clear-canvas') as HTMLButtonElement;
+      btn.click();
+
+      expect(onClearCanvas).toHaveBeenCalledTimes(1);
+    });
+
+    it('destroy() should remove Clear Canvas click listener', () => {
+      const onClearCanvas = vi.fn();
+      controlBar.onClearCanvas = onClearCanvas;
+
+      controlBar.destroy();
+
+      const btn = container.querySelector('.btn-clear-canvas') as HTMLButtonElement;
+      btn.click();
+
+      expect(onClearCanvas).not.toHaveBeenCalled();
     });
   });
 });

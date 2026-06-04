@@ -202,10 +202,12 @@ export class ModalDialog {
     }
 
     // Suppress action keys that would trigger bubble-phase handlers.
-    // Space/Enter/Tab: stopPropagation only — preventDefault would break
+    // Space/Enter/Tab/KeyP: stopPropagation only — preventDefault would break
     // keyboard a11y (Enter activates focused button, Tab navigates between
     // modal buttons, Space could scroll but backdrop prevents visual impact).
-    const suppressKeys = ['Space', 'Enter', 'Tab'];
+    // KeyP (Story 6.7 patch): panel pin toggle — suppressed to prevent UI
+    // state changes behind the modal that would surprise the user on dismiss.
+    const suppressKeys = ['Space', 'Enter', 'Tab', 'KeyP'];
     if (suppressKeys.includes(e.code)) {
       e.stopPropagation();
       return;

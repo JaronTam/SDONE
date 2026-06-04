@@ -11,6 +11,7 @@
  *   getStatusText(): string
  *   onRunPause: (() => void) | null
  *   onReset: (() => void) | null
+ *   onClearCanvas: (() => void) | null   (Story 6.7)
  *   destroy(): void
  *
  * No EventBus dependency — pure DOM component per architecture DI pattern.
@@ -27,6 +28,7 @@ const STATUS_PAUSED_CLASS = 'control-bar-status--paused';
 export class ControlBar {
   private readonly btnRun: HTMLButtonElement;
   private readonly btnResetSim: HTMLButtonElement;
+  private readonly btnClearCanvas: HTMLButtonElement;
   private readonly statusEl: HTMLSpanElement;
   private _destroyed = false;
 
@@ -36,9 +38,13 @@ export class ControlBar {
   /** Callback for Reset button click. */
   onReset: (() => void) | null = null;
 
+  /** Callback for Clear Canvas button click. (Story 6.7) */
+  onClearCanvas: (() => void) | null = null;
+
   /** Bound click handlers for cleanup. */
   private readonly boundRunClick: () => void;
   private readonly boundResetClick: () => void;
+  private readonly boundClearCanvasClick: () => void;
 
   constructor(container: HTMLElement) {
     // Query existing DOM elements from index.html
@@ -53,6 +59,13 @@ export class ControlBar {
       throw new Error('SDONE: Required element .btn-reset-sim not found in control bar container.');
     }
     this.btnResetSim = btnResetSim;
+
+    // Story 6.7: Query Clear Canvas button
+    const btnClearCanvas = container.querySelector('.btn-clear-canvas') as HTMLButtonElement | null;
+    if (!btnClearCanvas) {
+      throw new Error('SDONE: Required element .btn-clear-canvas not found in control bar container.');
+    }
+    this.btnClearCanvas = btnClearCanvas;
 
     // Create status indicator element programmatically (not in index.html)
     const statusEl = document.createElement('span');
@@ -69,9 +82,13 @@ export class ControlBar {
     this.boundResetClick = () => {
       this.onReset?.();
     };
+    this.boundClearCanvasClick = () => {
+      this.onClearCanvas?.();
+    };
 
     btnRun.addEventListener('click', this.boundRunClick);
     btnResetSim.addEventListener('click', this.boundResetClick);
+    btnClearCanvas.addEventListener('click', this.boundClearCanvasClick);
   }
 
   // ── Public API ───────────────────────────────────────────────────────
@@ -116,6 +133,7 @@ export class ControlBar {
     this._destroyed = true;
     this.btnRun.removeEventListener('click', this.boundRunClick);
     this.btnResetSim.removeEventListener('click', this.boundResetClick);
+    this.btnClearCanvas.removeEventListener('click', this.boundClearCanvasClick);
 
     // Remove the status indicator element we created
     if (this.statusEl.parentNode) {
