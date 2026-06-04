@@ -84,6 +84,7 @@ describe('RateEditorPanel', () => {
     }
     uninstallCanvasMock();
     document.body.innerHTML = '';
+    vi.useRealTimers(); // Story 6.4 patch: restore real timers even if fake-timer test fails
   });
 
   // ── Test 1: Constructor DOM structure ─────────────────────────────
@@ -279,5 +280,162 @@ describe('RateEditorPanel', () => {
 
     // onRateSubmit is explicitly set to null in destroy()
     expect(panel.onRateSubmit).toBeNull();
+  });
+
+  // ── Story 6.4 AC4: Negative rate clamping + warning ──────────────
+
+  it('should clamp negative rate to 0 and show warning on Enter (AC4)', () => {
+    const onRateSubmit = vi.fn();
+    panel.onRateSubmit = onRateSubmit;
+
+    panel.setConnection({
+      id: 'conn-1',
+      fromId: 'mod-a',
+      toId: 'mod-b',
+      rate: 5,
+      fromType: 'source',
+      toType: 'stock',
+    });
+
+    const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
+
+    // Type negative value and press Enter
+    typeRateEnter(input, '-3');
+
+    // Should fire onRateSubmit with 0 (clamped)
+    expect(onRateSubmit).toHaveBeenCalledTimes(1);
+    expect(onRateSubmit).toHaveBeenCalledWith(0);
+
+    // Input should show 0
+    expect(input.value).toBe('0');
+
+    // Warning should be visible
+    const warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning).not.toBeNull();
+    expect(warning.style.display).not.toBe('none');
+    const warningText = warning.querySelector('.rate-editor__warning-text');
+    expect(warningText!.textContent).toBe('速率不能为负');
+  });
+
+  it('should NOT fire onRateSubmit with negative value — fires with 0 instead', () => {
+    const onRateSubmit = vi.fn();
+    panel.onRateSubmit = onRateSubmit;
+
+    panel.setConnection({
+      id: 'conn-1',
+      fromId: 'mod-a',
+      toId: 'mod-b',
+      rate: 5,
+      fromType: 'source',
+      toType: 'stock',
+    });
+
+    const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
+    typeRateEnter(input, '-10');
+
+    // Should fire with 0, never with the negative value
+    expect(onRateSubmit).toHaveBeenCalledWith(0);
+    expect(onRateSubmit).not.toHaveBeenCalledWith(-10);
+  });
+
+  it('should clear warning when setConnection is called again', () => {
+    const onRateSubmit = vi.fn();
+    panel.onRateSubmit = onRateSubmit;
+
+    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 5, fromType: 'source', toType: 'stock' });
+    const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
+    typeRateEnter(input, '-7');
+
+    // Warning should be visible
+    let warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning.style.display).not.toBe('none');
+
+    // Switch to another connection
+    panel.setConnection({ id: 'c2', fromId: 'c', toId: 'd', rate: 3, fromType: 'stock', toType: 'sink' });
+
+    // Warning should be cleared
+    warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning.style.display).toBe('none');
+  });
+
+  it('should clear warning when setConnection(null) is called', () => {
+    const onRateSubmit = vi.fn();
+    panel.onRateSubmit = onRateSubmit;
+
+    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 5, fromType: 'source', toType: 'stock' });
+    const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
+    typeRateEnter(input, '-7');
+
+    // Warning should be visible
+    const warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning.style.display).not.toBe('none');
+
+    // Deselect connection
+    panel.setConnection(null);
+
+    // Warning should be cleared
+    expect(warning.style.display).toBe('none');
+  });
+
+  it('should clamp negative to 0 even when previous rate was also 0 (AC4 edge case)', () => {
+    const onRateSubmit = vi.fn();
+    panel.onRateSubmit = onRateSubmit;
+
+    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 0, fromType: 'source', toType: 'stock' });
+    const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
+    typeRateEnter(input, '-5');
+
+    // Should still fire with 0 (not skip as "unchanged")
+    expect(onRateSubmit).toHaveBeenCalledWith(0);
+
+    const warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning.style.display).not.toBe('none');
+  });
+
+  it('should auto-hide warning after 2 seconds (AC4)', async () => {
+    vi.useFakeTimers();
+    const onRateSubmit = vi.fn();
+    panel.onRateSubmit = onRateSubmit;
+
+    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 5, fromType: 'source', toType: 'stock' });
+    const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
+    typeRateEnter(input, '-1');
+
+    let warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning.style.display).not.toBe('none');
+
+    // Advance past 2000ms
+    vi.advanceTimersByTime(2100);
+
+    warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning.style.display).toBe('none');
+
+    vi.useRealTimers();
+  });
+
+  it('should still show error for non-numeric input (existing AC preserved)', () => {
+    const onRateSubmit = vi.fn();
+    panel.onRateSubmit = onRateSubmit;
+
+    panel.setConnection({
+      id: 'conn-1',
+      fromId: 'mod-a',
+      toId: 'mod-b',
+      rate: 5,
+      fromType: 'source',
+      toType: 'stock',
+    });
+
+    const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
+
+    // Non-numeric input should still show error, not warning
+    typeRateEnter(input, 'abc');
+
+    expect(onRateSubmit).not.toHaveBeenCalled();
+    expect(input.classList.contains('rate-editor__input--error')).toBe(true);
+
+    // Warning should NOT be visible (error path, not negative path)
+    const warning = container.querySelector('.rate-editor__warning') as HTMLElement;
+    expect(warning.style.display).toBe('none');
   });
 });

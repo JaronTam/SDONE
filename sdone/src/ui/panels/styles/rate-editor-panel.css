@@ -118,3 +118,29 @@
 .rate-editor__input--error {
   border-color: #f38ba8;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Warning State (Story 6.4 AC4)
+   ════════════════════════════════════════════════════════════════════════ */
+.rate-editor__warning {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin-top: 4px;
+  background: rgba(249, 226, 175, 0.12); /* amber tint on Catppuccin Mocha surface */
+  border: 1px solid #f9e2af;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #f9e2af;
+  animation: rate-editor-warning-fade-in 200ms ease-out;
+}
+
+@keyframes rate-editor-warning-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.rate-editor__warning-text {
+  line-height: 1.3;
+}

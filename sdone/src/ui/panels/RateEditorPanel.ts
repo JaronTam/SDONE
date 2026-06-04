@@ -53,6 +53,9 @@ export class RateEditorPanel {
   private readonly _rateInput: HTMLInputElement;
   private _lastValidRate: number = 0;
   private _errorTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _warningTimeout: ReturnType<typeof setTimeout> | null = null;
+  private readonly _warningEl: HTMLElement;
+  private readonly _warningTextEl: HTMLElement;
   private _boundKeydown: (e: KeyboardEvent) => void;
 
   constructor(container: HTMLElement) {
@@ -112,10 +115,22 @@ export class RateEditorPanel {
     field.appendChild(fieldLabel);
     field.appendChild(rateInput);
     formEl.appendChild(field);
+
+    // Warning element (Story 6.4 AC4 — negative rate clamping)
+    const warningEl = document.createElement('div');
+    warningEl.className = 'rate-editor__warning';
+    warningEl.style.display = 'none';
+    const warningTextEl = document.createElement('span');
+    warningTextEl.className = 'rate-editor__warning-text';
+    warningEl.appendChild(warningTextEl);
+    formEl.appendChild(warningEl);
+
     root.appendChild(formEl);
 
     this._formEl = formEl;
     this._rateInput = rateInput;
+    this._warningEl = warningEl;
+    this._warningTextEl = warningTextEl;
 
     // ── Event binding ─────────────────────────────────────────────
     this._boundKeydown = this._handleKeydown.bind(this);
@@ -133,6 +148,7 @@ export class RateEditorPanel {
    */
   setConnection(info: ConnectionInfo | null): void {
     this._clearErrorTimeout();
+    this._clearWarningTimeout();
 
     if (info === null) {
       // Switch to empty state
@@ -169,6 +185,9 @@ export class RateEditorPanel {
     // Guard: don't overwrite input while user is typing
     if (document.activeElement === this._rateInput) return;
 
+    // Dismiss any stale warning — external rate update resets UI state (P3 defensive fix)
+    this._clearWarningTimeout();
+
     this._lastValidRate = value;
     this._rateInput.value = String(value);
   }
@@ -180,6 +199,8 @@ export class RateEditorPanel {
     // Revert input to last valid value
     this._rateInput.value = String(this._lastValidRate);
 
+    // Clear any existing warning/timeout before showing error (P2 fix: prevents amber warning + red border coexistence)
+    this._clearWarningTimeout();
     // Clear any existing error timeout (removes stale class)
     this._clearErrorTimeout();
 
@@ -199,6 +220,7 @@ export class RateEditorPanel {
    */
   destroy(): void {
     this._clearErrorTimeout();
+    this._clearWarningTimeout();
     this._rateInput.removeEventListener('keydown', this._boundKeydown);
     this.onRateSubmit = null;
     if (this._rootEl.parentNode === this._container) {
@@ -247,13 +269,29 @@ export class RateEditorPanel {
       return;
     }
 
+    // Negative → clamp to 0 with warning (Story 6.4 AC4)
+    if (parsed < 0) {
+      // Clear any stale error state before showing warning (P2 fix: prevents red border + amber warning coexistence)
+      this._clearErrorTimeout();
+      if (this.onRateSubmit) {
+        this.onRateSubmit(0);
+      }
+      // Always sync _lastValidRate to clamped value, even if onRateSubmit is null (P3 defensive fix)
+      this._lastValidRate = 0;
+      this._showWarning('速率不能为负');
+      this._rateInput.value = '0';
+      this._rateInput.blur();
+      return;
+    }
+
     // Unchanged → no-op
     if (parsed === this._lastValidRate) {
       this._rateInput.blur();
       return;
     }
 
-    // Fire callback
+    // Fire callback — dismiss any stale warning first (P2 fix: prevent "速率不能为负" persisting after valid input)
+    this._clearWarningTimeout();
     if (this.onRateSubmit) {
       this.onRateSubmit(parsed);
       // Sync _lastValidRate to the submitted value so that re-typing the old
@@ -274,5 +312,31 @@ export class RateEditorPanel {
       this._errorTimeout = null;
     }
     this._rateInput.classList.remove('rate-editor__input--error');
+  }
+
+  /**
+   * Show an inline warning message that auto-dismisses after 2 seconds.
+   * (Story 6.4 AC4)
+   */
+  private _showWarning(message: string): void {
+    this._clearWarningTimeout();
+    this._warningTextEl.textContent = message;
+    this._warningEl.style.display = ''; // let CSS display:flex take over
+    this._warningTimeout = setTimeout(() => {
+      this._warningEl.style.display = 'none';
+      this._warningTimeout = null;
+    }, 2000);
+  }
+
+  /**
+   * Clear pending warning timeout and hide warning element.
+   * (Story 6.4 AC4)
+   */
+  private _clearWarningTimeout(): void {
+    if (this._warningTimeout !== null) {
+      clearTimeout(this._warningTimeout);
+      this._warningTimeout = null;
+    }
+    this._warningEl.style.display = 'none';
   }
 }

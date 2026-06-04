@@ -7,6 +7,7 @@
 3. Story 6.2 代码审查独立审计 → [[story-6-2-review-audit-2026-06-03]] — 审查过程本身存在严重偏差：5 条 patch 发现中 3 条为误报，1 条被两个审查层一致标记的 🟠 High 发现被错误驳回
 4. Defer #2 (overflow-y) → [[defer-2-overflow-merge-target]] — 合并至 Story 6.6
 5. Story 6.2 审查与修正完整记录 → [[story-6-2-review-session-2026-06-03]] — 审查→审计→修正→状态更新全流程
+6. Story 6.4 — Inline Rate Editor 负速率验证 → [[story-6-4-audit-2026-06-04]] — Brownfield 增强：负速率钳位 + 警告 UI（AC4）
 
 ## Cross-Story Lessons
 
