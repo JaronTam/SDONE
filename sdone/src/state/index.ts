@@ -16,6 +16,8 @@ export {
   deleteModule,
   moveModule,
   addConnection,
+  addFeedbackConnection,
   deleteConnection,
   updateRate,
+  updateFormula,
 } from './mutations.js';

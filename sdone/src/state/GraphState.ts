@@ -113,6 +113,9 @@ export interface Connection {
    * simulation time.
    */
   formulaStr: string;
+  /** Story 7.1 — true when this connection is a feedback loop (stock → source),
+   *  rendered as a self-loop curve, carries a multiplier formula. */
+  isFeedback?: boolean;
 }
 
 /**

@@ -39,6 +39,9 @@ export interface EventMap {
   // ── Canvas: Connections ────────────────────────────────────
   CONNECTION_CREATED: { connectionId: string; fromId: string; toId: string; rate: number };
 
+  // ── Story 7.1: Feedback Connections ──────────────────────────
+  FEEDBACK_CREATED: { stockId: string; sourceId: string };
+
   // ── Canvas: Undo/Redo ───────────────────────────────────────
   UNDO: { fromState: GraphState; toState: GraphState };
   REDO: { fromState: GraphState; toState: GraphState };

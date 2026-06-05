@@ -13,9 +13,14 @@ const SINGLE_ARG_FNS = new Set(['sin', 'cos', 'abs', 'sqrt', 'log', 'exp']);
 /**
  * Evaluate an AST node against a given simulated time `t`.
  *
+ * Story 7.1: Added optional `variables` parameter for injecting stock state
+ * (value, capacity) into feedback formula evaluation. Variables are resolved
+ * after the reserved `t` keyword — `t` always uses the simulated time value.
+ *
+ * @param variables  Optional bag of variable name→value mappings (e.g. { value: 50, capacity: 100 }).
  * @throws {FormulaEvalError} on runtime evaluation errors (sqrt of negative, division by zero).
  */
-export function evaluate(node: ExprNode, t: number): number {
+export function evaluate(node: ExprNode, t: number, variables?: Record<string, number>): number {
   switch (node.type) {
     case 'number':
       return (node as NumberNode).value;
@@ -23,13 +28,14 @@ export function evaluate(node: ExprNode, t: number): number {
     case 'variable': {
       const vn = node as VariableNode;
       if (vn.name === 't') return t;
+      if (variables && vn.name in variables) return variables[vn.name];
       throw new FormulaEvalError(`Unknown variable '${vn.name}'`);
     }
 
     case 'binary': {
       const bn = node as BinaryOpNode;
-      const left = evaluate(bn.left, t);
-      const right = evaluate(bn.right, t);
+      const left = evaluate(bn.left, t, variables);
+      const right = evaluate(bn.right, t, variables);
       switch (bn.op) {
         case '+':
           return left + right;
@@ -55,12 +61,12 @@ export function evaluate(node: ExprNode, t: number): number {
 
     case 'unary': {
       const un = node as UnaryOpNode;
-      return -evaluate(un.operand, t);
+      return -evaluate(un.operand, t, variables);
     }
 
     case 'call': {
       const cn = node as FunctionCallNode;
-      const args = cn.args.map((a) => evaluate(a, t));
+      const args = cn.args.map((a) => evaluate(a, t, variables));
       const name = cn.name;
 
       // Single-argument functions

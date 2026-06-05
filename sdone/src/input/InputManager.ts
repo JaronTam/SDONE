@@ -1,8 +1,8 @@
 import type { Vec2 } from '../shared/Vec2.js';
 import { vec2, distance } from '../shared/Vec2.js';
 import type { ViewportManager } from '../canvas/Viewport.js';
-import type { ModuleNode, Connection } from '../state/GraphState.js';
-import { getHitRadius, getEdgePoint } from '../canvas/SceneRenderer.js';
+import type { ModuleNode, Connection, StockNode } from '../state/GraphState.js';
+import { getHitRadius, getEdgePoint, STOCK_WIDTH, STOCK_HEIGHT, FEEDBACK_HANDLE_RADIUS, FEEDBACK_ARC_OFFSET } from '../canvas/SceneRenderer.js';
 
 /** Minimum screen-pixel distance before a mousedown becomes a drag. */
 const DRAG_THRESHOLD_PX = 4;
@@ -22,6 +22,12 @@ const DOUBLE_CLICK_WINDOW_MS = 300;
 
 /** Story 5.3 — Max screen-pixel distance between two clicks to count as double-click. */
 const DOUBLE_CLICK_MAX_PX = 5;
+
+/** Story 7.1 — Feedback handle hit radius in screen pixels. */
+const FEEDBACK_HANDLE_HIT_RADIUS_PX = 12;
+
+/** Story 7.1 — Number of samples for Bezier curve hit-testing. */
+const BEZIER_HIT_SAMPLES = 20;
 
 /**
  * Story 3.7 — Pure function (module-level, exported for testing).
@@ -121,6 +127,12 @@ export class InputManager {
   private isDraggingConnection = false;
   private edgeDragSourceId: string | null = null;
 
+  // ── Story 7.1: Feedback handle drag state ─────────────────────
+  private isDraggingFeedback = false;
+  private _feedbackDragStockId: string | null = null;
+  /** Feedback handle hover state — stock ID whose handle is hovered. */
+  private _feedbackHandleHoveredStockId: string | null = null;
+
   // ── Callbacks (set by main.ts) ────────────────────────────────
 
   /** Provides current module nodes for hit-testing. */
@@ -196,6 +208,24 @@ export class InputManager {
   /** Story 3.6 AC2: World-space edge point on snap target module nearest to cursor. */
   public snapTargetEdgeWorldPos: Vec2 | null = null;
 
+  // ── Story 7.1: Feedback handle callbacks ──────────────────────
+  /** Story 7.1 — Called when user finishes dragging from a feedback handle to a source. */
+  public onFeedbackDragEnd: ((stockId: string, sourceId: string) => void) | null = null;
+
+  /** Story 7.1 — Called when feedback drag is cancelled (Esc, blur). */
+  public onFeedbackDragCancel: (() => void) | null = null;
+
+  /** Story 7.1 AC6 — Called when feedback handle hover state changes. */
+  public onFeedbackHandleHover: ((stockId: string | null, screenPos: Vec2) => void) | null = null;
+
+  /** Story 7.1 — Feedback drag cursor position in world-space (null when not dragging). */
+  public feedbackDragWorldPosition: Vec2 | null = null;
+
+  /** Story 7.1 — Stock ID being feedback-dragged (null when not dragging). */
+  public get feedbackDragStockId(): string | null {
+    return this._feedbackDragStockId;
+  }
+
   // ── Story 5.3: Double-click detection ────────────────────────
   /** Called when user double-clicks a module (same module, <300ms, <5px). */
   public onModuleDoubleClick: ((moduleId: string) => void) | null = null;
@@ -216,9 +246,9 @@ export class InputManager {
   private lastClickTime = 0;
   private lastClickScreenPos: Vec2 = vec2(0, 0);
 
-  /** Whether the user is currently dragging something (module or connection). */
+  /** Whether the user is currently dragging something (module, connection, or feedback). */
   public get isDragging(): boolean {
-    return this.isDraggingModule || this.isDraggingConnection;
+    return this.isDraggingModule || this.isDraggingConnection || this.isDraggingFeedback;
   }
 
   /** Story 3.6 — Whether a connection edge-drag is in progress. */
@@ -373,6 +403,10 @@ export class InputManager {
     if (this.isDraggingConnection) {
       this.cancelConnectionDrag();
     }
+    // Story 7.1 — cancel feedback drag on blur
+    if (this.isDraggingFeedback || this._feedbackDragStockId !== null) {
+      this.cancelFeedbackDrag();
+    }
     this.canvas.style.cursor = '';
   }
 
@@ -469,6 +503,103 @@ export class InputManager {
     return closest;
   }
 
+  // ── Story 7.1: Feedback handle hit-testing ────────────────────
+
+  /**
+   * Story 7.1 — Hit-test the feedback handle (amber dot at bottom-right of stock).
+   * Returns the stock ID if the cursor is within FEEDBACK_HANDLE_HIT_RADIUS_PX
+   * of the handle center, or null if no handle is hit.
+   *
+   * Only stocks that have at least one incoming source connection are eligible.
+   */
+  private hitTestFeedbackHandle(screenPos: Vec2): string | null {
+    const nodes = this.nodesProvider?.();
+    const connections = this.connectionsProvider?.();
+    if (!nodes || !connections) return null;
+
+    const canvasCenter = this.getCanvasCenter();
+
+    for (const node of Object.values(nodes)) {
+      if (node.type !== 'stock') continue;
+      const stock = node as StockNode;
+
+      // Only stocks with incoming source connections have feedback handles
+      const hasSourceInflow = Object.values(connections).some(
+        c => c.toId === stock.id && !c.isFeedback && nodes[c.fromId]?.type === 'source',
+      );
+      if (!hasSourceInflow) continue;
+
+      // Handle position: bottom-right of stock
+      const hw = STOCK_WIDTH / 2;
+      const hh = STOCK_HEIGHT / 2;
+      const handleWorldX = stock.position.x + hw - FEEDBACK_HANDLE_RADIUS;
+      const handleWorldY = stock.position.y + hh - FEEDBACK_HANDLE_RADIUS;
+      const handleScreenPos = this.viewportManager.worldToScreen(
+        vec2(handleWorldX, handleWorldY), canvasCenter,
+      );
+
+      if (distance(screenPos, handleScreenPos) <= FEEDBACK_HANDLE_HIT_RADIUS_PX) {
+        return stock.id;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Story 7.1 — Hit-test a feedback Bezier curve connection.
+   * Samples the quadratic Bezier at BEZIER_HIT_SAMPLES points and checks
+   * screen-space distance to each segment.
+   */
+  private hitTestFeedbackBezier(screenPos: Vec2): string | null {
+    const nodes = this.nodesProvider?.();
+    const connections = this.connectionsProvider?.();
+    if (!nodes || !connections) return null;
+
+    const canvasCenter = this.getCanvasCenter();
+
+    for (const conn of Object.values(connections)) {
+      if (!conn.isFeedback) continue;
+      const stockNode = nodes[conn.fromId];
+      if (!stockNode || stockNode.type !== 'stock') continue;
+      const stock = stockNode as StockNode;
+
+      const hw = STOCK_WIDTH / 2;
+      const hh = STOCK_HEIGHT / 2;
+      const sx = stock.position.x;
+      const sy = stock.position.y;
+
+      // Match the rendering constants from SceneRenderer
+      const startX = sx + hw - FEEDBACK_HANDLE_RADIUS;
+      const startY = sy + hh - FEEDBACK_HANDLE_RADIUS;
+      const endX = sx;
+      const endY = sy - hh;
+      const cpX = sx + hw + FEEDBACK_ARC_OFFSET;
+      const cpY = sy;
+
+      // Sample Bezier at N points and check distance to each segment
+      const points: Vec2[] = [];
+      for (let i = 0; i <= BEZIER_HIT_SAMPLES; i++) {
+        const t = i / BEZIER_HIT_SAMPLES;
+        const bx = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * cpX + t * t * endX;
+        const by = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * cpY + t * t * endY;
+        points.push(this.viewportManager.worldToScreen(vec2(bx, by), canvasCenter));
+      }
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const dist = pointToSegmentDistance(screenPos, points[i], points[i + 1]);
+        if (dist <= CONNECTION_HIT_THRESHOLD_PX) {
+          return conn.id;
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Story 7.1 — Returns the stock ID whose feedback handle is currently hovered. */
+  public get feedbackHandleHoveredStockId(): string | null {
+    return this._feedbackHandleHoveredStockId;
+  }
+
   /**
    * Story 3.7 AC1 — Find the first connection whose screen-space line segment
    * is within CONNECTION_HIT_THRESHOLD_PX of the given screen point.
@@ -482,14 +613,18 @@ export class InputManager {
 
     const canvasCenter = this.getCanvasCenter();
 
+    // Story 7.1: Check feedback Bezier curves FIRST (they overlay normal connections)
+    const feedbackHit = this.hitTestFeedbackBezier(screenPos);
+    if (feedbackHit) return feedbackHit;
+
     for (const conn of Object.values(connections)) {
+      if (conn.isFeedback) continue; // Already checked via hitTestFeedbackBezier
+
       const fromNode = nodes[conn.fromId];
       const toNode = nodes[conn.toId];
       if (!fromNode || !toNode) continue;
 
       // Use edge-point endpoints to match the rendered line exactly.
-      // (Spec pseudocode uses getEdgePoint — center positions would create
-      // false-positive hit zones near module bodies.)
       const fromEdge = getEdgePoint(fromNode, toNode.position);
       const toEdge = getEdgePoint(toNode, fromNode.position);
       const p1Screen = this.viewportManager.worldToScreen(fromEdge, canvasCenter);
@@ -532,6 +667,8 @@ export class InputManager {
     if (!nodes || !connections) return false;
     const conn = connections[connectionId];
     if (!conn) return false;
+    // Story 7.1: Feedback connections use Bezier curves, always renderable
+    if (conn.isFeedback) return true;
     const fromNode = nodes[conn.fromId];
     const toNode = nodes[conn.toId];
     if (!fromNode || !toNode) return false;
@@ -578,9 +715,19 @@ export class InputManager {
       return;
     }
 
-    // ── Story 2.3 + 3.6: Left-click on canvas → check for module hit ──
+    // ── Story 2.3 + 3.6 + 7.1: Left-click on canvas → check hits ──
     if (e.button === 0) {
       const screenPos = vec2(e.clientX, e.clientY);
+
+      // Story 7.1: Check feedback handle hit FIRST (highest priority)
+      const feedbackStockId = this.hitTestFeedbackHandle(screenPos);
+      if (feedbackStockId) {
+        this._feedbackDragStockId = feedbackStockId;
+        this.mouseDownPos = screenPos;
+        this.canvas.style.cursor = 'grab';
+        return;
+      }
+
       const hitId = this.hitTest(screenPos);
 
       this.mouseDownPos = screenPos;
@@ -608,6 +755,26 @@ export class InputManager {
       const delta = vec2(current.x - this.lastMousePos.x, current.y - this.lastMousePos.y);
       this.viewportManager.panByScreenDelta(delta);
       this.lastMousePos = current;
+      return;
+    }
+
+    // ── Story 7.1: Feedback handle drag ─────────────────────────
+    // Defer drag start until mouse moves beyond DRAG_THRESHOLD_PX
+    // so a simple click on the handle selects the parent stock
+    if (this._feedbackDragStockId !== null && !this.isDraggingFeedback) {
+      if (distance(current, this.mouseDownPos) >= DRAG_THRESHOLD_PX) {
+        this.isDraggingFeedback = true;
+        this.clearHoveredConnection();
+      } else {
+        return; // Still waiting for drag threshold
+      }
+    }
+
+    if (this.isDraggingFeedback && this.feedbackDragStockId) {
+      const canvasCenter = this.getCanvasCenter();
+      const worldPos = this.viewportManager.screenToWorld(current, canvasCenter);
+      this.feedbackDragWorldPosition = worldPos;
+      this.canvas.style.cursor = 'grabbing';
       return;
     }
 
@@ -677,6 +844,22 @@ export class InputManager {
       }
     }
 
+    // ── Story 7.1: Feedback handle hover detection ──────────────
+    // Track which stock's feedback handle the cursor is near (for opacity change)
+    if (
+      !this.isPanning &&
+      !this.isDraggingModule &&
+      !this.isDraggingConnection &&
+      !this.isDraggingFeedback &&
+      this.mouseDownModuleId === null
+    ) {
+      const prevHovered = this._feedbackHandleHoveredStockId;
+      this._feedbackHandleHoveredStockId = this.hitTestFeedbackHandle(current);
+      if (this._feedbackHandleHoveredStockId !== prevHovered) {
+        this.onFeedbackHandleHover?.(this._feedbackHandleHoveredStockId, current);
+      }
+    }
+
     // ── Story 5.4: Connection hover detection ───────────────────
     // Only run when user is idle (not panning, not dragging, not
     // mousedown on a module).  Fires onConnectionHover when the
@@ -709,6 +892,37 @@ export class InputManager {
     // Left-click release while space-panning
     if (e.button === 0 && this.isPanning) {
       this.stopPan();
+      return;
+    }
+
+    // ── Story 7.1: Feedback handle drag release ─────────────────
+    if (e.button === 0 && this._feedbackDragStockId !== null && !this.isDraggingFeedback) {
+      // Click on feedback handle without drag → select the parent stock
+      this.onModuleSelect?.(this._feedbackDragStockId);
+      this._feedbackDragStockId = null;
+      this._feedbackHandleHoveredStockId = null;
+      this.canvas.style.cursor = '';
+      return;
+    }
+
+    if (e.button === 0 && this.isDraggingFeedback && this.feedbackDragStockId) {
+      const stockId = this.feedbackDragStockId;
+      const screenPos = vec2(e.clientX, e.clientY);
+      const hitId = this.hitTest(screenPos);
+
+      // If released over a source node, create feedback connection
+      if (hitId) {
+        const nodes = this.nodesProvider?.();
+        if (nodes && nodes[hitId]?.type === 'source') {
+          this.onFeedbackDragEnd?.(stockId, hitId);
+        }
+      }
+
+      this.isDraggingFeedback = false;
+      this._feedbackDragStockId = null;
+      this._feedbackHandleHoveredStockId = null;
+      this.feedbackDragWorldPosition = null;
+      this.canvas.style.cursor = '';
       return;
     }
 
@@ -886,6 +1100,9 @@ export class InputManager {
 
     // ── Escape → cancel active drag ──────────────────────────────
     if (e.code === 'Escape') {
+      if (this.isDraggingFeedback || this._feedbackDragStockId !== null) {
+        this.cancelFeedbackDrag();
+      }
       if (this.isDraggingModule) {
         this.cancelDrag();
       }
@@ -991,6 +1208,18 @@ export class InputManager {
     if (this.isDraggingConnection) {
       this.cancelConnectionDrag();
     }
+    this.canvas.style.cursor = '';
+  }
+
+  /**
+   * Story 7.1 — Cancel an active feedback handle drag.
+   */
+  private cancelFeedbackDrag(): void {
+    this.isDraggingFeedback = false;
+    this._feedbackDragStockId = null;
+    this._feedbackHandleHoveredStockId = null;
+    this.feedbackDragWorldPosition = null;
+    this.onFeedbackDragCancel?.();
     this.canvas.style.cursor = '';
   }
 

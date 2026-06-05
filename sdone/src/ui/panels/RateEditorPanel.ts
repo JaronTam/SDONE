@@ -27,6 +27,10 @@ export interface ConnectionInfo {
   rate: number;
   fromType?: ModuleType;
   toType?: ModuleType;
+  /** Story 7.1 — true when this is a feedback connection (stock→source). */
+  isFeedback?: boolean;
+  /** Story 7.1 — formula string for feedback connections. */
+  formulaStr?: string;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────
@@ -45,6 +49,9 @@ export class RateEditorPanel {
   /** Callback: fires when user presses Enter with a valid numeric rate value. */
   onRateSubmit: ((rate: number) => void) | null = null;
 
+  /** Story 7.1 — Callback: fires when user presses Enter with a formula string. */
+  onFormulaSubmit: ((formulaStr: string) => void) | null = null;
+
   private readonly _container: HTMLElement;
   private readonly _rootEl: HTMLElement;
   private readonly _emptyEl: HTMLElement;
@@ -52,11 +59,18 @@ export class RateEditorPanel {
   private readonly _connectionLabel: HTMLElement;
   private readonly _rateInput: HTMLInputElement;
   private _lastValidRate: number = 0;
-  private _errorTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _rateErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _formulaErrorTimeout: ReturnType<typeof setTimeout> | null = null;
   private _warningTimeout: ReturnType<typeof setTimeout> | null = null;
   private readonly _warningEl: HTMLElement;
   private readonly _warningTextEl: HTMLElement;
   private _boundKeydown: (e: KeyboardEvent) => void;
+
+  // Story 7.1: Formula editing state
+  private readonly _formulaFieldEl: HTMLElement;
+  private readonly _formulaInput: HTMLInputElement;
+  private readonly _rateFieldEl: HTMLElement;
+  private _boundFormulaKeydown: (e: KeyboardEvent) => void;
 
   constructor(container: HTMLElement) {
     this._container = container;
@@ -115,6 +129,27 @@ export class RateEditorPanel {
     field.appendChild(fieldLabel);
     field.appendChild(rateInput);
     formEl.appendChild(field);
+    this._rateFieldEl = field;
+
+    // Story 7.1: Formula input field group (hidden for non-feedback connections)
+    const formulaField = document.createElement('div');
+    formulaField.className = 'rate-editor__field';
+    formulaField.style.display = 'none';
+
+    const formulaLabel = document.createElement('label');
+    formulaLabel.className = 'rate-editor__field-label';
+    formulaLabel.textContent = '公式 (如: -0.5 * stock_value)';
+
+    const formulaInput = document.createElement('input');
+    formulaInput.className = 'rate-editor__input';
+    formulaInput.type = 'text';
+    formulaInput.placeholder = '输入公式...';
+
+    formulaField.appendChild(formulaLabel);
+    formulaField.appendChild(formulaInput);
+    formEl.appendChild(formulaField);
+    this._formulaFieldEl = formulaField;
+    this._formulaInput = formulaInput;
 
     // Warning element (Story 6.4 AC4 — negative rate clamping)
     const warningEl = document.createElement('div');
@@ -135,6 +170,10 @@ export class RateEditorPanel {
     // ── Event binding ─────────────────────────────────────────────
     this._boundKeydown = this._handleKeydown.bind(this);
     this._rateInput.addEventListener('keydown', this._boundKeydown);
+
+    // Story 7.1: Formula input keydown binding
+    this._boundFormulaKeydown = this._handleFormulaKeydown.bind(this);
+    this._formulaInput.addEventListener('keydown', this._boundFormulaKeydown);
 
     // Append to container
     container.appendChild(root);
@@ -163,10 +202,23 @@ export class RateEditorPanel {
     this._emptyEl.style.display = 'none';
     this._formEl.style.display = '';
 
-    // Build direction label: "源 → 存量"
+    // Build direction label: "源 → 存量" or "存量 → 源 (反馈)"
     const fromLabel = info.fromType ? TYPE_DISPLAY_NAMES[info.fromType] : info.fromId;
     const toLabel = info.toType ? TYPE_DISPLAY_NAMES[info.toType] : info.toId;
-    this._connectionLabel.textContent = `${fromLabel} → ${toLabel}`;
+    const isFeedback = info.isFeedback === true;
+
+    if (isFeedback) {
+      this._connectionLabel.textContent = `${fromLabel} → ${toLabel} (反馈)`;
+      // Show formula field, hide rate field for feedback connections
+      this._formulaFieldEl.style.display = '';
+      this._rateFieldEl.style.display = 'none';
+      this._formulaInput.value = info.formulaStr ?? String(info.rate);
+    } else {
+      this._connectionLabel.textContent = `${fromLabel} → ${toLabel}`;
+      // Show rate field, hide formula field for normal connections
+      this._rateFieldEl.style.display = '';
+      this._formulaFieldEl.style.display = 'none';
+    }
 
     // Populate rate value
     this._lastValidRate = info.rate;
@@ -208,9 +260,9 @@ export class RateEditorPanel {
     this._rateInput.classList.add('rate-editor__input--error');
 
     // Remove error class after 1 second
-    this._errorTimeout = setTimeout(() => {
+    this._rateErrorTimeout = setTimeout(() => {
       this._rateInput.classList.remove('rate-editor__input--error');
-      this._errorTimeout = null;
+      this._rateErrorTimeout = null;
     }, 1000);
   }
 
@@ -222,7 +274,9 @@ export class RateEditorPanel {
     this._clearErrorTimeout();
     this._clearWarningTimeout();
     this._rateInput.removeEventListener('keydown', this._boundKeydown);
+    this._formulaInput.removeEventListener('keydown', this._boundFormulaKeydown);
     this.onRateSubmit = null;
+    this.onFormulaSubmit = null;
     if (this._rootEl.parentNode === this._container) {
       this._container.removeChild(this._rootEl);
     }
@@ -304,14 +358,48 @@ export class RateEditorPanel {
   }
 
   /**
+   * Story 7.1 — Handle Enter keypress on the formula input field.
+   * Fires onFormulaSubmit with the trimmed formula string.
+   */
+  private _handleFormulaKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+
+    const rawValue = this._formulaInput.value.trim();
+
+    // Empty string → show error
+    if (rawValue === '') {
+      this._formulaInput.classList.add('rate-editor__input--error');
+      this._formulaErrorTimeout = setTimeout(() => {
+        this._formulaInput.classList.remove('rate-editor__input--error');
+        this._formulaErrorTimeout = null;
+      }, 1000);
+      return;
+    }
+
+    // Fire formula submit callback
+    this._clearWarningTimeout();
+    if (this.onFormulaSubmit) {
+      this.onFormulaSubmit(rawValue);
+    }
+
+    this._formulaInput.blur();
+  }
+
+  /**
    * Clear pending error timeout and clean up class.
    */
   private _clearErrorTimeout(): void {
-    if (this._errorTimeout !== null) {
-      clearTimeout(this._errorTimeout);
-      this._errorTimeout = null;
+    if (this._rateErrorTimeout !== null) {
+      clearTimeout(this._rateErrorTimeout);
+      this._rateErrorTimeout = null;
     }
     this._rateInput.classList.remove('rate-editor__input--error');
+    if (this._formulaErrorTimeout !== null) {
+      clearTimeout(this._formulaErrorTimeout);
+      this._formulaErrorTimeout = null;
+    }
+    this._formulaInput.classList.remove('rate-editor__input--error');
   }
 
   /**

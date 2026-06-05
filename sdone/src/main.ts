@@ -22,7 +22,7 @@ import { ModulePanel, RateEditorPanel, ControlBar, AnalyticsPanel, computeStockA
 import { ColorPickerPopover, AchievementToast, ModalDialog } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
-import { moveModule, deleteModule, addModule, addConnection, deleteConnection, updateRate, changeModuleColor } from './state/mutations.js';
+import { moveModule, deleteModule, addModule, addConnection, addFeedbackConnection, deleteConnection, updateRate, updateFormula, changeModuleColor } from './state/mutations.js';
 import { detectFirstCompleteStack } from './state/achievement-detection.js';
 import { HistoryManager } from './state/HistoryManager.js';
 import { EventBus } from './event-bus/EventBus.js';
@@ -125,7 +125,9 @@ inputManager.onConnectionHover = (connectionId, screenPos) => {
       const toNode = currentState.nodes[conn.toId];
       if (fromNode && toNode) {
         const dirLine = `${getModuleLabel(fromNode.type)} → ${getModuleLabel(toNode.type)}`;
-        const rateLine = `速率: ${conn.rate}`;
+        const isFeedback = conn.isFeedback === true;
+        const rateLabel = isFeedback ? '乘数' : '速率';
+        const rateLine = `${rateLabel}: ${conn.rate}`;
         const parts = [dirLine, rateLine];
         // AC3: Show formula only when it differs from the evaluated rate
         if (conn.formulaStr && conn.formulaStr !== String(conn.rate)) {
@@ -212,6 +214,8 @@ inputManager.onConnectionSelect = (connectionId: string | null) => {
       rate: conn.rate,
       fromType: fromNode?.type,
       toType: toNode?.type,
+      isFeedback: conn.isFeedback, // Story 7.1
+      formulaStr: conn.formulaStr, // Story 7.1
     });
   }
 
@@ -376,6 +380,8 @@ function syncRateEditorPanel(state: GraphState): void {
     rate: conn.rate,
     fromType: fromNode?.type,
     toType: toNode?.type,
+    isFeedback: conn.isFeedback, // Story 7.1
+    formulaStr: conn.formulaStr, // Story 7.1
   });
 }
 
@@ -944,6 +950,22 @@ panelRightContainer.appendChild(rightReExpandTab);
     refreshCountdownPanel();
   };
 
+  // ── Story 7.1: Formula Editor Submit Callback ────────────────────────
+  rateEditorPanel.onFormulaSubmit = (formulaStr: string) => {
+    const selectedConnId = currentState.selectedConnectionIds[0];
+    if (!selectedConnId) return;
+    const conn = currentState.connections[selectedConnId];
+    if (!conn) return;
+
+    const nextState = updateFormula(currentState, selectedConnId, formulaStr);
+    if (nextState.version === currentState.version) return;
+    currentState = nextState;
+    historyManager.push(currentState);
+    minimapRenderer.markDirty();
+    refreshAnalyticsPanel();
+    refreshCountdownPanel();
+  };
+
 // ── Story 3.2: Drag & Drop Module Placement ───────────────────────────
 
 // ── AC4: Connection edge-drag callbacks ──────────────────────────────
@@ -1051,6 +1073,53 @@ inputManager.onConnectionDragEnd = (sourceModuleId: string, targetModuleId: stri
 inputManager.onConnectionDragCancel = () => {
   // AC7: Cleanup handled by InputManager internally.
   // No additional side effects needed.
+};
+
+// ── Story 7.1: Feedback handle drag → create feedback connection ──────
+inputManager.onFeedbackDragEnd = (stockId: string, sourceId: string) => {
+  const nextState = addFeedbackConnection(currentState, stockId, sourceId);
+
+  // No-op guard
+  if (nextState.version === currentState.version) return;
+
+  currentState = nextState;
+  historyManager.push(currentState);
+  minimapRenderer.markDirty();
+  refreshAnalyticsPanel();
+  refreshCountdownPanel();
+  // Reserved for future subscribers (analytics, achievements, save-points)
+  eventBus.emit('FEEDBACK_CREATED', { stockId, sourceId });
+};
+
+inputManager.onFeedbackDragCancel = () => {
+  // No-op: cleanup handled by InputManager
+};
+
+// Story 7.1: Feedback handle hover provider for SceneRenderer
+sceneRenderer.feedbackHandleHoveredStockIdProvider = () => inputManager.feedbackHandleHoveredStockId;
+
+// Story 7.1 AC6: Feedback handle hover → tooltip "拖拽以创建反馈回路"
+inputManager.onFeedbackHandleHover = (stockId, screenPos) => {
+  if (stockId) {
+    sceneRenderer.tooltipText = '拖拽以创建反馈回路';
+    sceneRenderer.tooltipScreenPos = screenPos;
+  } else {
+    // Only clear tooltip if it was a feedback handle tooltip (not a connection tooltip)
+    if (sceneRenderer.tooltipText === '拖拽以创建反馈回路') {
+      sceneRenderer.tooltipText = null;
+    }
+  }
+};
+
+// Story 7.1: Simulation state provider for dash animation
+sceneRenderer.simStateProvider = () => simEngine.state;
+
+// Story 7.1: Feedback drag preview provider for SceneRenderer
+sceneRenderer.feedbackDragProvider = () => {
+  const stockId = inputManager.feedbackDragStockId;
+  const worldPos = inputManager.feedbackDragWorldPosition;
+  if (!stockId || !worldPos) return null;
+  return { stockId, cursorWorldPos: worldPos };
 };
 
 // ── Story 3.6: Connection drag preview provider for SceneRenderer ────

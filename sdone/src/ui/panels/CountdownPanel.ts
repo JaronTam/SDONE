@@ -61,6 +61,7 @@ export function computeStockCountdown(
   let connectionCount = 0;
 
   for (const conn of Object.values(state.connections)) {
+    if (conn.isFeedback) continue; // Story 7.1: skip feedback — multiplier, not flow
     if (conn.toId === stockId) { inflow += conn.rate; connectionCount++; }
     if (conn.fromId === stockId) { outflow += conn.rate; connectionCount++; }
   }

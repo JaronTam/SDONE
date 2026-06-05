@@ -26,6 +26,26 @@ export const SINK_HIT_RADIUS = SINK_RADIUS;
 
 export const SELECTION_RING_OFFSET = 6;
 
+// ── Story 7.1 — Feedback connection constants ──
+/** Amber-600 color for feedback connections and handles. */
+const FEEDBACK_LINE_COLOR = '#d97706';
+/** Feedback connection line width. */
+const FEEDBACK_LINE_WIDTH = 1.5;
+/** Dash pattern for feedback connections [solid, gap]. */
+const FEEDBACK_DASH_SEGMENTS = [6, 4] as const;
+/** Feedback handle radius (8px diameter). */
+export const FEEDBACK_HANDLE_RADIUS = 4;
+/** Default opacity for feedback handle (not hovered). */
+const FEEDBACK_HANDLE_OPACITY_DEFAULT = 0.3;
+/** Hover opacity for feedback handle. */
+const FEEDBACK_HANDLE_OPACITY_HOVER = 0.9;
+/** Control point offset from stock edge for feedback Bezier arc. */
+export const FEEDBACK_ARC_OFFSET = 60;
+/** Diamond arrowhead length for feedback connections. */
+const DIAMOND_ARROW_LENGTH = 10;
+/** Diamond arrowhead half-width for feedback connections. */
+const DIAMOND_ARROW_HALF_WIDTH = 3;
+
 // ── Story 4.6 AC1–AC4 — Warning arc constants (exported for rendering tests) ──
 /** Muted grey arc color. */
 export const WARNING_ARC_COLOR = '#6c7086';
@@ -240,6 +260,16 @@ export class SceneRenderer {
   /** Story 5.5 AC2 — Border flash around a group of module IDs.
    *  Returns the set of module IDs to flash and remaining lifetime. */
   public borderFlashProvider: (() => { moduleIds: string[]; life: number; maxLife: number } | null) | null = null;
+
+  // ── Story 7.1 — Feedback handle/providers ────────────────────────────
+  /** Story 7.1 — Returns the stock ID whose feedback handle is currently hovered (null = none). */
+  public feedbackHandleHoveredStockIdProvider: (() => string | null) | null = null;
+
+  /** Story 7.1 — Returns the current simulation state for dash animation. */
+  public simStateProvider: (() => string) | null = null;
+
+  /** Story 7.1 — Feedback drag preview position in world space (null = hidden). */
+  public feedbackDragProvider: (() => { stockId: string; cursorWorldPos: Vec2 } | null) | null = null;
 
   // ── Story 5.2 — Fill animation state ─────────────────────────────────
   /** Per-stock animated fill ratios for smooth fill/shrink transitions.
@@ -611,6 +641,27 @@ export class SceneRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText('stock', x, y + hh + 4);
+
+    // ── Story 7.1: Feedback handle (amber dot at bottom-right of stock) ──
+    // Only draw if stock has at least one incoming connection from a source
+    if (this.graphState) {
+      const hasSourceInflow = Object.values(this.graphState.connections).some(
+        c => c.toId === node.id && !c.isFeedback && this.graphState!.nodes[c.fromId]?.type === 'source',
+      );
+      if (hasSourceInflow) {
+        const handleX = x + hw - FEEDBACK_HANDLE_RADIUS;
+        const handleY = y + hh - FEEDBACK_HANDLE_RADIUS;
+        const hoveredStockId = this.feedbackHandleHoveredStockIdProvider?.() ?? null;
+        const isHovered = hoveredStockId === node.id;
+        ctx.save();
+        ctx.globalAlpha = isHovered ? FEEDBACK_HANDLE_OPACITY_HOVER : FEEDBACK_HANDLE_OPACITY_DEFAULT;
+        ctx.fillStyle = FEEDBACK_LINE_COLOR;
+        ctx.beginPath();
+        ctx.arc(handleX, handleY, FEEDBACK_HANDLE_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
   }
 
   private drawSink(node: SinkNode): void {
@@ -741,6 +792,63 @@ export class SceneRenderer {
       const fromNode = state.nodes[conn.fromId];
       const toNode = state.nodes[conn.toId];
       if (!fromNode || !toNode) continue;
+
+      // ── Story 7.1: Feedback connections — dashed amber Bezier self-loop ──
+      if (conn.isFeedback && fromNode.type === 'stock') {
+        const stock = fromNode as StockNode;
+        const sx = stock.position.x;
+        const sy = stock.position.y;
+        const hw = STOCK_WIDTH / 2;
+        const hh = STOCK_HEIGHT / 2;
+
+        // Start: bottom-right of stock (feedback handle position)
+        const startX = sx + hw - FEEDBACK_HANDLE_RADIUS;
+        const startY = sy + hh - FEEDBACK_HANDLE_RADIUS;
+        // End: top inflow slot (top edge center)
+        const endX = sx;
+        const endY = sy - hh;
+        // Control point: right side arc
+        const cpX = sx + hw + FEEDBACK_ARC_OFFSET;
+        const cpY = sy;
+
+        const isSelected = conn.id === selectedId;
+        const isHovered = conn.id === hoveredId;
+        const lineColor = isSelected ? SELECTION_COLOR : isHovered ? HOVER_HIGHLIGHT_COLOR : FEEDBACK_LINE_COLOR;
+
+        ctx.save();
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = isSelected ? FEEDBACK_LINE_WIDTH + 2 : isHovered ? FEEDBACK_LINE_WIDTH + 1 : FEEDBACK_LINE_WIDTH;
+        ctx.setLineDash([...FEEDBACK_DASH_SEGMENTS]);
+
+        // Animate dash offset during simulation
+        const simState = this.simStateProvider?.();
+        if (simState === 'running') {
+          ctx.lineDashOffset = -(performance.now() / 50) % (FEEDBACK_DASH_SEGMENTS[0] + FEEDBACK_DASH_SEGMENTS[1]);
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Diamond arrowhead at end point
+        this.drawDiamondArrowhead(ctx, cpX, cpY, endX, endY, lineColor);
+
+        // Rate label at Bezier midpoint (t=0.5)
+        const midX = 0.25 * startX + 0.5 * cpX + 0.25 * endX;
+        const midY = 0.25 * startY + 0.5 * cpY + 0.25 * endY;
+        ctx.fillStyle = isSelected ? SELECTION_COLOR : '#d97706';
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`∝${conn.rate.toFixed(2)}`, midX, midY - 4);
+
+        ctx.restore();
+        continue;
+      }
+
+      // ── Normal connections — straight lines ──
       const fromEdge = getEdgePoint(fromNode, toNode.position);
       const toEdge = getEdgePoint(toNode, fromNode.position);
       if (fromEdge.x === toEdge.x && fromEdge.y === toEdge.y) continue;
@@ -769,6 +877,9 @@ export class SceneRenderer {
       ctx.fillText(`${conn.rate}x`, midX, midY - 4);
     }
     ctx.restore();
+
+    // ── Story 7.1: Feedback drag preview ──
+    this.drawFeedbackDragPreview(state);
   }
 
   private drawConnectionDragPreview(): void {
@@ -971,6 +1082,82 @@ export class SceneRenderer {
         ctx.fill();
       }
     }
+    ctx.restore();
+  }
+
+  // ── Story 7.1 — Diamond Arrowhead for feedback connections ──────────
+
+  /**
+   * Draw an open diamond arrowhead at the end point of a feedback Bezier.
+   * Oriented along the tangent from the control point to the end point.
+   */
+  private drawDiamondArrowhead(
+    ctx: CanvasRenderingContext2D,
+    cpX: number, cpY: number,
+    endX: number, endY: number,
+    strokeColor: string,
+  ): void {
+    const dx = endX - cpX;
+    const dy = endY - cpY;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (!Number.isFinite(len) || len < 1) return;
+    const ux = dx / len;
+    const uy = dy / len;
+
+    // Diamond: tip at end point, then back + perpendicular, then back to center, then other perpendicular
+    const tipX = endX;
+    const tipY = endY;
+    const backX = tipX - ux * DIAMOND_ARROW_LENGTH;
+    const backY = tipY - uy * DIAMOND_ARROW_LENGTH;
+    const midX = tipX - ux * DIAMOND_ARROW_LENGTH / 2;
+    const midY = tipY - uy * DIAMOND_ARROW_LENGTH / 2;
+    const leftX = midX + uy * DIAMOND_ARROW_HALF_WIDTH;
+    const leftY = midY - ux * DIAMOND_ARROW_HALF_WIDTH;
+    const rightX = midX - uy * DIAMOND_ARROW_HALF_WIDTH;
+    const rightY = midY + ux * DIAMOND_ARROW_HALF_WIDTH;
+
+    ctx.save();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = FEEDBACK_LINE_WIDTH;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(leftX, leftY);
+    ctx.lineTo(backX, backY);
+    ctx.lineTo(rightX, rightY);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Story 7.1 — Feedback Drag Preview ──────────────────────────────
+
+  /**
+   * Draw a dashed amber preview line from the stock's feedback handle
+   * to the cursor position during feedback handle drag.
+   */
+  private drawFeedbackDragPreview(state: GraphState): void {
+    const dragData = this.feedbackDragProvider?.();
+    if (!dragData) return;
+    const { stockId, cursorWorldPos } = dragData;
+    const stockNode = state.nodes[stockId];
+    if (!stockNode || stockNode.type !== 'stock') return;
+    const stock = stockNode as StockNode;
+    const hw = STOCK_WIDTH / 2;
+    const hh = STOCK_HEIGHT / 2;
+    const startX = stock.position.x + hw - FEEDBACK_HANDLE_RADIUS;
+    const startY = stock.position.y + hh - FEEDBACK_HANDLE_RADIUS;
+
+    const { ctx } = this;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = FEEDBACK_LINE_COLOR;
+    ctx.lineWidth = FEEDBACK_LINE_WIDTH;
+    ctx.setLineDash([...FEEDBACK_DASH_SEGMENTS]);
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(cursorWorldPos.x, cursorWorldPos.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
     ctx.restore();
   }
 

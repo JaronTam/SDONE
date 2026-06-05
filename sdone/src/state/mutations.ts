@@ -240,8 +240,25 @@ export function deleteConnection(
     return unchanged(state);
   }
 
+  const deleted = state.connections[id];
   const nextConnections = { ...state.connections };
   delete nextConnections[id];
+
+  // Story 7.1: Cascade-delete orphaned feedback connection.
+  // When a source→stock material-flow connection is deleted, its corresponding
+  // feedback connection (stock→source) becomes orphaned — invisible (no handle)
+  // but still evaluated each tick. Clean it up.
+  if (!deleted.isFeedback) {
+    const fromNode = state.nodes[deleted.fromId];
+    const toNode = state.nodes[deleted.toId];
+    if (fromNode?.type === 'source' && toNode?.type === 'stock') {
+      for (const [connId, conn] of Object.entries(nextConnections)) {
+        if (conn.isFeedback && conn.fromId === deleted.toId && conn.toId === deleted.fromId) {
+          delete nextConnections[connId];
+        }
+      }
+    }
+  }
 
   if (
     Object.keys(nextConnections).length ===
@@ -289,6 +306,116 @@ export function changeModuleColor(
     nodes: {
       ...state.nodes,
       [moduleId]: { ...existing, color },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Story 7.1: Feedback connection constants
+// ---------------------------------------------------------------------------
+
+/** Default feedback formula — linear decay: full inflow at value=0, zero at value=capacity. */
+const DEFAULT_FEEDBACK_FORMULA = 'max(0, (capacity - value) / capacity)';
+
+/** Default rate for feedback connections — multiplier starts at 1.0 (full inflow). */
+const FEEDBACK_DEFAULT_RATE = 1;
+
+// ---------------------------------------------------------------------------
+// addFeedbackConnection (Story 7.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a feedback connection from a stock back to its source.
+ *
+ * Feedback connections carry a multiplier formula (not a material flow rate).
+ * The formula is evaluated each tick with the stock's `value` and `capacity`
+ * injected as variables, producing a multiplier m ∈ [0, 1] that modulates
+ * the source→stock inflow rate.
+ *
+ * @returns A NEW `GraphState` with the feedback connection added and `version`
+ *   incremented. Returns no-op (unchanged version) if:
+ *   - Either `stockId` or `sourceId` does not exist in `state.nodes`
+ *   - `stockId` is not a stock node
+ *   - `sourceId` is not a source node
+ *   - A feedback connection with the same stockId→sourceId already exists
+ */
+export function addFeedbackConnection(
+  state: GraphState,
+  stockId: string,
+  sourceId: string,
+): GraphState {
+  // Both endpoints must exist
+  if (!(stockId in state.nodes) || !(sourceId in state.nodes)) {
+    return unchanged(state);
+  }
+
+  // stockId must be a stock, sourceId must be a source
+  const stockNode = state.nodes[stockId];
+  const sourceNode = state.nodes[sourceId];
+  if (stockNode.type !== 'stock' || sourceNode.type !== 'source') {
+    return unchanged(state);
+  }
+
+  // Duplicate detection: no duplicate feedback stock→source
+  for (const conn of Object.values(state.connections)) {
+    if (conn.fromId === stockId && conn.toId === sourceId && conn.isFeedback) {
+      return unchanged(state);
+    }
+  }
+
+  const id = crypto.randomUUID();
+  const connection: Connection = {
+    id,
+    fromId: stockId,
+    toId: sourceId,
+    rate: FEEDBACK_DEFAULT_RATE,
+    formulaStr: DEFAULT_FEEDBACK_FORMULA,
+    isFeedback: true,
+  };
+
+  return {
+    ...bump(state),
+    connections: { ...state.connections, [id]: connection },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// updateFormula (Story 7.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Update the `formulaStr` of a connection WITHOUT changing its `rate`.
+ *
+ * Unlike `updateRate` (which sets both `rate` and `formulaStr: String(rate)`),
+ * this mutation preserves the formula expression string as-is. This is
+ * essential for feedback connections whose `formulaStr` is an expression
+ * like `"max(0, (capacity - value) / capacity)"` — `updateRate` would
+ * clobber it with a numeric string like `"0.7"`.
+ *
+ * @returns A NEW `GraphState` with updated formulaStr and `version` incremented.
+ *   Returns no-op (unchanged version) if:
+ *   - The connection `id` is not found
+ *   - The `formulaStr` is unchanged from current value
+ */
+export function updateFormula(
+  state: GraphState,
+  connectionId: string,
+  formulaStr: string,
+): GraphState {
+  const existing = state.connections[connectionId];
+  if (!existing) {
+    return unchanged(state);
+  }
+
+  if (existing.formulaStr === formulaStr) {
+    return unchanged(state);
+  }
+
+  return {
+    ...bump(state),
+    connections: {
+      ...state.connections,
+      [connectionId]: { ...existing, formulaStr },
     },
   };
 }

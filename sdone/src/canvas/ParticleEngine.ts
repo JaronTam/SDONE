@@ -60,6 +60,9 @@ export class ParticleEngine {
 
     // 2. For each connection: advance existing particles, spawn new ones
     for (const conn of Object.values(connections)) {
+      // Story 7.1: Skip feedback connections — they carry information, not material flow
+      if (conn.isFeedback) continue;
+
       const fromNode = nodes[conn.fromId];
       const toNode = nodes[conn.toId];
       if (!fromNode || !toNode) continue;

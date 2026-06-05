@@ -53,6 +53,7 @@ export function computeStockAnalytics(
   let outflow = 0;
 
   for (const conn of Object.values(state.connections)) {
+    if (conn.isFeedback) continue; // Story 7.1: skip feedback — multiplier, not flow
     if (conn.toId === stockId) inflow += conn.rate;
     if (conn.fromId === stockId) outflow += conn.rate;
   }

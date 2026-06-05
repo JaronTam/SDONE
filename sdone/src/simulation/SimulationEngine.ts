@@ -87,6 +87,11 @@ export class SimulationEngine {
    * Self-loop connections (`fromId === toId`) cancel algebraically:
    * the same rate is added to both inflow and outflow, yielding net = 0.
    *
+   * Story 7.1: Feedback connections (`isFeedback === true`) are SKIPPED —
+   * they carry multiplier values, not material flow. Without this skip,
+   * the feedback multiplier would be erroneously added to the stock's
+   * outflow, breaking the asymptotic approach to capacity (AC2).
+   *
    * Time complexity: O(C) where C = number of connections.
    */
   private computeNetFlow(state: GraphState, stockId: string): number {
@@ -94,6 +99,9 @@ export class SimulationEngine {
     let outflow = 0;
 
     for (const conn of Object.values(state.connections)) {
+      // Story 7.1: Skip feedback connections — they are information flow, not material flow
+      if (conn.isFeedback) continue;
+
       if (conn.toId === stockId) {
         inflow += conn.rate;
       }
@@ -126,9 +134,12 @@ export class SimulationEngine {
    * @param dt     Integration timestep in seconds. Default: 1/60.
    */
   tick(state: GraphState, dt: number = 1 / 60): void {
-    // ── Story 4.4: Evaluate all formula strings → conn.rate ──────────
     if (this.formulaEngine) {
+      // ── Step 1: Evaluate non-feedback formula strings → conn.rate ────
+      // Skip feedback connections — they are evaluated separately in step 2
+      // with stock state variables injected.
       for (const conn of Object.values(state.connections)) {
+        if (conn.isFeedback) continue;
         try {
           conn.rate = this.formulaEngine.evaluate(conn.formulaStr, this.t);
         } catch (e) {
@@ -142,8 +153,49 @@ export class SimulationEngine {
           }
         }
       }
+
+      // ── Step 2: Evaluate feedback formulas with stock state variables ──
+      // For each feedback connection (fromId=stock, toId=source):
+      //   - Use FormulaEngine.evaluateForConnection which injects
+      //     { value, capacity, stock_value } from the stock node
+      //   - Store the multiplier in feedbackConn.rate
+      for (const conn of Object.values(state.connections)) {
+        if (!conn.isFeedback) continue;
+        try {
+          conn.rate = this.formulaEngine.evaluateForConnection(conn, state, this.t);
+        } catch (e) {
+          if (e instanceof FormulaParseError || e instanceof FormulaEvalError) {
+            console.warn(
+              `[FormulaEngine] Feedback ${e.name} for connection ${conn.id}: ${e.message}`,
+            );
+            conn.rate = 0;
+          } else {
+            throw e;
+          }
+        }
+      }
+
+      // ── Step 3: Apply feedback multipliers to target inflow connections ──
+      // For each feedback conn (fromId=stock, toId=source):
+      //   Find connections where fromId=source AND toId=stock
+      //   Multiply their rate by the feedback multiplier
+      for (const feedbackConn of Object.values(state.connections)) {
+        if (!feedbackConn.isFeedback) continue;
+        const multiplier = feedbackConn.rate;
+        // Find the source→stock inflow connection(s) that this feedback modulates
+        for (const targetConn of Object.values(state.connections)) {
+          if (targetConn.isFeedback) continue;
+          if (
+            targetConn.fromId === feedbackConn.toId &&
+            targetConn.toId === feedbackConn.fromId
+          ) {
+            targetConn.rate *= multiplier;
+          }
+        }
+      }
     }
 
+    // ── Step 4: Euler integration (computeNetFlow skips isFeedback) ────
     for (const node of Object.values(state.nodes)) {
       if (node.type !== 'stock') continue;
       const stock = node as StockNode;
