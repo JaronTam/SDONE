@@ -18,7 +18,7 @@ import './ui/overlays/styles/color-picker-popover.css';
 import './ui/overlays/styles/achievement-toast.css'; // Story 5.5
 import './ui/overlays/styles/modal-dialog.css'; // Story 6.1
 import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, type ConfettiParticle } from './canvas/index.js';
-import { ModulePanel, RateEditorPanel, ControlBar, AnalyticsPanel, computeStockAnalytics, CountdownPanel, computeStockCountdown } from './ui/panels/index.js';
+import { ModulePanel, RateEditorPanel, ControlBar, AnalyticsPanel, computeStockAnalytics, CountdownPanel, computeAllStockCountdowns, sortCountdownsByUrgency } from './ui/panels/index.js';
 import { ColorPickerPopover, AchievementToast, ModalDialog } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
@@ -157,8 +157,8 @@ inputManager.onModuleSelect = (moduleId: string | null) => {
     rateEditorPanel.setConnection(null);
     // Story 6.2: Clear analytics panel when deselecting (AC3)
     analyticsPanel.setStock(null);
-    // Story 6.3: Clear countdown panel when deselecting (AC4)
-    refreshCountdownPanel();
+    // Story 7.2: Refresh countdown panels (multi-stock)
+    refreshCountdownPanels();
     minimapRenderer.markDirty();
     return;
   }
@@ -175,8 +175,8 @@ inputManager.onModuleSelect = (moduleId: string | null) => {
   }
   // Story 6.2: Update analytics panel on module selection (AC1)
   refreshAnalyticsPanel();
-  // Story 6.3: Update countdown panel on module selection (AC1, AC2)
-  refreshCountdownPanel();
+  // Story 7.2: Update countdown panels on module selection
+  refreshCountdownPanels();
   minimapRenderer.markDirty();
 };
 
@@ -189,8 +189,8 @@ inputManager.onConnectionSelect = (connectionId: string | null) => {
     rateEditorPanel.setConnection(null);
     // Story 6.2: Clear analytics panel when deselecting via connection click (AC3)
     analyticsPanel.setStock(null);
-    // Story 6.3: Clear countdown panel when deselecting via connection click
-    refreshCountdownPanel();
+    // Story 7.2: Refresh countdown panels on connection deselect
+    refreshCountdownPanels();
     minimapRenderer.markDirty();
     return;
   }
@@ -221,8 +221,8 @@ inputManager.onConnectionSelect = (connectionId: string | null) => {
 
   // Story 6.2: Selecting a connection deselects modules → clear analytics (AC3)
   analyticsPanel.setStock(null);
-  // Story 6.3: Selecting a connection deselects modules → clear countdown
-  refreshCountdownPanel();
+  // Story 7.2: Selecting a connection deselects modules → refresh countdown
+  refreshCountdownPanels();
 
   minimapRenderer.markDirty();
 };
@@ -262,8 +262,8 @@ inputManager.onModuleDragEnd = (moduleId: string, fromWorld: import('./shared/Ve
     rateEditorPanel.setConnection(null);
     // Story 6.2: Deleting a module clears analytics (selection is now empty)
     analyticsPanel.setStock(null);
-    // Story 6.3: Deleting a module clears countdown (selection is now empty)
-    refreshCountdownPanel();
+    // Story 7.2: Deleting a module → refresh countdown panels
+    refreshCountdownPanels();
   };
 
   // ── Story 3.7: Connection Delete (Click + Delete Key) ──────────────────
@@ -280,8 +280,8 @@ inputManager.onModuleDragEnd = (moduleId: string, fromWorld: import('./shared/Ve
     rateEditorPanel.setConnection(null);
     // Story 6.2: Connection deletion changes inflow/outflow → refresh analytics
     refreshAnalyticsPanel();
-    // Story 6.3: Connection deletion changes net rate → refresh countdown
-    refreshCountdownPanel();
+    // Story 7.2: Connection deletion changes net rate → refresh countdown
+    refreshCountdownPanels();
   };
 
 // ── Story 3.5: Tab → cycle module selection (AC1, AC5) ──────────────
@@ -304,8 +304,8 @@ inputManager.onTabNext = () => {
   rateEditorPanel.setConnection(null);
   // Story 6.2: Tab-cycling changes module selection → refresh analytics (AC4)
   refreshAnalyticsPanel();
-  // Story 6.3: Tab-cycling changes module selection → refresh countdown
-  refreshCountdownPanel();
+  // Story 7.2: Tab-cycling changes module selection → refresh countdown
+  refreshCountdownPanels();
 };
 
 // ── Story 3.5: Arrow keys → nudge selected module with debounced history (AC2, AC3, AC6) ──
@@ -406,51 +406,34 @@ function refreshAnalyticsPanel(snapshotState?: GraphState): void {
   analyticsPanel.setStock(analytics); // null → empty state for non-stock selections
 }
 
-// ── Story 6.3: Refresh countdown panel from current state ────────────
+// ── Story 7.2: Refresh countdown panels (multi-stock) from current state ─
 
-/** Tracks previous countdown state for zero-crossing detection (AC5). */
-let _prevCountdownStockId: string | null = null;
-let _prevCountdownRemaining: number | null = null;
+/** Per-stock tracking for zero-crossing detection (AC4). */
+const _prevCountdownMap = new Map<string, number>();
 
-function refreshCountdownPanel(snapshotState?: GraphState): void {
-  const selectedId = currentState.selectedModuleIds[0];
-  if (!selectedId) {
-    countdownPanel.setCountdown(null);
-    _prevCountdownStockId = null;
-    _prevCountdownRemaining = null;
-    return;
-  }
-
-  // Reset zero-crossing state when selected stock changes (handles
-  // direct stock-to-stock switches via click, Tab, undo/redo, etc.)
-  if (_prevCountdownStockId !== selectedId) {
-    _prevCountdownStockId = selectedId;
-    _prevCountdownRemaining = null;
-  }
-
+function refreshCountdownPanels(snapshotState?: GraphState): void {
   const stateToUse = snapshotState ?? currentState;
-  const countdown = computeStockCountdown(stateToUse, selectedId);
-  countdownPanel.setCountdown(countdown); // null → empty state for non-stock selections
+  const allCountdowns = computeAllStockCountdowns(stateToUse);
+  const sorted = sortCountdownsByUrgency(allCountdowns);
+  countdownPanel.setCountdowns(sorted);
 
-  // AC5: Detect zero-crossing and emit COUNTDOWN_ZERO event
-  if (countdown && countdown.remainingSeconds !== null && countdown.remainingSeconds <= 0) {
-    if (_prevCountdownRemaining === null || _prevCountdownRemaining > 0) {
-      // Runtime guard: direction is guaranteed by computeStockCountdown invariants
-      // (remainingSeconds !== null ⇒ direction ≠ 'stable'), but guard against
-      // future changes that could break this invariant.
-      const direction = countdown.direction;
-      if (direction === 'to-capacity' || direction === 'to-zero') {
-        eventBus.emit('COUNTDOWN_ZERO', {
-          stockId: countdown.stockId,
-          direction,
-        });
+  // Zero-crossing detection: emit COUNTDOWN_ZERO for each stock reaching threshold
+  for (const cd of sorted) {
+    if (cd.remainingSeconds !== null && cd.remainingSeconds <= 0) {
+      const prevRemaining = _prevCountdownMap.get(cd.stockId);
+      if (prevRemaining === undefined || prevRemaining > 0) {
+        const direction = cd.direction;
+        if (direction === 'to-capacity' || direction === 'to-zero') {
+          eventBus.emit('COUNTDOWN_ZERO', {
+            stockId: cd.stockId,
+            direction,
+          });
+        }
       }
     }
-    _prevCountdownRemaining = countdown.remainingSeconds;
-  } else if (countdown && countdown.remainingSeconds !== null && countdown.remainingSeconds > 0) {
-    _prevCountdownRemaining = countdown.remainingSeconds;
-  } else {
-    _prevCountdownRemaining = null;
+    if (cd.remainingSeconds !== null) {
+      _prevCountdownMap.set(cd.stockId, cd.remainingSeconds);
+    }
   }
 }
 
@@ -579,8 +562,8 @@ const handleResetShortcut = (e: KeyboardEvent): void => {
         syncRateEditorPanel(currentState);
         // Story 6.2: Refresh analytics panel after undo
         refreshAnalyticsPanel();
-        // Story 6.3: Refresh countdown panel after undo
-        refreshCountdownPanel();
+        // Story 7.2: Refresh countdown panels after undo
+        refreshCountdownPanels();
       }
     }
     return;
@@ -607,8 +590,8 @@ const handleResetShortcut = (e: KeyboardEvent): void => {
         syncRateEditorPanel(currentState);
         // Story 6.2: Refresh analytics panel after redo
         refreshAnalyticsPanel();
-        // Story 6.3: Refresh countdown panel after redo
-        refreshCountdownPanel();
+        // Story 7.2: Refresh countdown panels after redo
+        refreshCountdownPanels();
       }
     }
     return;
@@ -671,8 +654,8 @@ eventBus.on('SNAPSHOT_EMITTED', (payload: { state: GraphState }) => {
 
   // Story 6.2: Refresh analytics panel from snapshot (10Hz)
   refreshAnalyticsPanel(payload.state);
-  // Story 6.3: Refresh countdown panel from snapshot (10Hz)
-  refreshCountdownPanel(payload.state);
+  // Story 7.2: Refresh countdown panels from snapshot (10Hz)
+  refreshCountdownPanels(payload.state);
 });
 
 // Event handlers — wired at composition root (Architecture Decision 3)
@@ -715,8 +698,9 @@ eventBus.on('RESET', () => {
   rateEditorPanel.setConnection(null);
   // Story 6.2: Clear analytics panel on reset
   analyticsPanel.setStock(null);
-  // Story 6.3: Clear countdown panel on reset
-  refreshCountdownPanel();
+  // Story 7.2: Clear countdown panels on reset
+  _prevCountdownMap.clear(); // P4 fix: clear per-stock zero-crossing tracking on RESET
+  refreshCountdownPanels();
   // Signal state change for downstream consumers (Snapshot Bridge, renderers)
   currentState.version++;
   // Clear undo/redo history
@@ -910,8 +894,25 @@ const rateEditorPanel = new RateEditorPanel(rightSidebarContent);
 // ── Story 6.2: Right Sidebar Stock Analytics Panel ────────────────────
 const analyticsPanel = new AnalyticsPanel(rightSidebarContent);
 
-// ── Story 6.3: Right Sidebar Countdown Timer Panel ────────────────────
+// ── Story 6.3 → 7.2: Right Sidebar Countdown Timer Panel ─────────────
 const countdownPanel = new CountdownPanel(rightSidebarContent);
+
+// Story 7.2: Row click → select stock on canvas
+countdownPanel.onRowClick = (stockId: string) => {
+  const state = currentState;
+  if (state.nodes[stockId] && state.nodes[stockId].type === 'stock') {
+    currentState = {
+      ...currentState,
+      selectedModuleIds: [stockId],
+      selectedConnectionIds: [],
+      version: currentState.version + 1,
+    };
+    rateEditorPanel.setConnection(null);
+    eventBus.emit('MODULE_SELECTED', { moduleId: stockId });
+    refreshAnalyticsPanel();
+    minimapRenderer.markDirty();
+  }
+};
 
 // ── Story 6.6: Right sidebar re-expand tab ───────────────────────────────
 const rightReExpandTab = document.createElement('div');
@@ -946,8 +947,8 @@ panelRightContainer.appendChild(rightReExpandTab);
     minimapRenderer.markDirty();
     // Story 6.2: Rate change affects inflow/outflow → refresh analytics
     refreshAnalyticsPanel();
-    // Story 6.3: Rate change affects net rate → refresh countdown
-    refreshCountdownPanel();
+    // Story 7.2: Rate change affects net rate → refresh countdown
+    refreshCountdownPanels();
   };
 
   // ── Story 7.1: Formula Editor Submit Callback ────────────────────────
@@ -963,7 +964,7 @@ panelRightContainer.appendChild(rightReExpandTab);
     historyManager.push(currentState);
     minimapRenderer.markDirty();
     refreshAnalyticsPanel();
-    refreshCountdownPanel();
+    refreshCountdownPanels();
   };
 
 // ── Story 3.2: Drag & Drop Module Placement ───────────────────────────
@@ -1014,8 +1015,8 @@ inputManager.onConnectionDragEnd = (sourceModuleId: string, targetModuleId: stri
 
   // Story 6.2: New connection changes inflow/outflow → refresh analytics
   refreshAnalyticsPanel();
-  // Story 6.3: New connection changes net rate → refresh countdown
-  refreshCountdownPanel();
+  // Story 7.2: New connection changes net rate → refresh countdown
+  refreshCountdownPanels();
 
   // AC4: Emit CONNECTION_CREATED event with rate:1
   eventBus.emit('CONNECTION_CREATED', {
@@ -1082,13 +1083,18 @@ inputManager.onFeedbackDragEnd = (stockId: string, sourceId: string) => {
   // No-op guard
   if (nextState.version === currentState.version) return;
 
+  // Save previous state before reassignment for connection diff (P1 fix)
+  const prevState = currentState;
   currentState = nextState;
   historyManager.push(currentState);
   minimapRenderer.markDirty();
   refreshAnalyticsPanel();
-  refreshCountdownPanel();
-  // Reserved for future subscribers (analytics, achievements, save-points)
-  eventBus.emit('FEEDBACK_CREATED', { stockId, sourceId });
+  refreshCountdownPanels();
+  // Story 7.2: Include connectionId in FEEDBACK_CREATED payload (deferred from 7.1)
+  const feedbackConnId = Object.keys(nextState.connections).find(
+    (id) => !(id in prevState.connections),
+  );
+  eventBus.emit('FEEDBACK_CREATED', { stockId, sourceId, connectionId: feedbackConnId ?? '' });
 };
 
 inputManager.onFeedbackDragCancel = () => {

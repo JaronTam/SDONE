@@ -40,7 +40,7 @@ export interface EventMap {
   CONNECTION_CREATED: { connectionId: string; fromId: string; toId: string; rate: number };
 
   // ── Story 7.1: Feedback Connections ──────────────────────────
-  FEEDBACK_CREATED: { stockId: string; sourceId: string };
+  FEEDBACK_CREATED: { stockId: string; sourceId: string; connectionId: string };
 
   // ── Canvas: Undo/Redo ───────────────────────────────────────
   UNDO: { fromState: GraphState; toState: GraphState };

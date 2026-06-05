@@ -1,14 +1,20 @@
 /**
- * CountdownPanel — Right Sidebar Countdown Timer Display (Story 6.3)
+ * CountdownPanel — Right Sidebar Countdown Timer Display (Story 6.3 → 7.2)
  *
- * Displays countdown timer showing how long until each stock reaches
- * capacity (if growing) or zero (if shrinking). Shows an empty state
- * placeholder when no stock is selected.
+ * Displays countdown timers showing how long until ALL stocks reach
+ * capacity (if growing) or zero (if shrinking). Sorted by urgency.
+ * Shows an empty state placeholder when no stocks exist on the canvas.
  *
  * Public API:
  *   constructor(container: HTMLElement)
- *   setCountdown(data: StockCountdown | null): void
+ *   setCountdowns(data: StockCountdown[]): void
+ *   onRowClick: ((stockId: string) => void) | null
  *   destroy(): void
+ *
+ * Exported pure functions:
+ *   computeStockCountdown(state, stockId) — single stock (unchanged from 6.3)
+ *   computeAllStockCountdowns(state) — all stocks
+ *   sortCountdownsByUrgency(data) — urgency sorter
  *
  * No EventBus dependency — pure DOM component per architecture DI pattern.
  */
@@ -41,7 +47,29 @@ export interface StockCountdown {
   hasConnections: boolean;
 }
 
-// ── Pure Function ────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────
+
+const CRITICAL_THRESHOLD_SECONDS = 3;   // red left border
+const WARNING_THRESHOLD_SECONDS = 10;   // amber left border
+
+const EMPTY_STATE_TEXT = '画布上暂无存量模块';
+const TERMINAL_TO_CAPACITY_TEXT = '已达上限';
+const TERMINAL_TO_ZERO_TEXT = '已归零';
+const STABLE_NO_CHANGE_TEXT = '无变化';
+
+// CSS class names
+const PANEL_CLASS = 'countdown-panel';
+const LIST_CLASS = 'countdown-panel__list';
+const ROW_CLASS = 'countdown-panel__row';
+const ROW_CRITICAL_CLASS = 'countdown-panel__row--critical';
+const ROW_WARNING_CLASS = 'countdown-panel__row--warning';
+const ROW_NORMAL_CLASS = 'countdown-panel__row--normal';
+const TO_CAPACITY_CLASS = 'countdown-panel__field-value--to-capacity';
+const TO_ZERO_CLASS = 'countdown-panel__field-value--to-zero';
+const RATE_POSITIVE_CLASS = 'countdown-panel__field-value--rate-positive';
+const RATE_NEGATIVE_CLASS = 'countdown-panel__field-value--rate-negative';
+
+// ── Pure Function: computeStockCountdown (unchanged from Story 6.3) ──────
 
 /**
  * Pure function: compute countdown data for a stock from GraphState.
@@ -98,14 +126,72 @@ export function computeStockCountdown(
   };
 }
 
-// ── Constants ────────────────────────────────────────────────────────────
+// ── Pure Function: computeAllStockCountdowns (Story 7.2) ────────────────
 
-const PANEL_CLASS = 'countdown-panel';
-const TO_CAPACITY_CLASS = 'countdown-panel__field-value--to-capacity';
-const TO_ZERO_CLASS = 'countdown-panel__field-value--to-zero';
-const REACHED_CLASS = 'countdown-panel__field-value--reached';
-const RATE_POSITIVE_CLASS = 'countdown-panel__field-value--rate-positive';
-const RATE_NEGATIVE_CLASS = 'countdown-panel__field-value--rate-negative';
+/**
+ * Compute countdown data for ALL stocks in the GraphState.
+ * Returns array of StockCountdown objects (excludes nulls from non-stock nodes).
+ */
+export function computeAllStockCountdowns(state: GraphState): StockCountdown[] {
+  const results: StockCountdown[] = [];
+  for (const node of Object.values(state.nodes)) {
+    if (node.type === 'stock') {
+      const cd = computeStockCountdown(state, node.id);
+      if (cd) results.push(cd);
+    }
+  }
+  return results;
+}
+
+// ── Pure Function: sortCountdownsByUrgency (Story 7.2) ──────────────────
+
+/**
+ * Sort countdowns by urgency for display.
+ *
+ * Sort order (composite comparator):
+ * 1. Terminal states (remainingSeconds !== null && remainingSeconds <= 0) first
+ * 2. Active countdowns (remainingSeconds > 0): shortest remaining first
+ * 3. Infinite capacity (remainingSeconds === null && direction === 'to-capacity' && capacity === Infinity)
+ * 4. Stable states (remainingSeconds === null && direction === 'stable'): last
+ * 5. Within each group: alphabetical by label
+ *
+ * Returns new array (does not mutate input).
+ */
+export function sortCountdownsByUrgency(data: StockCountdown[]): StockCountdown[] {
+  return [...data].sort((a, b) => {
+    const groupA = getUrgencyGroup(a);
+    const groupB = getUrgencyGroup(b);
+
+    if (groupA !== groupB) return groupA - groupB;
+
+    // Within same group: sort by display precision (toFixed(1)) for active.
+    // Comparing display strings guarantees transitivity — toFixed(1) equality
+    // IS transitive (unlike the epsilon tolerance approach it replaces).
+    if (groupA === 2 && a.remainingSeconds !== null && b.remainingSeconds !== null) {
+      const displayA = a.remainingSeconds.toFixed(1);
+      const displayB = b.remainingSeconds.toFixed(1);
+      if (displayA !== displayB) return a.remainingSeconds - b.remainingSeconds;
+    }
+
+    // Alphabetical by label as tiebreaker
+    return a.label.localeCompare(b.label);
+  });
+}
+
+/** Urgency group: lower = more urgent (shown first). */
+function getUrgencyGroup(cd: StockCountdown): number {
+  // P6 fix: NaN guard — treat corrupted data as stable (least urgent, safest default)
+  if (cd.remainingSeconds !== null && Number.isNaN(cd.remainingSeconds)) return 4;
+  // P5 fix: use < 0.05 threshold (display rounding) instead of ≤ 0,
+  // so urgency group matches what the user sees in the row.
+  if (cd.remainingSeconds !== null && cd.remainingSeconds < 0.05) return 1; // terminal (display shows 已达上限/已归零)
+  if (cd.remainingSeconds !== null && cd.remainingSeconds >= 0.05) return 2; // active
+  if (cd.remainingSeconds === null && cd.direction === 'to-capacity' && cd.capacity === Infinity) return 3; // infinite capacity
+  if (cd.remainingSeconds === null && cd.direction === 'stable') return 4; // stable
+  // P6 fix: catch-all → stable (group 4) instead of infinite-capacity (group 3).
+  // Unknown states should be deprioritized, not inserted mid-list.
+  return 4;
+}
 
 // ── Main Class ───────────────────────────────────────────────────────────
 
@@ -113,12 +199,11 @@ export class CountdownPanel {
   private readonly _container: HTMLElement;
   private readonly _rootEl: HTMLElement;
   private readonly _emptyEl: HTMLElement;
-  private readonly _dataEl: HTMLElement;
-  private readonly _stockLabelEl: HTMLElement;
-  private readonly _directionEl: HTMLElement;
-  private readonly _timeEl: HTMLElement;
-  private readonly _timeUnitEl: HTMLElement;
-  private readonly _rateEl: HTMLElement;
+  private readonly _listEl: HTMLElement;
+  private _lastRenderKey: string = '';
+
+  /** Row click callback — wired from main.ts per DI pattern. */
+  onRowClick: ((stockId: string) => void) | null = null;
 
   constructor(container: HTMLElement) {
     this._container = container;
@@ -134,7 +219,7 @@ export class CountdownPanel {
     title.textContent = '倒计时';
     root.appendChild(title);
 
-    // ── Empty state (visible when no stock selected) ─────────
+    // ── Empty state (visible when no stocks on canvas) ───────
     const emptyEl = document.createElement('div');
     emptyEl.className = 'countdown-panel__empty';
     const emptyIcon = document.createElement('span');
@@ -142,73 +227,18 @@ export class CountdownPanel {
     emptyIcon.textContent = '⏱️';
     const emptyText = document.createElement('span');
     emptyText.className = 'countdown-panel__empty-text';
-    emptyText.textContent = '选择存量查看倒计时';
+    emptyText.textContent = EMPTY_STATE_TEXT;
     emptyEl.appendChild(emptyIcon);
     emptyEl.appendChild(emptyText);
     root.appendChild(emptyEl);
     this._emptyEl = emptyEl;
 
-    // ── Data display (hidden when no stock selected) ──────────
-    const dataEl = document.createElement('div');
-    dataEl.className = 'countdown-panel__data';
-    dataEl.style.display = 'none';
-
-    // Stock label
-    const stockLabelEl = document.createElement('div');
-    stockLabelEl.className = 'countdown-panel__stock-label';
-    dataEl.appendChild(stockLabelEl);
-    this._stockLabelEl = stockLabelEl;
-
-    // Direction field
-    const directionField = document.createElement('div');
-    directionField.className = 'countdown-panel__field';
-    const directionLabel = document.createElement('span');
-    directionLabel.className = 'countdown-panel__field-label';
-    directionLabel.textContent = '方向';
-    const directionValue = document.createElement('span');
-    directionValue.className = 'countdown-panel__field-value countdown-panel__field-value--direction';
-    directionField.appendChild(directionLabel);
-    directionField.appendChild(directionValue);
-    dataEl.appendChild(directionField);
-    this._directionEl = directionValue;
-
-    // Remaining time field
-    const timeField = document.createElement('div');
-    timeField.className = 'countdown-panel__field countdown-panel__field--time';
-    const timeLabel = document.createElement('span');
-    timeLabel.className = 'countdown-panel__field-label';
-    timeLabel.textContent = '剩余时间';
-    const timeValue = document.createElement('span');
-    timeValue.className = 'countdown-panel__field-value countdown-panel__field-value--time';
-    const timeUnit = document.createElement('span');
-    timeUnit.className = 'countdown-panel__field-unit';
-    timeUnit.textContent = '秒';
-    timeField.appendChild(timeLabel);
-    timeField.appendChild(timeValue);
-    timeField.appendChild(timeUnit);
-    dataEl.appendChild(timeField);
-    this._timeEl = timeValue;
-    this._timeUnitEl = timeUnit;
-
-    // Net rate field
-    const rateField = document.createElement('div');
-    rateField.className = 'countdown-panel__field';
-    const rateLabel = document.createElement('span');
-    rateLabel.className = 'countdown-panel__field-label';
-    rateLabel.textContent = '净速率';
-    const rateValue = document.createElement('span');
-    rateValue.className = 'countdown-panel__field-value countdown-panel__field-value--rate';
-    const rateUnit = document.createElement('span');
-    rateUnit.className = 'countdown-panel__field-unit';
-    rateUnit.textContent = '/秒';
-    rateField.appendChild(rateLabel);
-    rateField.appendChild(rateValue);
-    rateField.appendChild(rateUnit);
-    dataEl.appendChild(rateField);
-    this._rateEl = rateValue;
-
-    root.appendChild(dataEl);
-    this._dataEl = dataEl;
+    // ── List container (scrollable, hidden when empty) ────────
+    const listEl = document.createElement('div');
+    listEl.className = LIST_CLASS;
+    listEl.style.display = 'none';
+    root.appendChild(listEl);
+    this._listEl = listEl;
 
     // Append to container
     container.appendChild(root);
@@ -217,97 +247,158 @@ export class CountdownPanel {
   // ── Public API ─────────────────────────────────────────────────────────
 
   /**
-   * Show countdown data. Pass null to show empty state.
+   * Show countdown data for all stocks. Pass empty array to show empty state.
+   * Data must be pre-sorted by urgency (sortCountdownsByUrgency).
    */
-  setCountdown(data: StockCountdown | null): void {
-    if (data === null) {
+  setCountdowns(data: StockCountdown[]): void {
+    if (data.length === 0) {
       // Switch to empty state
-      this._dataEl.style.display = 'none';
+      this._listEl.style.display = 'none';
       this._emptyEl.style.display = '';
+      this._lastRenderKey = '';
       return;
     }
 
-    // Switch to data state
+    // Switch to list state
     this._emptyEl.style.display = 'none';
-    this._dataEl.style.display = '';
+    this._listEl.style.display = '';
 
-    // Stock label (fall back to stockId prefix if no label)
-    this._stockLabelEl.textContent = data.label || data.stockId.slice(0, 8);
+    // Dirty-check: skip rebuild if sorted order and display values unchanged
+    const renderKey = data
+      .map(s =>
+        s.stockId + '|' +
+        (s.remainingSeconds?.toFixed(1) ?? 'null') + '|' +
+        s.direction + '|' +
+        (Number.isNaN(s.netRate) ? 'nan' : s.netRate.toFixed(1)) + '|' +
+        s.hasConnections,
+      )
+      .join(';');
+    if (renderKey === this._lastRenderKey) return;
+    this._lastRenderKey = renderKey;
 
-    // ── Direction field ──────────────────────────────────────────────
-    // Clear previous direction classes
-    this._directionEl.classList.remove(TO_CAPACITY_CLASS, TO_ZERO_CLASS);
+    // Clear existing rows and rebuild
+    this._listEl.innerHTML = '';
+    for (const item of data) {
+      const row = this._createRow(item);
+      this._listEl.appendChild(row);
+    }
+  }
 
-    if (data.direction === 'to-capacity') {
-      this._directionEl.textContent = '到达上限:';
-      this._directionEl.classList.add(TO_CAPACITY_CLASS);
-    } else if (data.direction === 'to-zero') {
-      this._directionEl.textContent = '归零:';
-      this._directionEl.classList.add(TO_ZERO_CLASS);
-    } else {
-      // stable — clear direction text
-      this._directionEl.textContent = '';
+  // ── Private: Row Factory ───────────────────────────────────────────────
+
+  private _createRow(data: StockCountdown): HTMLElement {
+    const row = document.createElement('div');
+
+    // Determine urgency class
+    let urgencyClass = ROW_NORMAL_CLASS;
+    if (data.remainingSeconds !== null && data.remainingSeconds <= CRITICAL_THRESHOLD_SECONDS) {
+      urgencyClass = ROW_CRITICAL_CLASS;
+    } else if (data.remainingSeconds !== null && data.remainingSeconds <= WARNING_THRESHOLD_SECONDS) {
+      urgencyClass = ROW_WARNING_CLASS;
+    }
+    // Terminal states (remainingSeconds <= 0) also get critical styling
+    if (data.remainingSeconds !== null && data.remainingSeconds <= 0) {
+      urgencyClass = ROW_CRITICAL_CLASS;
     }
 
-    // ── Remaining time field ─────────────────────────────────────────
-    // Clear previous time classes
-    this._timeEl.classList.remove(REACHED_CLASS, TO_CAPACITY_CLASS, TO_ZERO_CLASS);
+    row.className = `${ROW_CLASS} ${urgencyClass}`;
+
+    // Stock label
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'countdown-panel__row-label';
+    labelSpan.textContent = data.label || data.stockId.slice(0, 8);
+    row.appendChild(labelSpan);
+
+    // Direction indicator
+    const dirSpan = document.createElement('span');
+    dirSpan.className = 'countdown-panel__row-direction';
+    if (data.direction === 'to-capacity') {
+      dirSpan.textContent = '↑ 到达上限:';
+      dirSpan.classList.add(TO_CAPACITY_CLASS);
+    } else if (data.direction === 'to-zero') {
+      dirSpan.textContent = '↓ 归零:';
+      dirSpan.classList.add(TO_ZERO_CLASS);
+    } else {
+      dirSpan.textContent = '—';
+      dirSpan.style.color = '#6c7086'; // muted grey
+    }
+    row.appendChild(dirSpan);
+
+    // Remaining time
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'countdown-panel__row-time';
+    const unitSpan = document.createElement('span');
+    unitSpan.className = 'countdown-panel__row-unit';
 
     if (data.remainingSeconds !== null && Number.isNaN(data.remainingSeconds)) {
-      // NaN guard — display "0.0" as fallback (unit span shows 秒)
-      this._timeEl.textContent = '0.0';
-      this._timeUnitEl.style.display = '';
-    } else if (data.remainingSeconds !== null && data.remainingSeconds >= 0.05) {
-      // Active countdown — unit span shows 秒
-      const timeText = data.remainingSeconds.toFixed(1);
-      this._timeEl.textContent = timeText;
-      this._timeUnitEl.style.display = '';
+      timeSpan.textContent = '0.0';
+      unitSpan.textContent = '秒';
+      unitSpan.style.display = '';
     } else if (data.remainingSeconds !== null && data.remainingSeconds < 0.05) {
-      // Terminal state — countdown reached zero; hide unit (not a number)
-      this._timeUnitEl.style.display = 'none';
+      // Terminal state
+      unitSpan.style.display = 'none';
       if (data.direction === 'to-capacity') {
-        this._timeEl.textContent = '已达上限';
-        this._timeEl.classList.add(REACHED_CLASS, TO_CAPACITY_CLASS);
+        timeSpan.textContent = TERMINAL_TO_CAPACITY_TEXT;
+        timeSpan.classList.add('countdown-panel__row-time--reached', TO_CAPACITY_CLASS);
       } else if (data.direction === 'to-zero') {
-        this._timeEl.textContent = '已归零';
-        this._timeEl.classList.add(REACHED_CLASS, TO_ZERO_CLASS);
-      }
-    } else if (data.remainingSeconds === null && data.direction === 'to-capacity' && data.capacity === Infinity) {
-      // Infinite capacity with positive rate — no ceiling to count to; hide unit
-      this._timeEl.textContent = '∞ — 无限容量';
-      this._timeUnitEl.style.display = 'none';
-    } else if (data.remainingSeconds === null && data.direction === 'stable') {
-      // Stable — AC4: distinguish between no-flow and balanced-flow; hide unit
-      this._timeUnitEl.style.display = 'none';
-      if (!data.hasConnections) {
-        this._timeEl.textContent = '--';
+        timeSpan.textContent = TERMINAL_TO_ZERO_TEXT;
+        timeSpan.classList.add('countdown-panel__row-time--reached', TO_ZERO_CLASS);
       } else {
-        this._timeEl.textContent = '无变化 — 存量保持稳定';
+        timeSpan.textContent = '0.0';
+        unitSpan.textContent = '秒';
+        unitSpan.style.display = '';
       }
+    } else if (data.remainingSeconds !== null && data.remainingSeconds >= 0.05) {
+      timeSpan.textContent = data.remainingSeconds.toFixed(1);
+      unitSpan.textContent = '秒';
+      unitSpan.style.display = '';
+    } else if (data.remainingSeconds === null && data.direction === 'to-capacity' && data.capacity === Infinity) {
+      // Infinite capacity with positive rate
+      timeSpan.textContent = '∞';
+      unitSpan.style.display = 'none';
+    } else if (data.remainingSeconds === null && data.direction === 'stable') {
+      // Stable
+      unitSpan.style.display = 'none';
+      if (!data.hasConnections) {
+        timeSpan.textContent = '—';
+      } else {
+        timeSpan.textContent = STABLE_NO_CHANGE_TEXT;
+      }
+      timeSpan.style.color = '#6c7086'; // muted
     } else {
-      // Catch-all: defensive fallback for unexpected data shapes.
-      // Normal paths (computeStockCountdown output) are fully covered by
-      // the branches above; this guards against type violations or future
-      // extensions that produce new direction/remainingSeconds combinations.
-      this._timeEl.textContent = '0.0';
-      this._timeUnitEl.style.display = '';
+      // Catch-all
+      timeSpan.textContent = '0.0';
+      unitSpan.textContent = '秒';
+      unitSpan.style.display = '';
     }
 
-    // ── Net rate field ───────────────────────────────────────────────
-    // Clear previous rate color classes
-    this._rateEl.classList.remove(RATE_POSITIVE_CLASS, RATE_NEGATIVE_CLASS);
+    row.appendChild(timeSpan);
+    row.appendChild(unitSpan);
+
+    // Net rate
+    const rateSpan = document.createElement('span');
+    rateSpan.className = 'countdown-panel__row-rate';
 
     const rateText = Number.isNaN(data.netRate) ? '0.0' : data.netRate.toFixed(1);
     if (data.netRate > 0) {
-      this._rateEl.textContent = `+${rateText}`;
-      this._rateEl.classList.add(RATE_POSITIVE_CLASS);
+      rateSpan.textContent = `+${rateText}`;
+      rateSpan.classList.add(RATE_POSITIVE_CLASS);
     } else if (data.netRate < 0) {
       // Use Unicode minus sign U+2212 instead of hyphen-minus
-      this._rateEl.textContent = `−${rateText.substring(1)}`;
-      this._rateEl.classList.add(RATE_NEGATIVE_CLASS);
+      rateSpan.textContent = `−${rateText.substring(1)}`;
+      rateSpan.classList.add(RATE_NEGATIVE_CLASS);
     } else {
-      this._rateEl.textContent = rateText;
+      rateSpan.textContent = rateText;
     }
+    row.appendChild(rateSpan);
+
+    // Row click → select stock on canvas
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => {
+      this.onRowClick?.(data.stockId);
+    });
+
+    return row;
   }
 
   /**
