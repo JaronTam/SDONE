@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test output files (Story 7.4 review F4)
+test-output*.txt
+tsc-output.txt

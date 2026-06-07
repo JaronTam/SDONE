@@ -24,3 +24,13 @@
 .control-bar-status--paused {
   color: #f9e2af; /* amber tint when paused */
 }
+
+/* ---------------------------------------------------------------------------
+ * Story 7.4: Save Point & Time Rewind Buttons
+ * --------------------------------------------------------------------------- */
+
+.btn-save-checkpoint:disabled,
+.btn-rewind-checkpoint:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

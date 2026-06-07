@@ -264,6 +264,11 @@ inputManager.onModuleDragEnd = (moduleId: string, fromWorld: import('./shared/Ve
     analyticsPanel.setStock(null);
     // Story 7.2: Deleting a module → refresh countdown panels
     refreshCountdownPanels();
+    // Story 7.3: Clean up stale auto-pause + overflow tracking for the deleted module
+    _autoPausedStockIds.delete(selected);
+    _cumulativeOverflow.delete(selected);
+    _prevCountdownMap.delete(selected); // Story 7.4: deferred from 7.2 — clean up stale zero-crossing tracking
+    updateAutoPauseStatus();
   };
 
   // ── Story 3.7: Connection Delete (Click + Delete Key) ──────────────────
@@ -403,13 +408,22 @@ function refreshAnalyticsPanel(snapshotState?: GraphState): void {
   }
   const stateToUse = snapshotState ?? currentState;
   const analytics = computeStockAnalytics(stateToUse, selectedId);
-  analyticsPanel.setStock(analytics); // null → empty state for non-stock selections
+  // Story 7.3 AC4: pass cumulative overflow for the selected stock
+  analyticsPanel.setStock(analytics, _cumulativeOverflow.get(selectedId) ?? 0); // null → empty state for non-stock selections
 }
 
 // ── Story 7.2: Refresh countdown panels (multi-stock) from current state ─
 
 /** Per-stock tracking for zero-crossing detection (AC4). */
 const _prevCountdownMap = new Map<string, number>();
+
+// ── Story 7.3: Auto-pause + overflow tracking (UI-local state, not in GraphState) ──
+/** Story 7.3: Set of stock IDs that triggered auto-pause (used for breathing glow render). */
+const _autoPausedStockIds = new Set<string>();
+/** Story 7.3 AC4: Cumulative (max-observed) overflow per stock — monotonic during a session. */
+const _cumulativeOverflow = new Map<string, number>();
+/** Story 7.4: Single-slot save point — structuredClone of complete GraphState at save time. */
+let _checkpoint: GraphState | null = null;
 
 function refreshCountdownPanels(snapshotState?: GraphState): void {
   const stateToUse = snapshotState ?? currentState;
@@ -528,6 +542,71 @@ const btnResetViewport = document.querySelector('.btn-reset-viewport') as HTMLBu
 if (btnResetViewport) {
   btnResetViewport.addEventListener('click', () => {
     viewportManager.reset();
+  });
+}
+
+// ── Story 7.4: Save Point & Time Rewind Buttons ──────────────────────
+const btnSaveCheckpoint = document.querySelector('.btn-save-checkpoint') as HTMLButtonElement | null;
+const btnRewindCheckpoint = document.querySelector('.btn-rewind-checkpoint') as HTMLButtonElement | null;
+
+/** Story 7.4: Enable save button when paused, rewind button when checkpoint exists. */
+function updateCheckpointButtons(): void {
+  if (btnSaveCheckpoint) {
+    btnSaveCheckpoint.disabled = simEngine.state !== 'paused';
+  }
+  if (btnRewindCheckpoint) {
+    btnRewindCheckpoint.disabled = _checkpoint === null;
+  }
+}
+
+if (btnSaveCheckpoint) {
+  btnSaveCheckpoint.addEventListener('click', () => {
+    // AC6: Guard — save only allowed when simulation is paused
+    if (simEngine.state !== 'paused') return;
+    // AC1: Save complete GraphState via structuredClone
+    _checkpoint = structuredClone(currentState);
+    // AC4: Enable rewind button now that checkpoint exists
+    updateCheckpointButtons();
+    // AC1: Toast confirmation
+    achievementToast.show('检查点已保存');
+  });
+}
+
+if (btnRewindCheckpoint) {
+  btnRewindCheckpoint.addEventListener('click', () => {
+    // AC4: Guard — no-op if no checkpoint exists
+    if (!_checkpoint) return;
+    // Review F5: Cancel any active drag BEFORE replacing state.
+    // Unlike Ctrl+Z handler, do NOT push history — rewind by design
+    // discards all unsaved changes (consistent with RESET semantics,
+    // spec line 128/306/336: "Rewind does NOT push to history").
+    if (inputManager.isDragging) {
+      inputManager.cancelDrag();
+    }
+    // AC2: Replace current state with checkpoint clone.
+    // NOT pushed to history — the checkpoint itself IS the safety net.
+    currentState = structuredClone(_checkpoint);
+    // AC2: Ensure simulation is paused
+    if (simEngine.state === 'running') {
+      simEngine.pause();
+      // Show panels — consistent with PAUSE handler and auto-pause handler (Story 7.3)
+      modulePanel.setHidden(false);
+      setRightSidebarHidden(false);
+    }
+    // AC7: Clear all runtime tracking state — the restored state is a fresh start
+    _autoPausedStockIds.clear();
+    _cumulativeOverflow.clear();
+    _prevCountdownMap.clear();
+    // Reset particle engine to clear stale particle positions (AC2)
+    particleEngine.reset();
+    sceneRenderer.resetAnimatedFills();
+    // Refresh all panels from the restored state
+    syncRateEditorPanel(currentState);
+    refreshAnalyticsPanel();
+    refreshCountdownPanels();
+    updateAutoPauseStatus();
+    updateCheckpointButtons();
+    minimapRenderer.markDirty();
   });
 }
 
@@ -656,12 +735,51 @@ eventBus.on('SNAPSHOT_EMITTED', (payload: { state: GraphState }) => {
   refreshAnalyticsPanel(payload.state);
   // Story 7.2: Refresh countdown panels from snapshot (10Hz)
   refreshCountdownPanels(payload.state);
+
+  // Story 7.3 AC4: Track cumulative overflow (max observed value - capacity) per stock
+  for (const [id, node] of Object.entries(payload.state.nodes)) {
+    if (node.type !== 'stock') continue;
+    const stock = node as StockNode;
+    // Story 7.3 P2 fix: guard against Infinity stock.value (degenerate simulation state)
+    if (Number.isFinite(stock.capacity) && Number.isFinite(stock.value) && stock.value > stock.capacity) {
+      const overflow = stock.value - stock.capacity;
+      const prev = _cumulativeOverflow.get(id) ?? 0;
+      if (overflow > prev) {
+        _cumulativeOverflow.set(id, overflow);
+        // Refresh analytics panel if the overflowing stock is the selected one
+        if (currentState.selectedModuleIds[0] === id) {
+          refreshAnalyticsPanel(payload.state);
+        }
+      }
+    }
+  }
+});
+
+// ── Story 7.3: COUNTDOWN_ZERO → auto-pause ───────────────────────────────
+eventBus.on('COUNTDOWN_ZERO', (payload) => {
+  // Story 7.3 P1 fix: Track ALL threshold-crossing stocks BEFORE the guard,
+  // so multi-stock same-tick crossings are all captured (AC7).
+  // The guard only gates pause/panel-show — tracking is unconditional.
+  _autoPausedStockIds.add(payload.stockId);
+  // Only auto-pause if simulation was running (idempotent — pause() is a no-op when already paused)
+  if (simEngine.state === 'running') {
+    simEngine.pause();
+    // Re-show panels (mirrors PAUSE handler behavior)
+    modulePanel.setHidden(false);
+    setRightSidebarHidden(false);
+  }
+  // Always refresh status text — ensures multi-stock labels appear even when
+  // the Nth stock's COUNTDOWN_ZERO fires after the first stock already paused.
+  updateAutoPauseStatus();
 });
 
 // Event handlers — wired at composition root (Architecture Decision 3)
 eventBus.on('RUN', () => {
   simEngine.start(() => currentState);
-  updateRunButton();
+  // Story 7.3: Resume clears auto-pause reason (breathing glow + status text)
+  _autoPausedStockIds.clear();
+  updateAutoPauseStatus();
+  updateCheckpointButtons(); // Story 7.4: save disabled when running (AC6)
   modulePanel.clearSelection();   // Story 6.5 — prevent accidental placement during hide animation
   // Story 6.6: Only auto-hide when not pinned (AC3)
   if (!modulePanel.isPinned()) {
@@ -675,7 +793,8 @@ eventBus.on('RUN', () => {
 
 eventBus.on('PAUSE', () => {
   simEngine.pause();
-  updateRunButton();
+  updateAutoPauseStatus();
+  updateCheckpointButtons(); // Story 7.4: save enabled when paused
   modulePanel.setHidden(false); // Story 6.5 AC3
   setRightSidebarHidden(false); // Story 6.6 — re-show on pause
 });
@@ -700,6 +819,10 @@ eventBus.on('RESET', () => {
   analyticsPanel.setStock(null);
   // Story 7.2: Clear countdown panels on reset
   _prevCountdownMap.clear(); // P4 fix: clear per-stock zero-crossing tracking on RESET
+  // Story 7.3: Clear auto-pause + overflow tracking on RESET
+  _autoPausedStockIds.clear();
+  _cumulativeOverflow.clear();
+  _checkpoint = null; // Story 7.4 AC5: clear checkpoint on reset
   refreshCountdownPanels();
   // Signal state change for downstream consumers (Snapshot Bridge, renderers)
   currentState.version++;
@@ -716,7 +839,8 @@ eventBus.on('RESET', () => {
   confettiParticles = null;
   borderFlashState = null;
   achievementToast.dismissAll();
-  updateRunButton(); // reset → idle, button shows "▶ Run"
+  updateCheckpointButtons(); // Story 7.4: checkpoint cleared → rewind disabled
+  updateAutoPauseStatus(); // reset → idle, button shows "▶ Run"
   modulePanel.setHidden(false); // Story 6.5 AC3 — re-show on reset
   setRightSidebarHidden(false); // Story 6.6 — re-show on reset
 });
@@ -788,8 +912,17 @@ controlBar.onClearCanvas = () => {
 
 // ── Story 6.1: Run/Pause button text helper ──────────────────────────────
 // (hoisted function declaration — referenced by EventBus handlers above)
-function updateRunButton(): void {
-  controlBar.setRunState(simEngine.state);
+// Story 7.3: Renamed updateRunButton → updateAutoPauseStatus to surface
+// the auto-pause reason text when stocks have triggered threshold.
+function updateAutoPauseStatus(): void {
+  if (_autoPausedStockIds.size > 0 && simEngine.state === 'paused') {
+    const labels = [..._autoPausedStockIds]
+      .map((id) => currentState.nodes[id]?.label || id.slice(0, 8))
+      .join('、');
+    controlBar.setRunState('paused', `PAUSED — ${labels} 已达阈值`);
+  } else {
+    controlBar.setRunState(simEngine.state);
+  }
 }
 
 // ── Lifecycle (hot-reload cleanup) ────────────────────────────────────
@@ -797,7 +930,7 @@ void import.meta.hot?.dispose(() => {
   window.removeEventListener('keydown', handleResetShortcut);
   nudgeDebouncer.cancel();
   simEngine.reset(); // stop interval + reset state
-  updateRunButton();  // button → '▶ Run' (reset sets state to idle)
+  updateAutoPauseStatus();  // button → '▶ Run' (reset sets state to idle)
   canvasResizer.destroy();
   sceneRenderer.stop();
   // Story 4.6: Clean up stock warning provider (follows provider dereference pattern)
@@ -823,6 +956,13 @@ void import.meta.hot?.dispose(() => {
   modalDialog.destroy();   // Story 6.1: cleanup modal DOM + keyboard listeners
   colorPickerPopover.destroy();
   achievementToast.destroy(); // Story 5.5: clean up toast timers + DOM
+  // Story 7.4: Remove save/rewind button event listeners
+  if (btnSaveCheckpoint) {
+    btnSaveCheckpoint.replaceWith(btnSaveCheckpoint.cloneNode(true));
+  }
+  if (btnRewindCheckpoint) {
+    btnRewindCheckpoint.replaceWith(btnRewindCheckpoint.cloneNode(true));
+  }
 });
 
 // ── Story 3.1: Left Sidebar Module Panel ──────────────────────────────
@@ -1103,6 +1243,9 @@ inputManager.onFeedbackDragCancel = () => {
 
 // Story 7.1: Feedback handle hover provider for SceneRenderer
 sceneRenderer.feedbackHandleHoveredStockIdProvider = () => inputManager.feedbackHandleHoveredStockId;
+
+// Story 7.3: Breathing glow provider for SceneRenderer (renders during auto-pause)
+sceneRenderer.breathingGlowStockIdsProvider = () => _autoPausedStockIds;
 
 // Story 7.1 AC6: Feedback handle hover → tooltip "拖拽以创建反馈回路"
 inputManager.onFeedbackHandleHover = (stockId, screenPos) => {
