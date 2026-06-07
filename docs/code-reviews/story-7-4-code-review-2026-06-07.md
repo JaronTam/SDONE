@@ -6,7 +6,7 @@
 **Review run**: 2026-06-07 → 2026-06-08（含一轮深度自审计 + F2-F5 修复闭环）  
 **Skill**: `bmad-code-review` (mode=full, 3 layers)  
 **Reviewer**: AI agent  
-**Final status**: 🟢 90% 闭环（4/5 发现已修复 + 1 项 F1 需用户决策）
+**Final status**: 🟢 **100% 闭环（5/5 发现已修复，F1 按方案 b 拆 4 commit 执行完毕）**
 
 ---
 
@@ -41,7 +41,7 @@
 
 | ID | 类型 | 严重度 | 标题 | 状态 |
 |---|---|---|---|---|
-| **F1** | Decision | 🔴 High | Commit 范围三层污染（A 源码 / B 测试产物 / C 工具链 drift） | 🔴 等用户决策 |
+| **F1** | Decision | 🔴 High | Commit 范围三层污染（A 源码 / B 测试产物 / C 工具链 drift） | ✅ FIXED (方案 b) |
 | **F2** | Patch | 🔴 High | `checkpoint.test.ts` 20 个测试是 mirror test（测自己写的 helper） | ✅ FIXED |
 | **F3** | Patch | 🟡 Med | `checkpoint.test.ts` 未被 git 跟踪 | ✅ FIXED (被 F2 覆盖) |
 | **F4** | Patch | 🟡 Med | 4 个 `test-output*.txt` 已入 git | ✅ FIXED |
@@ -53,7 +53,7 @@
 
 ## 4. Finding 详情
 
-### F1 — Commit 范围三层污染（🔴 等用户决策）
+### F1 — Commit 范围三层污染（✅ FIXED 2026-06-08，方案 b）
 
 **证据**：`git rev-parse --show-toplevel` = `C:/Two/SDONE`，工具链文件与源码同仓库。`git status -s` 显示数百文件改动。
 
@@ -62,7 +62,18 @@
 #### 方案 (a) — 单 commit 全部合并 ❌ 不推荐
 违反 atomic commit；`git bisect` 困难；7.3 完成时间错误归 7.4。
 
-#### 方案 (b) — 按层拆 4 commit ✅ **强烈推荐**
+#### 方案 (b) — 按层拆 4 commit ✅ **用户选择 + 已执行**
+
+**实际执行结果**（`git log --oneline`）：
+```
+3fffaf0 (HEAD -> main) chore: BMad framework tooling drift (PRD/UX v6 -> v7 rename)
+e4090e4 Story 7.4 review artifacts (4/5 findings fixed, F1 commit strategy = b)
+2133278 Story 7.4 — Single-slot save point & rewind + review fixes (F4/F5)
+64830b5 Story 7.3 — Stock zero behavior, auto-pause & breathing glow (retroactive)
+cc3eaa5 (origin/main) story 7.2 completed   ← baseline
+```
+
+执行命令快照（保留给历史追溯）：
 
 ```bash
 # Commit 1 — Story 7.3 补提
@@ -162,9 +173,11 @@ Spec Dev Notes 明确 "GraphState 是纯数据图，无 functions/DOM refs"，�
 | 验证项 | 命令 | 结果 |
 |---|---|---|
 | TypeScript 编译 | `cd sdone && npx tsc --noEmit` | ✅ 0 errors |
-| 测试套件 | `cd sdone && npx vitest run --reporter=dot` | ✅ 707 passed (30 files), 0 failed, 0 skipped |
-| Git index 终态 | `cd sdone && git status -s` | F4 staged, F2 staged, F5 unstaged in main.ts |
-| Spec Review Findings 节 | `_bmad-output/implementation-artifacts/7-4-...md` | F2/F3/F4/F5 标 `[x] ✅ FIXED`，F1 标 `[ ]` 等决策 |
+| 测试套件（修复前） | `cd sdone && npx vitest run --reporter=dot` | ✅ 707 passed (30 files), 0 failed, 0 skipped |
+| 测试套件（4 commit 后实测复验） | 同上 | ✅ 707 passed (30 files), 0 failed, 0 skipped |
+| Git working tree | `git status` | ✅ **nothing to commit, working tree clean** |
+| Git commit 拓扑 | `git log --oneline` | ✅ 4 atomic commits ahead of origin/main |
+| .gitignore 防御验证 | 复测 vitest 生成 test-output.txt 后 git status | ✅ 被 `test-output*.txt` 通配正确忽略 |
 
 ---
 
@@ -174,12 +187,13 @@ Spec Dev Notes 明确 "GraphState 是纯数据图，无 functions/DOM refs"，�
 |---|---|
 | Spec AC 实现完整性 | 🟢 A 级（AC1-AC7 全部实现） |
 | 事实层准确率 | 🟢 100%（F4 数量经 AUDIT 修订） |
-| 修复执行率 | 🟢 4/5（F1 需用户决策） |
+| 修复执行率 | 🟢 **5/5（100%）** |
 | 测试可信度 | 🟢 707 真测试 / 0 假绿（删除 20 mirror tests 后） |
 | TypeScript 编译 | 🟢 0 errors |
-| 闭环完成度 | 🟢 90%（剩 F1 单一阻塞） |
+| Commit 拓扑健康度 | 🟢 atomic, bisectable（4 commits 按层分离） |
+| 闭环完成度 | 🟢 **100%** |
 
-**结论**：Story 7.4 实施质量 A 级，所有 AC 完整实现，4 个发现已修复，1 个发现已识别并给出推荐方案。等待用户对 F1 (commit 拆分策略 a/b/c) 的最终决策后，可将 Story status 由 `review` → `done`。
+**结论**：Story 7.4 实施质量 A 级，所有 AC 完整实现，5 个发现全部修复（含 F1 commit 拆分按方案 b 执行完毕，working tree clean，707 测试实测复验通过）。Story status 可由 `review` → `done`，4 个 commits 待 `git push origin main`。
 
 ---
 
