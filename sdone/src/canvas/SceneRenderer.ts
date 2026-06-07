@@ -205,6 +205,18 @@ const FILL_LERP_SPEED = 0.15;
 /** AC4: Red/warning tint for stock overflow (value > capacity). */
 const STOCK_FILL_OVERFLOW = '#EF9A9A';
 
+// ── Story 7.3 — Breathing glow constants for auto-paused stocks ──────────
+/** Full breathing cycle in milliseconds (opacity_min → max → min). */
+const BREATHING_GLOW_CYCLE_MS = 2000;
+/** Minimum opacity at trough of the breathing cycle. */
+const BREATHING_GLOW_OPACITY_MIN = 0.2;
+/** Maximum opacity at peak of the breathing cycle. */
+const BREATHING_GLOW_OPACITY_MAX = 0.6;
+/** Blue-400 glow tint for the breathing overlay. */
+const BREATHING_GLOW_COLOR = '#60a5fa';
+/** Shadow blur radius for the breathing glow halo. */
+const BREATHING_GLOW_BLUR = 20;
+
 // ═══════════════════════════════════════════════════════════════════════
 // SceneRenderer
 // ═══════════════════════════════════════════════════════════════════════
@@ -270,6 +282,14 @@ export class SceneRenderer {
 
   /** Story 7.1 — Feedback drag preview position in world space (null = hidden). */
   public feedbackDragProvider: (() => { stockId: string; cursorWorldPos: Vec2 } | null) | null = null;
+
+  // ── Story 7.3 — Breathing glow provider ──────────────────────────────
+  /** Story 7.3 — Returns the set of stock IDs that should render breathing glow.
+   *  Only rendered when simStateProvider returns 'paused'. */
+  public breathingGlowStockIdsProvider: (() => Set<string>) | null = null;
+
+  /** Story 7.3 — Animation start time for the breathing glow (continuous from page load). */
+  private readonly breathingGlowStartTime: number = performance.now();
 
   // ── Story 5.2 — Fill animation state ─────────────────────────────────
   /** Per-stock animated fill ratios for smooth fill/shrink transitions.
@@ -630,6 +650,32 @@ export class SceneRenderer {
       this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
       ctx.stroke();
     }
+
+    // ── Story 7.3: Breathing glow overlay for auto-paused stocks ──
+    // Z-order: between fill and value text (value text remains readable on top).
+    const breathingIds = this.breathingGlowStockIdsProvider?.();
+    if (
+      breathingIds &&
+      breathingIds.has(node.id) &&
+      this.simStateProvider?.() === 'paused'
+    ) {
+      const elapsed = performance.now() - this.breathingGlowStartTime;
+      const phase = (elapsed % BREATHING_GLOW_CYCLE_MS) / BREATHING_GLOW_CYCLE_MS;
+      const sinVal = Math.sin(phase * Math.PI * 2);
+      const opacity =
+        BREATHING_GLOW_OPACITY_MIN +
+        ((sinVal + 1) / 2) * (BREATHING_GLOW_OPACITY_MAX - BREATHING_GLOW_OPACITY_MIN);
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      ctx.shadowColor = BREATHING_GLOW_COLOR;
+      ctx.shadowBlur = BREATHING_GLOW_BLUR;
+      ctx.fillStyle = BREATHING_GLOW_COLOR;
+      ctx.beginPath();
+      this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
+      ctx.fill();
+      ctx.restore();
+    }
+
     ctx.fillStyle = STOCK_VALUE_TEXT;
     ctx.font = 'bold 14px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -795,6 +841,8 @@ export class SceneRenderer {
 
       // ── Story 7.1: Feedback connections — dashed amber Bezier self-loop ──
       if (conn.isFeedback && fromNode.type === 'stock') {
+        // Story 7.3 (deferred from 7.1): defense-in-depth — feedback must target a source
+        if (toNode.type !== 'source') continue;
         const stock = fromNode as StockNode;
         const sx = stock.position.x;
         const sy = stock.position.y;

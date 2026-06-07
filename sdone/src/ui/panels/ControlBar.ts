@@ -98,15 +98,20 @@ export class ControlBar {
    *
    * - idle/paused → button shows "▶ Run"
    * - running → button shows "⏸ Pause"
-   * - Status indicator shows "IDLE" / "RUNNING" / "PAUSED"
+   * - Status indicator shows "IDLE" / "RUNNING" / "PAUSED" by default
+   *
+   * Story 7.3: When `statusOverride` is provided, the custom text replaces
+   * the default status (e.g., "PAUSED — [stock] 已达阈值" for auto-pause).
+   * The CSS class still tracks the underlying `state`.
    */
-  setRunState(state: 'idle' | 'running' | 'paused'): void {
+  setRunState(state: 'idle' | 'running' | 'paused', statusOverride?: string): void {
     if (this._destroyed) return;
     // Update button text
     this.btnRun.textContent = state === 'running' ? '⏸ Pause' : '▶ Run';
 
-    // Update status indicator text and CSS class
-    this.statusEl.textContent = state === 'idle' ? 'IDLE' : state === 'running' ? 'RUNNING' : 'PAUSED';
+    // Update status indicator text — use override if provided (Story 7.3)
+    const defaultText = state === 'idle' ? 'IDLE' : state === 'running' ? 'RUNNING' : 'PAUSED';
+    this.statusEl.textContent = statusOverride ?? defaultText;
 
     // Remove all state classes first, then add the appropriate one
     this.statusEl.classList.remove(STATUS_RUNNING_CLASS, STATUS_PAUSED_CLASS);

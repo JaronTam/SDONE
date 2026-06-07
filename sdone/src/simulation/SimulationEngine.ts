@@ -130,6 +130,27 @@ export class SimulationEngine {
    * `state.version` is incremented ONCE per tick (not per stock).
    * `this.t` advances by `dt`.
    *
+   * ## Tick step invariants (Story 7.3 — deferred from 7.1)
+   *
+   * The tick is divided into four ordered steps. Each step makes a
+   * specific contract that downstream code (including UI) relies on:
+   *
+   *   1. **Non-feedback formula eval** → writes `conn.rate` for every
+   *      non-feedback connection (or 0 on parse/eval error).
+   *   2. **Feedback formula eval** → writes `conn.rate` for every
+   *      feedback connection, with stock state variables (`value`,
+   *      `capacity`, `stock_value`) injected from the source-end stock.
+   *   3. **Feedback multiplier application** → scales the matching
+   *      source→stock inflow `conn.rate` by the feedback multiplier.
+   *      MUST come AFTER step 1 (otherwise the base rate would be
+   *      overwritten by a fresh formula eval) and AFTER step 2 (so
+   *      the multiplier value is up to date).
+   *   4. **Euler integration** → consumes finalised `conn.rate` values
+   *      via `computeNetFlow` (which itself skips `isFeedback`).
+   *
+   * Re-ordering these steps will silently break feedback loops:
+   * AC2/AC3 of Story 7.1 depend on this exact sequencing.
+   *
    * @param state  The live `GraphState` to mutate in-place.
    * @param dt     Integration timestep in seconds. Default: 1/60.
    */

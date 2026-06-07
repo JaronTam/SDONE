@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, test, beforeEach, afterEach } from 'vitest';
 import { AnalyticsPanel, computeStockAnalytics } from './AnalyticsPanel.js';
 import type { StockAnalytics } from './AnalyticsPanel.js';
 import type { GraphState, Connection } from '../../state/GraphState.js';
@@ -378,5 +378,86 @@ describe('computeStockAnalytics (Story 6.2)', () => {
     const result = computeStockAnalytics(state, 'stock-abc-123');
     expect(result).not.toBeNull();
     expect(result!.label).toBe('stock-ab');
+  });
+});
+
+// =============================================================================
+// Story 7.3 — Cumulative overflow display (RED PHASE)
+// =============================================================================
+
+describe('Story 7.3 — Overflow section (RED PHASE)', () => {
+  let container: HTMLElement;
+  let panel: AnalyticsPanel;
+
+  beforeEach(() => {
+    container = createContainer();
+    panel = new AnalyticsPanel(container);
+  });
+
+  afterEach(() => {
+    panel.destroy();
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+  });
+
+  // ── AC4: Overflow display section ─────────────────────────────────
+
+  describe('AC4: Overflow section visibility via setStock(data, cumulativeOverflow)', () => {
+    test('[P1] setStock(data, 0) → overflow section is hidden', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100, currentValue: 50 }), 0);
+
+      const overflowEl = container.querySelector('.analytics-panel__overflow') as HTMLElement;
+      expect(overflowEl).not.toBeNull();
+      expect(overflowEl!.style.display).toBe('none');
+    });
+
+    test('[P1] setStock(data, 15.5) → overflow section shows "流失值: 15.5 单位"', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }), 15.5);
+
+      const overflowEl = container.querySelector('.analytics-panel__overflow') as HTMLElement;
+      expect(overflowEl).not.toBeNull();
+      expect(overflowEl!.style.display).not.toBe('none');
+
+      const valueEl = container.querySelector('.analytics-panel__overflow-value');
+      expect(valueEl).not.toBeNull();
+      expect(valueEl!.textContent).toBe('15.5');
+
+      const labelEl = container.querySelector('.analytics-panel__overflow-label');
+      expect(labelEl).not.toBeNull();
+      expect(labelEl!.textContent).toBe('流失值:');
+    });
+
+    test('[P1] setStock(null) → overflow section is hidden (empty state)', () => {
+      // First show data with overflow
+      panel.setStock(createStockAnalytics({ capacity: 100 }), 10.0);
+      // Then clear
+      panel.setStock(null);
+
+      const overflowEl = container.querySelector('.analytics-panel__overflow') as HTMLElement;
+      expect(overflowEl!.style.display).toBe('none');
+    });
+
+    test('[P1] cumulativeOverflow transitions from 5 to 0 → section hides', () => {
+      panel.setStock(createStockAnalytics(), 5.0);
+      expect((container.querySelector('.analytics-panel__overflow') as HTMLElement)!.style.display).not.toBe('none');
+
+      panel.setStock(createStockAnalytics(), 0);
+      expect((container.querySelector('.analytics-panel__overflow') as HTMLElement)!.style.display).toBe('none');
+    });
+
+    test('[P1] overflow section renders BELOW the divider (after capacity field)', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }), 3.0);
+
+      const divider = container.querySelector('.analytics-panel__divider');
+      const overflowEl = container.querySelector('.analytics-panel__overflow');
+      expect(divider).not.toBeNull();
+      expect(overflowEl).not.toBeNull();
+
+      // Overflow section should be after the divider in DOM order
+      const dividerIndex = Array.from(container.querySelector('.analytics-panel__data')!.children).indexOf(divider!);
+      const overflowIndex = Array.from(container.querySelector('.analytics-panel__data')!.children).indexOf(overflowEl!);
+      expect(overflowIndex).toBeGreaterThan(dividerIndex);
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, test, vi, beforeEach, afterEach } from 'vitest';
 import { SimulationEngine, FormulaEngine } from './index.js';
 import type {
   Connection,
@@ -1066,5 +1066,129 @@ describe('Story 6.1 — visibilitychange handler', () => {
 
     // Restore document.hidden
     Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+  });
+});
+
+// =============================================================================
+// Story 7.3 — Stock Zero Behavior: Auto-Pause & Breathing Glow (RED PHASE)
+// =============================================================================
+
+describe('Story 7.3 — Auto-pause on threshold (RED PHASE)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // ── AC3: Resume from auto-pause → stock can go negative ────────────
+
+  describe('AC3: Resume after auto-pause → stock value can go negative', () => {
+    test('[P1] stock at zero with outflow only goes negative on resume', () => {
+      const engine = new SimulationEngine();
+      const state = makeEmptyState();
+
+      const stock = makeStock('s0', 0);
+      const snk = makeSink('snk1');
+      state.nodes = { s0: stock, snk1: snk };
+      state.connections = {
+        c_out: makeConnection('c_out', 's0', 'snk1', 5),
+      };
+
+      // Simulate: stock already at 0, inflow=0, outflow=5
+      // After 1s (60 ticks), value = 0 + (0 - 5) * 1.0 = -5
+      for (let i = 0; i < 60; i++) {
+        engine.tick(state, 1 / 60);
+      }
+
+      // Stock MUST go negative — reveals system unsustainability
+      expect(stock.value).toBeLessThan(0);
+      expect(stock.value).toBeCloseTo(-5, 4);
+    });
+
+    test('[P1] COUNTDOWN_ZERO-equivalent state: stock at zero stays at zero without connections', () => {
+      const engine = new SimulationEngine();
+      const state = makeEmptyState();
+
+      const stock = makeStock('s0', 0);
+      state.nodes = { s0: stock };
+
+      // No connections → net flow = 0 → value stays at 0
+      for (let i = 0; i < 60; i++) {
+        engine.tick(state, 1 / 60);
+      }
+
+      expect(stock.value).toBe(0);
+    });
+
+    test('[P1] stock transitions from positive → negative across tick boundary', () => {
+      const engine = new SimulationEngine();
+      const state = makeEmptyState();
+
+      const stock = makeStock('s0', 1); // start at 1
+      const snk = makeSink('snk1');
+      state.nodes = { s0: stock, snk1: snk };
+      state.connections = {
+        c_out: makeConnection('c_out', 's0', 'snk1', 10), // outflow=10
+      };
+
+      // After 1s: 1 + (0 - 10) * 1.0 = -9
+      for (let i = 0; i < 60; i++) {
+        engine.tick(state, 1 / 60);
+      }
+
+      expect(stock.value).toBeLessThan(0);
+      expect(stock.value).toBeCloseTo(-9, 4);
+    });
+  });
+
+  // ── AC7: Multiple stocks threshold in same tick ────────────────────
+
+  describe('AC7: Multiple stocks reach threshold in same tick', () => {
+    test('[P2] pause() is idempotent — calling pause() twice does not throw', () => {
+      const engine = new SimulationEngine();
+      const state = makeStateWithOneStockOneSource(10);
+
+      engine.start(() => state);
+      vi.advanceTimersByTime(100);
+      expect(engine.state).toBe('running');
+
+      // First pause
+      engine.pause();
+      expect(engine.state).toBe('paused');
+
+      // Second pause (simulating two stocks triggering auto-pause simultaneously)
+      engine.pause();
+      expect(engine.state).toBe('paused'); // still paused, no error
+
+      // Resume works normally after double-pause
+      engine.start(() => state);
+      expect(engine.state).toBe('running');
+    });
+
+    test('[P2] multiple pause calls during same tick do not corrupt state', () => {
+      const engine = new SimulationEngine();
+      const state = makeStateWithOneStockOneSource(10);
+      const stock = getStock(state);
+
+      engine.start(() => state);
+      vi.advanceTimersByTime(100);
+      const valueAfterOneInterval = stock.value;
+
+      // Simulate two simultaneous auto-pause triggers
+      engine.pause();
+      engine.pause();
+      expect(engine.state).toBe('paused');
+
+      // Value frozen (no further ticks)
+      vi.advanceTimersByTime(500);
+      expect(stock.value).toBe(valueAfterOneInterval);
+
+      // Can resume
+      engine.start(() => state);
+      vi.advanceTimersByTime(100);
+      expect(stock.value).toBeGreaterThan(valueAfterOneInterval);
+    });
   });
 });

@@ -89,6 +89,9 @@ export class AnalyticsPanel {
   private readonly _netEl: HTMLElement;
   private readonly _currentEl: HTMLElement;
   private readonly _capacityEl: HTMLElement;
+  // Story 7.3 AC4: Overflow display (cumulative max overflow during session)
+  private readonly _overflowField: HTMLElement;
+  private readonly _overflowValueEl: HTMLElement;
 
   constructor(container: HTMLElement) {
     this._container = container;
@@ -211,6 +214,30 @@ export class AnalyticsPanel {
     dataEl.appendChild(capacityField);
     this._capacityEl = capacityValue;
 
+    // ── Story 7.3 AC4: Overflow field (hidden by default) ──────────
+    // Uses dedicated classes (.analytics-panel__overflow-label /
+    // .analytics-panel__overflow-value) so tests and CSS can target the
+    // amber warning treatment without conflicting with generic fields.
+    const overflowField = document.createElement('div');
+    overflowField.className = 'analytics-panel__field analytics-panel__overflow';
+    overflowField.style.display = 'none';
+    const overflowLabel = document.createElement('span');
+    overflowLabel.className =
+      'analytics-panel__field-label analytics-panel__overflow-label';
+    overflowLabel.textContent = '流失值:';
+    const overflowValue = document.createElement('span');
+    overflowValue.className =
+      'analytics-panel__field-value analytics-panel__field-value--overflow analytics-panel__overflow-value';
+    const overflowUnit = document.createElement('span');
+    overflowUnit.className = 'analytics-panel__field-unit';
+    overflowUnit.textContent = '单位';
+    overflowField.appendChild(overflowLabel);
+    overflowField.appendChild(overflowValue);
+    overflowField.appendChild(overflowUnit);
+    dataEl.appendChild(overflowField);
+    this._overflowField = overflowField;
+    this._overflowValueEl = overflowValue;
+
     root.appendChild(dataEl);
     this._dataEl = dataEl;
 
@@ -222,12 +249,18 @@ export class AnalyticsPanel {
 
   /**
    * Show stock analytics data. Pass null to show empty state.
+   *
+   * Story 7.3 AC4: Optional `cumulativeOverflow` shows the max-observed
+   * overflow (value > capacity) for this stock during the current session.
+   * Pass 0 / undefined to hide the overflow section.
    */
-  setStock(data: StockAnalytics | null): void {
+  setStock(data: StockAnalytics | null, cumulativeOverflow?: number): void {
     if (data === null) {
       // Switch to empty state
       this._dataEl.style.display = 'none';
       this._emptyEl.style.display = '';
+      // Story 7.3: ensure overflow section is hidden when nothing is selected
+      this._overflowField.style.display = 'none';
       return;
     }
 
@@ -271,6 +304,16 @@ export class AnalyticsPanel {
       this._capacityEl.textContent = '∞';
     } else {
       this._capacityEl.textContent = data.capacity.toFixed(0);
+    }
+
+    // Story 7.3 AC4: Show overflow only if > 0.
+    // Value is displayed without a sign prefix (e.g. "15.5"), with the
+    // "单位" unit suffix making it read as "流失值: 15.5 单位".
+    if (cumulativeOverflow !== undefined && cumulativeOverflow > 0) {
+      this._overflowValueEl.textContent = cumulativeOverflow.toFixed(1);
+      this._overflowField.style.display = '';
+    } else {
+      this._overflowField.style.display = 'none';
     }
   }
 
