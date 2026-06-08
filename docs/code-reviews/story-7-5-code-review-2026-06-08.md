@@ -6,7 +6,7 @@
 **Review run**: 2026-06-08  
 **Skill**: `bmad-code-review` (mode=full, 3 layers)  
 **Reviewer**: AI agent  
-**Final status**: 🟡 **1 open finding (1 High), 2 fixed, 2 deferred**
+**Final status**: 🟢 **All findings resolved (3 fixed, 2 deferred)**
 
 ---
 
@@ -41,7 +41,7 @@
 
 | ID | 类型 | 严重度 | 标题 | 状态 |
 |---|---|---|---|---|
-| **F1** | Patch | 🔴 High | 两个新文件未被 git 跟踪（PerformanceMonitor.ts + test） | 🔴 Open |
+| **F1** | Patch | 🔴 High | 两个新文件未被 git 跟踪（PerformanceMonitor.ts + test） | ✅ Fixed |
 | **F2** | Patch | 🟡 Med | 缺失 SceneRenderer 降级集成测试（Task 6.2: 要求 5 个，交付 0 个） | ✅ Fixed |
 | **F3** | Patch | 🟡 Med | Dev Agent Record 声称 "20 active tests" 但实际为 19 | ✅ Fixed |
 | D1 | Defer | ⚪ Low | `frameTimestamps.shift()` O(n) — spec 伪代码同模式（spec 内部不一致） | ⚪ Deferred |
@@ -201,7 +201,7 @@ Story 7.5 独立深度审计（`story-7-5-audit-2026-06-08.md`）发现 2 处 P2
 |---|---|---|
 | TypeScript 编译 | `cd sdone && npx tsc --noEmit` | ✅ 0 errors |
 | 测试套件 | `cd sdone && npx vitest run --reporter=dot` | ✅ 731 passed (31 files), 0 failed, 0 skipped |
-| Git 跟踪状态 | `git status -s` | ⚠️ 2 untracked files (F1) |
+| Git 跟踪状态 | `git status -s` | ✅ 工作区干净（commit 035376a 包含全部文件） |
 | SceneRenderer 降级测试 | 搜索 `degradation` in `*.test.ts` | ✅ 5 tests in SceneRenderer.test.ts (F2 fixed) |
 
 ---
@@ -213,16 +213,11 @@ Story 7.5 独立深度审计（`story-7-5-audit-2026-06-08.md`）发现 2 处 P2
 | Spec AC 实现完整性 | 🟢 A 级（AC1-AC5 全部实现，Perf Constraint 伪代码一致） |
 | 审计 B1/B2 修复 | 🟢 已修复（resetTransform + 下降沿检测） |
 | 测试覆盖 | 🟡 B 级（PerformanceMonitor 19 测试覆盖完整，但 SceneRenderer 降级测试缺失） |
-| Git 卫生 | 🔴 C 级（2 个核心文件未跟踪） |
+| Git 卫生 | 🟢 A 级（commit 035376a 包含全部文件，工作区干净） |
 | TypeScript 编译 | 🟢 0 errors |
 | 文档准确性 | 🟡 B 级（测试计数 20→19 偏差） |
 
-**结论**：Story 7.5 核心实现质量良好——AC1-AC5 全部正确实现，审计 B1/B2 两处 P2 缺陷已在代码中修复，PerformanceMonitor 单元测试覆盖完整。但存在 3 个需修复问题：**F1（文件未入 git）为阻塞性问题**，必须在提交前解决；F2（SceneRenderer 降级测试缺失）和 F3（文档计数偏差）为非阻塞但应修复。
-
-**建议操作**：
-1. `git add` 两个新文件（F1）— **必须**
-2. 补充 SceneRenderer 降级集成测试（F2）— **强烈建议**
-3. 修正 Dev Agent Record 测试计数（F3）— 建议
+**结论**：Story 7.5 代码审查全部发现已解决——F1（git 跟踪）已通过 commit 035376a 修复，F2（SceneRenderer 降级测试）和 F3（文档计数偏差）已在审查中修复。D1/D2 为低优先级延迟项，归宿 Story 7.7。Story 7.5 可标记为 `done`。
 
 ---
 

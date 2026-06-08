@@ -95,9 +95,14 @@ describe('addModule', () => {
     expect(node.position).toEqual({ x: 100, y: 200 });
 
     const stock = node as StockNode;
-    expect(stock.value).toBe(0);
-    expect(stock.capacity).toBe(Infinity);
-    expect(stock.initialValue).toBe(0);
+    expect(stock).toMatchObject({
+      id: expect.any(String) as string,
+      type: 'stock',
+      position: { x: 100, y: 200 },
+      value: 0,
+      capacity: Infinity,
+      initialValue: 0,
+    });
 
     expect(result.version).toBe(1);
   });
@@ -198,9 +203,14 @@ describe('moveModule', () => {
 
     const moved = result.nodes['n1'] as StockNode;
     expect(moved.position).toEqual({ x: 300, y: 400 });
-    expect(moved.type).toBe('stock');
-    expect(moved.id).toBe('n1');
-    expect(moved.value).toBe(42);
+    expect(moved).toMatchObject({
+      id: 'n1',
+      type: 'stock',
+      position: { x: 300, y: 400 },
+      value: 42,
+      capacity: Infinity,
+      initialValue: 0,
+    });
     expect(result.version).toBe(state.version + 1);
   });
 
@@ -244,10 +254,13 @@ describe('addConnection', () => {
     expect(Object.keys(result.connections)).toHaveLength(1);
 
     const [, conn] = Object.entries(result.connections)[0];
-    expect(conn.fromId).toBe('s1');
-    expect(conn.toId).toBe('st1');
-    expect(conn.rate).toBe(0);
-    expect(conn.formulaStr).toBe('0');
+    expect(conn).toMatchObject({
+      id: expect.any(String) as string,
+      fromId: 's1',
+      toId: 'st1',
+      rate: 0,
+      formulaStr: '0',
+    });
     expect(result.version).toBe(state.version + 1);
   });
 
@@ -318,8 +331,13 @@ describe('updateRate', () => {
     withConnection(state, 'c1', 'src', 'st', 5);
 
     const result = updateRate(state, 'c1', 10);
-    expect(result.connections['c1'].rate).toBe(10);
-    expect(result.connections['c1'].formulaStr).toBe('10');
+    expect(result.connections['c1']).toMatchObject({
+      id: 'c1',
+      fromId: 'src',
+      toId: 'st',
+      rate: 10,
+      formulaStr: '10',
+    });
     expect(result.version).toBe(state.version + 1);
   });
 
