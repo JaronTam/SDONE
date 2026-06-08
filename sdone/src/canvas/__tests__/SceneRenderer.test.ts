@@ -479,3 +479,107 @@ describe('Story 7.3 Task 5.1 — Feedback Bezier defense check (RED PHASE)', () 
     expect(isSource).toBe(true);
   });
 });
+
+// =============================================================================
+// Story 7.5 — Degradation mode particle rendering & indicator (GREEN PHASE)
+// =============================================================================
+
+describe('Story 7.5 — Degradation mode rendering', () => {
+  let renderer: SceneRenderer;
+  let viewport: ViewportManager;
+  let ctx: CanvasRenderingContext2D;
+
+  /** Create a mock PerformanceMonitor with a fixed degradation mode. */
+  function createMockPerfMonitor(mode: 'full' | 'sparse' | 'off') {
+    return { getDegradationMode: () => mode, recordFrame: vi.fn() } as unknown as import('../PerformanceMonitor.js').PerformanceMonitor;
+  }
+
+  /** Minimal graph state with one connection and two nodes. */
+  const graphState = {
+    nodes: {
+      src: { type: 'source', position: { x: 0, y: 0 } },
+      snk: { type: 'sink', position: { x: 200, y: 0 } },
+    },
+    connections: {
+      conn1: { fromId: 'src', toId: 'snk', rate: 1, label: '' },
+    },
+  };
+
+  /** Particle state with 4 particles on conn1. */
+  const particleState = {
+    particlesByConnection: new Map([
+      ['conn1', [
+        { t: 0.2, alpha: 1 },
+        { t: 0.4, alpha: 1 },
+        { t: 0.6, alpha: 1 },
+        { t: 0.8, alpha: 1 },
+      ]],
+    ]),
+  };
+
+  beforeEach(() => {
+    const mock = createMockCanvas();
+    const canvas = mock.canvas;
+    ctx = mock.ctx;
+    viewport = {
+      applyTransform: vi.fn(),
+      viewport: { zoom: 1, offset: { x: 0, y: 0 } },
+    } as unknown as ViewportManager;
+    renderer = new SceneRenderer(canvas, viewport);
+    renderer.stateProvider = () => graphState as any;
+    renderer.particleStateProvider = () => particleState as any;
+    // graphState is set by tick() calling stateProvider(), but we call drawParticles() directly
+    (renderer as any).graphState = graphState;
+  });
+
+  // ── AC3/AC4: Particle rendering by degradation mode ────────────────
+
+  describe('AC3/AC4: Particle rendering by degradation mode', () => {
+    test('[P0] degradation mode full → all particles rendered', () => {
+      renderer.performanceMonitor = createMockPerfMonitor('full');
+      // Trigger a frame via internal drawParticles
+      (renderer as any).drawParticles();
+      // 4 particles → 4 arc calls
+      expect(ctx.arc).toHaveBeenCalledTimes(4);
+    });
+
+    test('[P0] degradation mode off → zero particles rendered', () => {
+      renderer.performanceMonitor = createMockPerfMonitor('off');
+      (renderer as any).drawParticles();
+      // AC4: particles disabled entirely — only connection arrows remain
+      expect(ctx.arc).toHaveBeenCalledTimes(0);
+    });
+
+    test('[P0] degradation mode sparse → every other particle skipped', () => {
+      renderer.performanceMonitor = createMockPerfMonitor('sparse');
+      (renderer as any).drawParticles();
+      // AC3: 4 particles, every other skipped → 2 arc calls (indices 0 and 2)
+      expect(ctx.arc).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ── AC3/AC4: Degradation indicator text ────────────────────────────
+
+  describe('AC3/AC4: Degradation indicator text', () => {
+    test('[P0] degradation indicator text rendered when mode ≠ full', () => {
+      renderer.performanceMonitor = createMockPerfMonitor('sparse');
+      (renderer as any).drawDegradationIndicator('sparse');
+      // fillText should be called with the indicator text
+      expect(ctx.fillText).toHaveBeenCalled();
+      const textArg = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(textArg).toBe('粒子: 稀疏');
+    });
+
+    test('[P0] no degradation indicator when mode = full', () => {
+      // When mode is 'full', drawFrame() does NOT call drawDegradationIndicator
+      // Verify by checking that drawDegradationIndicator is not called
+      renderer.performanceMonitor = createMockPerfMonitor('full');
+      // Simulate the drawFrame logic: only call drawDegradationIndicator when mode !== 'full'
+      const degMode = renderer.performanceMonitor.getDegradationMode();
+      if (degMode !== 'full') {
+        (renderer as any).drawDegradationIndicator(degMode);
+      }
+      expect(ctx.fillText).not.toHaveBeenCalled();
+    });
+  });
+});

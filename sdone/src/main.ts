@@ -17,7 +17,7 @@ import './ui/panels/styles/countdown-panel.css'; // Story 6.3
 import './ui/overlays/styles/color-picker-popover.css';
 import './ui/overlays/styles/achievement-toast.css'; // Story 5.5
 import './ui/overlays/styles/modal-dialog.css'; // Story 6.1
-import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, type ConfettiParticle } from './canvas/index.js';
+import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, PerformanceMonitor, type ConfettiParticle } from './canvas/index.js';
 import { ModulePanel, RateEditorPanel, ControlBar, AnalyticsPanel, computeStockAnalytics, CountdownPanel, computeAllStockCountdowns, sortCountdownsByUrgency } from './ui/panels/index.js';
 import { ColorPickerPopover, AchievementToast, ModalDialog } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
@@ -91,6 +91,12 @@ historyManager.push(currentState);
 // ── Scene Renderer ────────────────────────────────────────────────────
 const sceneRenderer = new SceneRenderer(sceneCanvas, viewportManager);
 sceneRenderer.stateProvider = () => currentState;
+
+// ── Story 7.5: Performance Monitor (NFR-P1, NFR-P7) ────────────────
+// DI pattern per Architecture Decision 6: moduleCountSignal callback
+// avoids a direct import from canvas/ → simulation/.
+const perfMonitor = new PerformanceMonitor(() => Object.keys(currentState.nodes).length);
+sceneRenderer.performanceMonitor = perfMonitor;
 
 // ── Minimap Renderer ───────────────────────────────────────────────────
 const minimapRenderer = new MinimapRenderer(minimapCanvas, viewportManager, sceneCanvas);

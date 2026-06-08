@@ -8,6 +8,7 @@
 4. Defer #2 (overflow-y) → [[defer-2-overflow-merge-target]] — 合并至 Story 6.6
 5. Story 6.2 审查与修正完整记录 → [[story-6-2-review-session-2026-06-03]] — 审查→审计→修正→状态更新全流程
 6. Story 6.4 — Inline Rate Editor 负速率验证 → [[story-6-4-audit-2026-06-04]] — Brownfield 增强：负速率钳位 + 警告 UI（AC4）
+7. Story 7.5 — Performance Monitor 代码审查 → [[story-7-5-review-2026-06-08]] — 3 open findings (F1: 文件未入 git 🔴, F2: SceneRenderer 降级测试缺失 🟡, F3: 测试计数偏差 🟡)，审计 B1/B2 已修复
 
 ## Cross-Story Lessons
 

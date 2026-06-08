@@ -13,6 +13,7 @@ import {
 import type { GraphState, StockNode, SourceNode, SinkNode, ModuleType } from '../state/GraphState.js';
 import type { ViewportManager } from './Viewport.js';
 import type { ConfettiParticle } from './ConfettiEngine.js';
+import type { PerformanceMonitor } from './PerformanceMonitor.js';
 
 // ── Module size constants (exported for InputManager hit-testing) ──────
 export const SOURCE_CLOUD_RADIUS = CLOUD_RADIUS;
@@ -291,6 +292,13 @@ export class SceneRenderer {
   /** Story 7.3 — Animation start time for the breathing glow (continuous from page load). */
   private readonly breathingGlowStartTime: number = performance.now();
 
+  // ── Story 7.5 — PerformanceMonitor ─────────────────────────────────
+  /** Story 7.5 — Performance monitor for FPS tracking and particle degradation.
+   *  Wired by main.ts after SceneRenderer construction.
+   *  Not a function provider (unlike particleStateProvider etc.) —
+   *  it's an object instance with recordFrame() and getDegradationMode(). */
+  public performanceMonitor: PerformanceMonitor | null = null;
+
   // ── Story 5.2 — Fill animation state ─────────────────────────────────
   /** Per-stock animated fill ratios for smooth fill/shrink transitions.
    *  Keyed by stock node id, value is the currently-displayed fill ratio (0.0–1.0+).
@@ -329,6 +337,8 @@ export class SceneRenderer {
 
   private tick(): void {
     const now = performance.now();
+    // Story 7.5: Record frame timestamp for P95 computation (first line, minimal overhead)
+    if (this.performanceMonitor) this.performanceMonitor.recordFrame(now);
     const rawDt = this.lastFrameTime > 0 ? (now - this.lastFrameTime) / 1000 : 1 / 60;
     this.lastFrameTime = now;
     // Clamp dt to avoid spiral of death (e.g. tab was backgrounded) and guard against negative values
@@ -361,6 +371,13 @@ export class SceneRenderer {
     this.drawConfetti();        // Story 5.5 AC1: confetti above particles, below tooltip
     // Story 5.4 AC3: tooltip drawn last, on top of everything, in screen space
     this.drawHoverTooltip();
+    // Story 7.5: Degradation mode indicator (bottom-left corner, screen space)
+    if (this.performanceMonitor) {
+      const degMode = this.performanceMonitor.getDegradationMode();
+      if (degMode !== 'full') {
+        this.drawDegradationIndicator(degMode);
+      }
+    }
   }
 
   // ── Story 5.4 — Hover Tooltip ────────────────────────────────────────
@@ -1107,8 +1124,14 @@ export class SceneRenderer {
     const particleState = this.particleStateProvider?.();
     if (!particleState) return;
     if (!this.graphState) return;
+
+    // Story 7.5: Check degradation mode from PerformanceMonitor
+    const mode = this.performanceMonitor?.getDegradationMode() ?? 'full';
+    if (mode === 'off') return; // AC4: particles disabled entirely — only connection arrows remain
+
     const { ctx } = this;
     ctx.save();
+    let particleIndex = 0; // Story 7.5: for sparse mode skipping
     for (const [connId, particles] of particleState.particlesByConnection) {
       if (particles.length === 0) continue;
       const conn = this.graphState.connections[connId];
@@ -1120,6 +1143,12 @@ export class SceneRenderer {
       const toEdge = getEdgePoint(toNode, fromNode.position);
       if (fromEdge.x === toEdge.x && fromEdge.y === toEdge.y) continue;
       for (const p of particles) {
+        // AC3: Sparse mode — render every other particle only
+        if (mode === 'sparse' && particleIndex % 2 !== 0) {
+          particleIndex++;
+          continue;
+        }
+        particleIndex++;
         // Linear interpolation along connection path
         const x = fromEdge.x + (toEdge.x - fromEdge.x) * p.t;
         const y = fromEdge.y + (toEdge.y - fromEdge.y) * p.t;
@@ -1130,6 +1159,34 @@ export class SceneRenderer {
         ctx.fill();
       }
     }
+    ctx.restore();
+  }
+
+  // ── Story 7.5 — Degradation Indicator ─────────────────────────────
+
+  /**
+   * Story 7.5 AC3/AC4 — Draw particle degradation indicator in bottom-left corner.
+   * Must reset the transform — drawFrame() applies viewport transform,
+   * but the indicator renders in fixed screen space.
+   */
+  private drawDegradationIndicator(mode: 'sparse' | 'off'): void {
+    const { ctx } = this;
+    const canvas = this.canvas;
+    const text = mode === 'sparse' ? '粒子: 稀疏' : '粒子: 已暂停';
+    const x = 12;
+    const y = canvas.height - 12;
+    ctx.save();
+    ctx.resetTransform(); // Switch to screen space (viewport transform is active from drawFrame)
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.textBaseline = 'bottom';
+    ctx.textAlign = 'left';
+    // Subtle dark background for readability
+    const metrics = ctx.measureText(text);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(x - 4, y - 14, metrics.width + 8, 18);
+    // Text color: amber for sparse, red for off
+    ctx.fillStyle = mode === 'sparse' ? 'rgba(255, 183, 77, 0.9)' : 'rgba(239, 83, 80, 0.9)';
+    ctx.fillText(text, x, y);
     ctx.restore();
   }
 
