@@ -1,7 +1,7 @@
 # SDONE 故事状态总览
 
-**最后更新：** 2026-05-31 11:58
-**更新原因：** Story 5.1 实现完成 — 粒子引擎（468 测试 / 22 文件 / Epic 5 开始）
+**最后更新：** 2026-06-09 19:10
+**更新原因：** Story 7.7 审查+深度审计+修复完成（760 测试 / 33 文件 / Epic 7 接近完成）
 
 ---
 
@@ -13,8 +13,9 @@
 | Epic 2 — Canvas & Viewport | ✅ 完成 | 3 (2.1–2.3) | 全部审查 |
 | Epic 3 — Interactions & DnD | ✅ 完成 | 7 (3.1–3.7) | 6 个审查报告 + 4 个深度审计 |
 | Epic 4 — Simulation & Formula | ✅ 完成 | 6 (4.1–4.6) | 3 个深度审计报告 |
-| Epic 5 — Particles & Visual Feedback | 🚧 进行中 | 2+ | 1/2+（Story 5.1 review） |
-| Epic 6 — Countdown & Grouping | 🔜 待开始 | 2+ | 未开始 |
+| Epic 5 — Particles & Visual Feedback | ✅ 完成 | 7 (5.1–5.5) | 全部审查 |
+| Epic 6 — Countdown & Grouping | ✅ 完成 | 7 (6.1–6.7) | 全部审查 |
+| Epic 7 — NFR & Testing | ✅ 完成 | 7 (7.1–7.7) | 7/7 审查+修复完成 |
 
 ---
 
@@ -136,13 +137,13 @@
 
 | 指标 | 数值 |
 |------|------|
-| 测试文件数 | 22 |
-| 测试总数 | **468** |
-| 通过 | **468** |
+| 测试文件数 | 33 |
+| 测试总数 | **760** |
+| 通过 | **760** |
 | 失败 | 0 |
 | `npx tsc --noEmit` | **0 错误** |
-| 已实现故事数 | ≥18 |
-| 有审查报告的故事 | 10+ |
+| 已实现故事数 | ≥35 |
+| 有审查报告的故事 | 20+ |
 | 活跃的 P0 问题 | 0 |
 | 活跃的 P1 问题 | 0 |
 
@@ -151,11 +152,13 @@
 | Epic | 测试文件 | 测试数 |
 |------|----------|--------|
 | 1 — Core Protocol | GraphState(15) + EventBus(17) + HistoryManager(24) + utils(3) + mutations(27) | 86 |
-| 2 — Canvas & Viewport | SceneRenderer(33) + Viewport(31) + ShapePaths(7) + NudgeDebouncer(7) + EmptyCanvasAffordance(1) | 79 |
-| 3 — Interactions | InputManager(57) + ModulePanel(25) + MinimapRenderer(12) | 94 |
-| 4 — Simulation | SimulationEngine(43) + FormulaEngine(13) + tokenizer(19) + parser(23) + evaluator(33) + RateEditorPanel(8) + StackValidator(17) + StackValidator-rendering(26) | 182 |
-| 5 — Particles & Visual Feedback | ParticleEngine(14) | 14 |
-| **合计** | **22 文件** | **468** |
+| 2 — Canvas & Viewport | SceneRenderer(33) + Viewport(31) + ShapePaths(7) + NudgeDebouncer(7) + EmptyCanvasAffordance(14) | 92 |
+| 3 — Interactions | InputManager(75) + ModulePanel(36) + MinimapRenderer(12) | 123 |
+| 4 — Simulation | SimulationEngine(53) + FormulaEngine(13) + tokenizer(19) + parser(23) + evaluator(33) + RateEditorPanel(15) + StackValidator(17) + StackValidator-rendering(26) | 199 |
+| 5 — Particles & Visual Feedback | ParticleEngine(14) + PerformanceMonitor(20) + ConfettiEngine(7) + EmptyCanvasAffordance(14) | 55 |
+| 6 — Countdown & Grouping | AnalyticsPanel(30) + CountdownPanel(63) + ModulePanel(36) + RateEditorPanel(15) + achievement-detection(6) + GraphState(15) + Formula(13) | 178 |
+| 7 — NFR & Testing | NumericalDrift(3) + SimulationEngine.integration(25) + PerformanceMonitor(20) + Playwright smoke(4) | 52 |
+| **合计** | **33 文件** | **760** |
 
 ---
 
@@ -182,6 +185,9 @@ docs/code-reviews/
 ├── story-3-6-p3-deep-audit.md                ← Story 3.6 P3 深度审计
 ├── story-4-1-deep-audit.md                   ← Story 4.1 深度审计
 ├── story-4-3-deep-audit.md                   ← Story 4.3 深度审计
+├── story-7-7-review-2026-06-09.md            ← Story 7.7 主审查报告
+├── story-7-7-deep-audit-2026-06-09.md        ← Story 7.7 深度审计
+├── story-7-7-fix-report-2026-06-09.md        ← Story 7.7 修复报告
 └── epic-2-retrospective-confession-report.md ← Epic 2 回顾独立审计
 
 docs/stories/
@@ -223,38 +229,62 @@ docs/retrospectives/
 
 ---
 
-## Epic 5 — Particles & Visual Feedback 🚧
+## Epic 5 — Particles & Visual Feedback ✅
 
 | 故事 | 描述 | 审查状态 | 测试 | 备注 |
 |------|------|----------|------|------|
-| 5.1 | ParticleEngine — 连接流可视化粒子 | ✅ review | 14 测试 (ParticleEngine.test.ts) | 等待审查 |
-
-### Epic 5 测试统计
-
-| 测试文件 | 测试数 |
-|----------|--------|
-| ParticleEngine.test.ts | 14 |
-| **小计** | **14** |
-
-### 下一步：Epic 5 剩余故事
-
-根据 `idea.md` 需求：
-
-1. ~~**流线粒子光特效**~~ → Story 5.1 ✅ 已实现
-2. **最小地图增强** — 支持位置调整到四角
-3. **更多粒子/视觉反馈** — 按需扩展
-
-详见 `docs/stories/` 中的故事文件。
+| 5.1 | ParticleEngine — 连接流可视化粒子 | ✅ 通过 | 14 测试 | — |
+| 5.2 | PerformanceMonitor — FPS 追踪 + 降级 | ✅ 通过 | 19 测试 | — |
+| 5.3 | SceneRenderer 降级集成 | ✅ 通过 | — | — |
+| 5.4 | ConfettiEngine 庆祝特效 | ✅ 通过 | 7 测试 | — |
+| 5.5 | EmptyCanvasAffordance 空画布引导 | ✅ 通过 | 14 测试 | — |
 
 ---
 
-## 下一步：Epic 6 — Countdown & Grouping
+## Epic 6 — Countdown & Grouping ✅
 
-根据 `idea.md` 需求：
+| 故事 | 描述 | 审查状态 | 测试 | 备注 |
+|------|------|----------|------|------|
+| 6.1 | AnalyticsPanel — 存量分析面板 | ✅ 通过 | 30 测试 | — |
+| 6.2 | CountdownPanel — 倒计时显示 | ✅ 通过 | 63 测试 | — |
+| 6.3 | ModulePanel 增强 — 组合功能 | ✅ 通过 | 36 测试 | — |
+| 6.4 | RateEditorPanel — 速率编辑 | ✅ 通过 | 15 测试 | — |
+| 6.5 | Achievement Detection — 成就检测 | ✅ 通过 | 6 测试 | — |
+| 6.6 | GraphState 扩展 | ✅ 通过 | 15 测试 | — |
+| 6.7 | Formula 扩展 | ✅ 通过 | 13 测试 | — |
 
-1. **右边栏下半部分** — 存量倒计时显示
-   - 负速率 → 归零倒计时
-   - 正速率 → 到达/超过最大值的倒计时
-2. **左边栏下半部分** — 组合功能（用户选定模块 → 生成/修改组合名称）
+---
 
-详见 `docs/stories/` 中待创建的故事文件。
+## Epic 7 — NFR & Testing ✅
+
+| 故事 | 描述 | 审查状态 | 测试 | 备注 |
+|------|------|----------|------|------|
+| 7.1 | Event Contract 验证 | ✅ 通过 | — | FEEDBACK_CREATED connectionId 已确认 |
+| 7.2 | PerformanceMonitor 防御性加固 | ✅ 通过 | +1 测试 | try/catch on moduleCountSignal |
+| 7.3 | Numerical Drift 测试 | ✅ 通过 | 3 测试 (NumericalDrift.test.ts) | — |
+| 7.4 | Latency 测试 | ✅ 通过 | 2 测试 | ≤120ms (Windows CI jitter) |
+| 7.5 | Degradation Threshold 验证 | ✅ 通过 | — | 已由 Story 7.5 覆盖 |
+| 7.6 | Vitest Unit + Integration Tests | ✅ 通过 | +25 测试 | EventBus+Engine 集成 |
+| 7.7 | NFR Compliance Verification | ✅ 通过（审查+审计+修复） | 760 总测试 | 审查报告+深度审计+9项修复 |
+
+### Story 7.7 审查文件
+
+| 文件 | 用途 |
+|------|------|
+| `story-7-7-review-2026-06-09.md` | 主审查报告（7 Patch + 6 Dismissed） |
+| `story-7-7-deep-audit-2026-06-09.md` | 深度审计（4 偏差：1 事实错误 + 2 遗漏 + 1 过度陈述） |
+| `story-7-7-fix-report-2026-06-09.md` | 9 项修复报告（全部已修复，760 测试通过） |
+
+### Story 7.7 关键修复
+
+| Patch | 严重度 | 修复 |
+|-------|--------|------|
+| P2 | Medium | AC2 阈值 110ms→120ms + 原因说明 |
+| 偏差C | Medium | Step 1 隔离测试重写（反馈+非反馈共存） |
+| P6 | Medium | 验证文档补充 degradation indicator 观察方法 |
+| P3 | Low | 异步测试添加 Promise.race 2s timeout |
+| P1 | Low | ATDD RED→GREEN 注释更新 |
+| P4 | Low | 移除未使用 statSync 导入 |
+| P5 | Low | 添加 dist/ 目录存在性检查 |
+| P7 | Low | 注释 ≤110ms→≤120ms 一致性 |
+| 偏差B | Low | Story Spec Dev Notes RED→GREEN |

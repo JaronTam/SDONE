@@ -346,3 +346,30 @@ describe('Story 7.5: PerformanceMonitor — edge cases', () => {
     perf.spy.mockRestore();
   });
 });
+
+// =============================================================================
+// Story 7.7 — Task 7.2: Defensive try/catch on moduleCountSignal
+// =============================================================================
+
+describe('Story 7.7 — Task 7.2: Defensive try/catch on moduleCountSignal', () => {
+  it('survives throwing moduleCountSignal without crashing', () => {
+    const monitor = new PerformanceMonitor(() => {
+      throw new Error('boom');
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // recordFrame(0): elapsed=0 < P95_INTERVAL_MS(2000) → no recompute
+    monitor.recordFrame(0);
+
+    // recordFrame(2000): elapsed=2000 >= P95_INTERVAL_MS(2000) → recompute fires
+    // → moduleCountSignal() throws → try/catch should catch it
+    monitor.recordFrame(2000);
+
+    // Should not throw — degradation mode stays at default ('full')
+    expect(monitor.getDegradationMode()).toBe('full');
+
+    // Should have logged a warning about the throwing signal
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+});

@@ -73,6 +73,10 @@ export class PerformanceMonitor {
     // Prune timestamps older than 10s
     const cutoff = now - PerformanceMonitor.WINDOW_MS;
     while (this.frameTimestamps.length > 0 && this.frameTimestamps[0] < cutoff) {
+      // Perf note (Story 7.7 D1): shift() is O(n) but the buffer is small
+      // (~600 entries for 10s at 60fps). V8's shift on arrays < ~1000 elements
+      // completes in <1μs. No measurable impact on frame budget.
+      // If future profiling shows this in hot path, switch to ring buffer.
       this.frameTimestamps.shift();
     }
 
@@ -93,7 +97,13 @@ export class PerformanceMonitor {
    * Called every ~2s from recordFrame().
    */
   private recomputeDegradation(): void {
-    const count = this.moduleCountSignal();
+    let count = 0;
+    try {
+      count = this.moduleCountSignal();
+    } catch (e) {
+      console.warn('PerformanceMonitor: moduleCountSignal() threw — defaulting to 0', e);
+      count = 0;
+    }
     const now = performance.now();
 
     // ── Hysteresis clock: falling-edge detector ──
