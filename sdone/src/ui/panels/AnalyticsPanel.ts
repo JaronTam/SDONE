@@ -30,7 +30,7 @@ export interface StockAnalytics {
   netChange: number;
   /** Current accumulated value. */
   currentValue: number;
-  /** Maximum capacity (Infinity if uncapped). */
+  /** Maximum capacity (always a finite positive number). */
   capacity: number;
 }
 
@@ -88,7 +88,12 @@ export class AnalyticsPanel {
   private readonly _outflowEl: HTMLElement;
   private readonly _netEl: HTMLElement;
   private readonly _currentEl: HTMLElement;
-  private readonly _capacityEl: HTMLElement;
+  private readonly _capacityEl: HTMLInputElement;
+  private _lastValidCapacity: number | null = null;
+
+  /** Callback fired on Enter when user submits a new valid capacity value. */
+  onCapacitySubmit: ((newCapacity: number) => void) | null = null;
+
   // Story 7.3 AC4: Overflow display (cumulative max overflow during session)
   private readonly _overflowField: HTMLElement;
   private readonly _overflowValueEl: HTMLElement;
@@ -207,8 +212,27 @@ export class AnalyticsPanel {
     const capacityLabel = document.createElement('span');
     capacityLabel.className = 'analytics-panel__field-label';
     capacityLabel.textContent = '容量';
-    const capacityValue = document.createElement('span');
+    const capacityValue = document.createElement('input');
+    capacityValue.type = 'number';
+    capacityValue.min = '1';
+    capacityValue.step = '1';
     capacityValue.className = 'analytics-panel__field-value analytics-panel__field-value--capacity';
+    capacityValue.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const parsed = Number(capacityValue.value.trim());
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        capacityValue.value = this._lastValidCapacity !== null
+          ? String(this._lastValidCapacity) : '100';
+        capacityValue.classList.add('analytics-panel__field-value--error');
+        setTimeout(() => capacityValue.classList.remove('analytics-panel__field-value--error'), 1000);
+        return;
+      }
+      if (parsed === this._lastValidCapacity) return;
+      this._lastValidCapacity = parsed;
+      if (this.onCapacitySubmit) this.onCapacitySubmit(parsed);
+      capacityValue.blur();
+    });
     capacityField.appendChild(capacityLabel);
     capacityField.appendChild(capacityValue);
     dataEl.appendChild(capacityField);
@@ -299,12 +323,9 @@ export class AnalyticsPanel {
     // Current value
     this._currentEl.textContent = Number.isNaN(data.currentValue) ? '0.0' : data.currentValue.toFixed(1);
 
-    // Capacity: Infinity → "∞", finite → integer display
-    if (!Number.isFinite(data.capacity)) {
-      this._capacityEl.textContent = '∞';
-    } else {
-      this._capacityEl.textContent = data.capacity.toFixed(0);
-    }
+    // Capacity: always finite post-Infinity fix; editable via input
+    this._lastValidCapacity = data.capacity;
+    this._capacityEl.value = String(data.capacity.toFixed(0));
 
     // Story 7.3 AC4: Show overflow only if > 0.
     // Value is displayed without a sign prefix (e.g. "15.5"), with the

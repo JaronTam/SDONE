@@ -23,7 +23,7 @@ import type {
 // (copied from SimulationEngine.test.ts:15-55)
 // ---------------------------------------------------------------------------
 
-function makeStock(id: string, value = 0, capacity = Infinity): StockNode {
+function makeStock(id: string, value = 0, capacity = 100): StockNode {
   return {
     id,
     type: 'stock',

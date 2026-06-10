@@ -20,4 +20,5 @@ export {
   deleteConnection,
   updateRate,
   updateFormula,
+  updateCapacity,
 } from './mutations.js';

@@ -17,12 +17,14 @@ import './ui/panels/styles/countdown-panel.css'; // Story 6.3
 import './ui/overlays/styles/color-picker-popover.css';
 import './ui/overlays/styles/achievement-toast.css'; // Story 5.5
 import './ui/overlays/styles/modal-dialog.css'; // Story 6.1
+import './ui/overlays/styles/capacity-input-popover.css'; // Infinity fix
 import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, PerformanceMonitor, type ConfettiParticle } from './canvas/index.js';
 import { ModulePanel, RateEditorPanel, ControlBar, AnalyticsPanel, computeStockAnalytics, CountdownPanel, computeAllStockCountdowns, sortCountdownsByUrgency } from './ui/panels/index.js';
-import { ColorPickerPopover, AchievementToast, ModalDialog } from './ui/overlays/index.js';
+import { ColorPickerPopover, AchievementToast, ModalDialog, CapacityInputPopover } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
-import { moveModule, deleteModule, addModule, addConnection, addFeedbackConnection, deleteConnection, updateRate, updateFormula, changeModuleColor } from './state/mutations.js';
+import type { Vec2 } from './shared/Vec2.js';
+import { moveModule, deleteModule, addModule, addConnection, addFeedbackConnection, deleteConnection, updateRate, updateFormula, changeModuleColor, updateCapacity } from './state/mutations.js';
 import { detectFirstCompleteStack } from './state/achievement-detection.js';
 import { HistoryManager } from './state/HistoryManager.js';
 import { EventBus } from './event-bus/EventBus.js';
@@ -42,6 +44,9 @@ const achievementToast = new AchievementToast();
 
 // ── Story 5.3: Color Picker Popover ─────────────────────────────────────
 const colorPickerPopover = new ColorPickerPopover();
+
+// ── Infinity Fix: Capacity Input Popover ────────────────────────────────
+const capacityInputPopover = new CapacityInputPopover();
 
 // ── Story 6.1: Modal Dialog ──────────────────────────────────────────────
 const modalDialog = new ModalDialog();
@@ -102,6 +107,21 @@ sceneRenderer.performanceMonitor = perfMonitor;
 const minimapRenderer = new MinimapRenderer(minimapCanvas, viewportManager, sceneCanvas);
 minimapRenderer.nodesProvider = () => currentState.nodes;
 minimapRenderer.connectionsProvider = () => Object.values(currentState.connections);
+
+// ── UX-DR13: Minimap configurable corner position ──────────────────────
+// Double-click the minimap to cycle through four corners:
+// bottom-right → bottom-left → top-left → top-right → bottom-right
+const MINIMAP_POSITIONS = ['bottom-right', 'bottom-left', 'top-left', 'top-right'] as const;
+let minimapPositionIndex = 0;
+const minimapContainer = document.querySelector('.layer-minimap') as HTMLElement | null;
+const cycleMinimapPosition = () => {
+  if (!minimapContainer) return;
+  minimapPositionIndex = (minimapPositionIndex + 1) % MINIMAP_POSITIONS.length;
+  const pos = MINIMAP_POSITIONS[minimapPositionIndex];
+  for (const p of MINIMAP_POSITIONS) minimapContainer.classList.remove(`layer-minimap--${p}`);
+  minimapContainer.classList.add(`layer-minimap--${pos}`);
+};
+minimapContainer?.addEventListener('dblclick', cycleMinimapPosition);
 
 // ── Input Manager ─────────────────────────────────────────────────────
 const inputManager = new InputManager(sceneCanvas, viewportManager);
@@ -350,6 +370,46 @@ inputManager.onModuleNudge = (direction) => {
   minimapRenderer.markDirty();
 };
 
+// ── Infinity Fix: Shared module placement helper ──────────────────────
+// Consolidates 3 placement paths (drag-drop, click-to-place, center-place)
+// into a single helper that handles stock capacity popover vs immediate placement.
+
+function handleModulePlace(moduleType: ModuleType, worldPos: Vec2): void {
+  // sceneCanvas is guaranteed non-null by the guard at the top of this file.
+  const canvas = sceneCanvas!;
+  if (moduleType === 'stock') {
+    const canvasCenter = {
+      x: canvas.clientWidth / 2,
+      y: canvas.clientHeight / 2,
+    };
+    const screenPos = viewportManager.worldToScreen(worldPos, canvasCenter);
+    capacityInputPopover.onConfirm = (capacity: number) => {
+      currentState = addModule(currentState, 'stock', worldPos, capacity);
+      historyManager.push(currentState);
+      eventBus.emit('MODULE_PLACED', { type: 'stock', position: worldPos });
+      minimapRenderer.markDirty();
+      refreshCountdownPanels();
+      modulePanel.clearSelection();
+    };
+    capacityInputPopover.onCancel = () => {
+      modulePanel.clearSelection();
+    };
+    capacityInputPopover.open(screenPos.x, screenPos.y, 100);
+    return;
+  }
+
+  // Non-stock types: immediate placement
+  let nextState = addModule(currentState, moduleType, worldPos);
+  if (moduleType === 'source' || moduleType === 'sink') {
+    nextState = applyPaletteColor(currentState, nextState, moduleType);
+  }
+  currentState = nextState;
+  historyManager.push(currentState);
+  eventBus.emit('MODULE_PLACED', { type: moduleType, position: worldPos });
+  minimapRenderer.markDirty();
+  // clearSelection handled by each path wrapper
+}
+
 // ── Shared helper: assign next palette colour to a newly-created source/sink ──
 function applyPaletteColor(
   prevState: GraphState,
@@ -501,6 +561,7 @@ inputManager.onModuleDoubleClick = (moduleId: string) => {
 inputManager.onModulePlaceAtCenter = () => {
   const highlightedType = modulePanel.getSelectedType();
   if (!highlightedType) return; // AC4: no-op if no type highlighted
+  if (capacityInputPopover.isOpen) return; // 防止重复弹窗
 
   // Clear any pending DnD ghost so it doesn't linger after placement
   inputManager.ghostWorldPosition = null;
@@ -512,15 +573,7 @@ inputManager.onModulePlaceAtCenter = () => {
     y: sceneCanvas.clientHeight / 2,
   };
   const worldPos = viewportManager.screenToWorld(canvasCenter, canvasCenter);
-
-  let nextState = addModule(currentState, highlightedType as ModuleType, worldPos);
-  if (highlightedType === 'source' || highlightedType === 'sink') {
-    nextState = applyPaletteColor(currentState, nextState, highlightedType);
-  }
-
-  currentState = nextState;
-  historyManager.push(currentState);
-  eventBus.emit('MODULE_PLACED', { type: highlightedType as ModuleType, position: worldPos });
+  handleModulePlace(highlightedType as ModuleType, worldPos);
 };
 
 // ── Story 6.5: Click-to-place on empty canvas (AC2) ──────────────────
@@ -528,19 +581,8 @@ inputManager.onCanvasClickEmpty = (worldPos) => {
   const selectedType = modulePanel.getSelectedType();
   if (!selectedType) return; // No type selected → normal deselect flow
 
-  // Place module at click position
-  let nextState = addModule(currentState, selectedType as ModuleType, worldPos);
-  if (selectedType === 'source' || selectedType === 'sink') {
-    nextState = applyPaletteColor(currentState, nextState, selectedType);
-  }
-
-  currentState = nextState;
-  historyManager.push(currentState);
-  minimapRenderer.markDirty();
-  eventBus.emit('MODULE_PLACED', { type: selectedType as ModuleType, position: worldPos });
-
-  // Clear the icon selection so next click doesn't place another
-  modulePanel.clearSelection();
+  handleModulePlace(selectedType as ModuleType, worldPos);
+  if (selectedType !== 'stock') modulePanel.clearSelection();
 };
 
 // ── Story 2.2: Viewport Reset (Fit All) ───────────────────────────────
@@ -961,7 +1003,10 @@ void import.meta.hot?.dispose(() => {
   controlBar.destroy();    // Story 6.1: cleanup button listeners + status element
   modalDialog.destroy();   // Story 6.1: cleanup modal DOM + keyboard listeners
   colorPickerPopover.destroy();
+  capacityInputPopover.destroy(); // Infinity fix
   achievementToast.destroy(); // Story 5.5: clean up toast timers + DOM
+  // UX-DR13: Clean up minimap position cycle listener
+  minimapContainer?.removeEventListener('dblclick', cycleMinimapPosition);
   // Story 7.4: Remove save/rewind button event listeners
   if (btnSaveCheckpoint) {
     btnSaveCheckpoint.replaceWith(btnSaveCheckpoint.cloneNode(true));
@@ -1039,6 +1084,19 @@ const rateEditorPanel = new RateEditorPanel(rightSidebarContent);
 
 // ── Story 6.2: Right Sidebar Stock Analytics Panel ────────────────────
 const analyticsPanel = new AnalyticsPanel(rightSidebarContent);
+
+// Infinity Fix: Capacity edit callback
+analyticsPanel.onCapacitySubmit = (newCapacity: number) => {
+  const selectedId = currentState.selectedModuleIds[0];
+  if (!selectedId) return;
+  const nextState = updateCapacity(currentState, selectedId, newCapacity);
+  if (nextState.version === currentState.version) return;
+  currentState = nextState;
+  historyManager.push(currentState);
+  refreshAnalyticsPanel();
+  refreshCountdownPanels();
+  minimapRenderer.markDirty();
+};
 
 // ── Story 6.3 → 7.2: Right Sidebar Countdown Timer Panel ─────────────
 const countdownPanel = new CountdownPanel(rightSidebarContent);
@@ -1343,23 +1401,7 @@ minimapRenderer.ghostProvider = () => {
 // onModuleDrop: push history snapshot, create module, assign palette colour,
 // emit MODULE_PLACED event, and renderers pick up on next rAF.
 inputManager.onModuleDrop = (moduleType, worldPos) => {
-  // Create new state
-  let nextState = addModule(currentState, moduleType as ModuleType, worldPos);
-
-  // Assign palette colour for source/sink (shared helper)
-  if (moduleType === 'source' || moduleType === 'sink') {
-    nextState = applyPaletteColor(currentState, nextState, moduleType);
-  }
-  // Stock modules: no colour property (white fill + black border per spec)
-
-  // Commit
-  currentState = nextState;
-
-  // POST-mutation push: stack top always reflects current state
-  historyManager.push(currentState);
-
-  // Emit MODULE_PLACED event
-  eventBus.emit('MODULE_PLACED', { type: moduleType as ModuleType, position: worldPos });
+  handleModulePlace(moduleType as ModuleType, worldPos);
 };
 
 // Start the render loops

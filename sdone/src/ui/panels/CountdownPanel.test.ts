@@ -49,7 +49,7 @@ function createGraphState(
         position: { x: 0, y: 0 },
         label: def.label,
         value: def.value ?? 0,
-        capacity: def.capacity ?? Infinity,
+        capacity: def.capacity ?? 100,
         initialValue: def.initialValue ?? 0,
       };
     } else {
@@ -360,20 +360,21 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
   });
 
-  // ── Infinite capacity ───────────────────────────────────────────────
+  // ── Stable state (replaces infinite capacity tests post-Infinity fix) ─
 
-  describe('infinite capacity', () => {
-    it('to-capacity with Infinity capacity → "∞", unit hidden', () => {
+  describe('stable state', () => {
+    it('stable direction with no connections → "—", unit hidden', () => {
       panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
+        direction: 'stable',
         remainingSeconds: null,
-        capacity: Infinity,
-        netRate: 5,
+        capacity: 100,
+        netRate: 0,
+        hasConnections: false,
       })]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
-      expect(timeEl.textContent).toBe('∞');
+      expect(timeEl.textContent).toBe('—');
       expect(unitEl.style.display).toBe('none');
     });
   });
@@ -606,15 +607,15 @@ describe('computeStockCountdown (Story 6.3)', () => {
     expect(result!.remainingSeconds).toBeCloseTo((100 - 30) / 5);
   });
 
-  it('stock with infinite capacity, netRate=5 → direction=to-capacity, remainingSeconds=null', () => {
+  it('stock with capacity=100, value=30, netRate=5 → direction=to-capacity, remainingSeconds=14', () => {
     const state = createGraphState(
-      { 'source-1': { type: 'source' }, 'stock-1': { type: 'stock', value: 30, capacity: Infinity } },
+      { 'source-1': { type: 'source' }, 'stock-1': { type: 'stock', value: 30, capacity: 100 } },
       { 'conn-1': { fromId: 'source-1', toId: 'stock-1', rate: 5 } },
     );
     const result = computeStockCountdown(state, 'stock-1');
     expect(result).not.toBeNull();
     expect(result!.direction).toBe('to-capacity');
-    expect(result!.remainingSeconds).toBeNull();
+    expect(result!.remainingSeconds).toBe(14); // (100 - 30) / 5 = 14
   });
 
   it('stock with value=0, netRate=-5 → direction=to-zero, remainingSeconds=0', () => {
@@ -663,7 +664,7 @@ describe('computeStockCountdown (Story 6.3)', () => {
 
   it('empty connections → netRate=0, direction=stable, hasConnections=false', () => {
     const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: Infinity } },
+      { 'stock-1': { type: 'stock', value: 0, capacity: 100 } },
     );
     const result = computeStockCountdown(state, 'stock-1');
     expect(result).not.toBeNull();
@@ -691,7 +692,7 @@ describe('computeStockCountdown (Story 6.3)', () => {
 
   it('stock with custom label → label field preserves custom label', () => {
     const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: Infinity, label: 'Water' } },
+      { 'stock-1': { type: 'stock', value: 0, capacity: 100, label: 'Water' } },
     );
     const result = computeStockCountdown(state, 'stock-1');
     expect(result).not.toBeNull();
@@ -835,16 +836,14 @@ describe('sortCountdownsByUrgency (Story 7.2)', () => {
     expect(sorted[1].label).toBe('Zeta');
   });
 
-  it('infinite capacity (null, to-capacity) between active and stable', () => {
+  it('stable state sorts after active countdowns', () => {
     const data = [
       createStockCountdown({ stockId: 's1', label: 'Stable', remainingSeconds: null, direction: 'stable', netRate: 0 }),
-      createStockCountdown({ stockId: 's2', label: 'Infinite', remainingSeconds: null, direction: 'to-capacity', capacity: Infinity, netRate: 5 }),
-      createStockCountdown({ stockId: 's3', label: 'Active', remainingSeconds: 10.0, direction: 'to-capacity' }),
+      createStockCountdown({ stockId: 's2', label: 'Active', remainingSeconds: 10.0, direction: 'to-capacity' }),
     ];
     const sorted = sortCountdownsByUrgency(data);
     expect(sorted[0].label).toBe('Active');
-    expect(sorted[1].label).toBe('Infinite');
-    expect(sorted[2].label).toBe('Stable');
+    expect(sorted[1].label).toBe('Stable');
   });
 
   it('does not mutate input array', () => {

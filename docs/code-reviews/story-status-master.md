@@ -15,7 +15,7 @@
 | Epic 4 — Simulation & Formula | ✅ 完成 | 6 (4.1–4.6) | 3 个深度审计报告 |
 | Epic 5 — Particles & Visual Feedback | ✅ 完成 | 7 (5.1–5.5) | 全部审查 |
 | Epic 6 — Countdown & Grouping | ✅ 完成 | 7 (6.1–6.7) | 全部审查 |
-| Epic 7 — NFR & Testing | ✅ 完成 | 7 (7.1–7.7) | 7/7 审查+修复完成 |
+| Epic 7 — NFR & Testing | ✅ 完成 | 7 (7.1–7.7) | 7/7 审查+修复完成（7.8 部署上云 → V2） |
 
 ---
 

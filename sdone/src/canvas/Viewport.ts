@@ -35,11 +35,16 @@ export const DEFAULT_VIEWPORT: Viewport = {
  * for screen ↔ world coordinate conversion.
  */
 export class ViewportManager {
-  /** Current viewport state. Mutated by pan/zoom/reset. */
-  public viewport: Viewport;
+  /** Current viewport state. Mutated internally by pan/zoom/reset. */
+  private _viewport: Viewport;
+
+  /** Read-only access to the current viewport state. */
+  public get viewport(): Viewport {
+    return this._viewport;
+  }
 
   constructor(initial?: Partial<Viewport>) {
-    this.viewport = {
+    this._viewport = {
       offset: initial?.offset ?? vec2(0, 0),
       zoom: initial?.zoom ?? 1.0,
     };

@@ -2,14 +2,10 @@ import type { Vec2 } from '../shared/Vec2.js';
 import { vec2, distance } from '../shared/Vec2.js';
 import type { ViewportManager } from '../canvas/Viewport.js';
 import type { ModuleNode, Connection, StockNode } from '../state/GraphState.js';
-import { getHitRadius, getEdgePoint, STOCK_WIDTH, STOCK_HEIGHT, FEEDBACK_HANDLE_RADIUS, FEEDBACK_ARC_OFFSET } from '../canvas/SceneRenderer.js';
+import { getHitRadius, getVisualEdgeDistance, getEdgePoint, STOCK_WIDTH, STOCK_HEIGHT, FEEDBACK_HANDLE_RADIUS, FEEDBACK_ARC_OFFSET } from '../canvas/SceneRenderer.js';
 
 /** Minimum screen-pixel distance before a mousedown becomes a drag. */
 const DRAG_THRESHOLD_PX = 4;
-
-/** Fraction of hit-radius inside which a click selects/moves the module.
- *  Outside this fraction but within the full hit-radius starts an edge-drag. */
-const EDGE_ZONE_INNER_FRACTION = 0.7;
 
 /** Story 3.6 AC2 — Snap zone radius in screen pixels (~20px from module edge). */
 const SNAP_RADIUS_PX = 20;
@@ -92,7 +88,7 @@ export function isEditingTarget(target: EventTarget | null): boolean {
  *   - drop → create new module at world position
  *
  * Story 3.6 — Edge-drag connection creation:
- *   - Left-click on module edge zone (outer 30%) → start connection drag
+ *   - Left-click on module edge zone (outside visual shape) → start connection drag
  *   - Drag to another module's hit zone → create directed connection
  *   - Esc during drag → cancel
  *   - Rubber-band preview line data exposed via connectionDragWorldPosition
@@ -119,9 +115,14 @@ export class InputManager {
   // ── Click-vs-drag disambiguation ──────────────────────────────
   private mouseDownPos: Vec2 = vec2(0, 0);
   private mouseDownModuleId: string | null = null;
-  /** True if the mouse-down was in the edge zone (outer 30%), meaning
+  /** True if the mouse-down was in the edge zone (outside visual shape core), meaning
    *  the drag should create a connection rather than move the module. */
   private mouseDownInEdgeZone = false;
+  /** True if the most recent mousedown that this manager saw was on the canvas.
+   *  Guards handleMouseUp against processing clicks that originated outside the
+   *  canvas (e.g. sidebar panels) — without this, a click on the rate-editor
+   *  input would be misrouted as "clicked empty canvas" and deselect everything. */
+  private _mouseDownOnCanvas = false;
 
   // ── Story 3.6: Edge-drag connection state ─────────────────────
   private isDraggingConnection = false;
@@ -397,6 +398,7 @@ export class InputManager {
     this.dragModuleId = null;
     this.mouseDownModuleId = null;
     this.mouseDownInEdgeZone = false;
+    this._mouseDownOnCanvas = false;
     this.ghostModuleType = null;
     this.ghostWorldPosition = null;
     // Story 3.6 — cancel connection drag on blur
@@ -442,13 +444,13 @@ export class InputManager {
   }
 
   /**
-   * Story 3.6 — Determine whether a screen point is in the *inner zone*
-   * (core click area) or the *edge zone* (connection drag area) of a module.
+   * Classify a screen-space point relative to a module's hit-test zones.
    *
-   * Returns:
-   *   - 'none'   if outside the full hit-radius
-   *   - 'inner'  if within EDGE_ZONE_INNER_FRACTION of the hit-radius → select/move
-   *   - 'edge'   if between inner zone and full hit-radius → connection drag
+   * Uses the VISUAL shape edge (getVisualEdgeDistance) as the inner/edge
+   * boundary rather than a single fraction of the hit radius.  This ensures
+   * that clicks on the visible module shape are always "inner" (select/move)
+   * and clicks in the halo between the visual edge and the hit radius are
+   * "edge" (connection drag).
    */
   private classifyHitZone(moduleId: string, screenPos: Vec2): 'none' | 'inner' | 'edge' {
     const nodes = this.nodesProvider?.();
@@ -461,11 +463,17 @@ export class InputManager {
     const worldPos = vec2(node.position.x, node.position.y);
     const screenPosOfNode = this.viewportManager.worldToScreen(worldPos, canvasCenter);
     const hitRadius = getHitRadius(node.type);
-    const zoomedRadius = hitRadius * this.viewportManager.viewport.zoom;
+    const zoomedHitRadius = hitRadius * this.viewportManager.viewport.zoom;
     const dist = distance(screenPos, screenPosOfNode);
 
-    if (dist > zoomedRadius) return 'none';
-    if (dist <= zoomedRadius * EDGE_ZONE_INNER_FRACTION) return 'inner';
+    if (dist > zoomedHitRadius) return 'none';
+
+    // The inner zone is the visible shape extent (with a small margin).
+    // Everything between the visual edge and the hit radius is the edge zone.
+    const visualEdge = getVisualEdgeDistance(node.type);
+    const zoomedVisualEdge = visualEdge * this.viewportManager.viewport.zoom;
+
+    if (dist <= zoomedVisualEdge) return 'inner';
     return 'edge';
   }
 
@@ -717,6 +725,7 @@ export class InputManager {
 
     // ── Story 2.3 + 3.6 + 7.1: Left-click on canvas → check hits ──
     if (e.button === 0) {
+      this._mouseDownOnCanvas = true;
       const screenPos = vec2(e.clientX, e.clientY);
 
       // Story 7.1: Check feedback handle hit FIRST (highest priority)
@@ -953,6 +962,12 @@ export class InputManager {
 
     // ── Story 2.3: Module click / drag release ──────────────────
     if (e.button === 0) {
+      // Guard: ignore mouseup if the mousedown did not originate on the
+      // canvas (e.g. click on sidebar panels). Without this, a click on
+      // the rate-editor input fires onModuleSelect(null) and hides the form.
+      if (!this._mouseDownOnCanvas) return;
+      this._mouseDownOnCanvas = false;
+
       if (this.isDraggingModule) {
         // Drag finished — fire end callback with final position
         const moduleId = this.dragModuleId;
@@ -1205,6 +1220,7 @@ export class InputManager {
     this.dragModuleWorldStart = null;
     this.mouseDownModuleId = null;
     this.mouseDownInEdgeZone = false;
+    this._mouseDownOnCanvas = false;
     if (this.isDraggingConnection) {
       this.cancelConnectionDrag();
     }

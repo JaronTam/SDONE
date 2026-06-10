@@ -99,6 +99,41 @@ export function getHitRadius(moduleType: string): number {
   }
 }
 
+/**
+ * Return the visual shape boundary distance from center for each module type.
+ *
+ * Used by InputManager.classifyHitZone to distinguish "inner" (select/move)
+ * from "edge" (connection-drag start) clicks.
+ *
+ * The returned value is deliberately SMALLER than the visible shape extent
+ * so that the outer ring of the visible module is classified as "edge".
+ * Users expect to click near the module edge and drag; a boundary exactly
+ * at the visual contour makes that impossible because the click lands ON
+ * the shape (inner zone).  The inner zone is the CORE of the module.
+ *
+ * For stocks we use a fraction of the shorter half-dimension so both
+ * horizontal and vertical edges are reachable with the circular approximation.
+ */
+export function getVisualEdgeDistance(moduleType: string): number {
+  switch (moduleType) {
+    case 'source':
+      // Visual cloud radius = 16 px.  Inner core = 12 px;
+      // 4 px outer ring (12–16) + invisible halo (16–32) = edge zone.
+      return SOURCE_CLOUD_RADIUS - 4;
+    case 'stock':
+      // Visual bounds 120×80 → shorter half-dimension = 40 px.
+      // Inner core = 28 px; left/right edges (60 px) and top/bottom
+      // edges (40 px) are all in the edge zone.
+      return Math.min(STOCK_WIDTH, STOCK_HEIGHT) / 2 - 12;
+    case 'sink':
+      // Visual funnel radius = 24 px.  Inner core = 16 px;
+      // 8 px outer ring (16–24) = edge zone.
+      return SINK_RADIUS - 8;
+    default:
+      return SINK_RADIUS - 8;
+  }
+}
+
 export function getModuleBoundingRadius(node: { type: string }): number {
   switch (node.type) {
     case 'source':
@@ -555,7 +590,19 @@ export class SceneRenderer {
   private drawGrid(): void {
     const { ctx, canvas } = this;
     const { viewport } = this.viewportManager;
-    const spacing = 100;
+    // P2-2: Adaptive grid spacing — scale spacing with zoom so that
+    // extreme zoom-out doesn't produce thousands of grid lines.
+    // Target: ~8–20 screen-pixels between grid lines at any zoom level.
+    const BASE_SPACING = 100;
+    const MIN_SCREEN_PX = 8;
+    const screenSpacing = BASE_SPACING * viewport.zoom;
+    // If lines would be too close, multiply spacing by a power of 2
+    let spacing = BASE_SPACING;
+    if (screenSpacing < MIN_SCREEN_PX) {
+      const factor = Math.ceil(MIN_SCREEN_PX / screenSpacing);
+      // Round up to next power of 2 for clean grid alignment
+      spacing = BASE_SPACING * Math.pow(2, Math.ceil(Math.log2(factor)));
+    }
     const halfW = (canvas.width / 2) / viewport.zoom;
     const halfH = (canvas.height / 2) / viewport.zoom;
     const worldLeft = viewport.offset.x - halfW;
@@ -651,8 +698,9 @@ export class SceneRenderer {
     ctx.stroke();
     const targetRatio = computeFillRatio(node.value, node.capacity);
     const ratio = this.animatedFillRatios.get(node.id) ?? targetRatio;
-    // AC3: Infinity capacity → no fill. Guard fill drawing.
-    if (ratio > 0 && Number.isFinite(node.capacity) && node.capacity > 0) {
+    // capacity is always finite post-Infinity fix; node.capacity > 0 is retained
+    // as belt-and-suspenders (computeFillRatio already returns 0 when capacity ≤ 0)
+    if (ratio > 0 && node.capacity > 0) {
       ctx.save();
       ctx.beginPath();
       this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);

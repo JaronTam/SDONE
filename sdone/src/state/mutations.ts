@@ -46,7 +46,8 @@ function unchanged(state: GraphState): GraphState {
  *   The original `state` is NOT mutated.
  *
  * **Defaults by type:**
- *   - `stock`: `value: 0`, `capacity: Infinity`, `initialValue: 0`
+ *   - `stock`: `value: 0`, `capacity: 100` (overridable via `initialCapacity`),
+ *     `initialValue: 0`
  *   - `source`: no `color` property — the placement layer assigns color via palette cycling
  *   - `sink`:   no `color` property — same reasoning
  */
@@ -54,6 +55,7 @@ export function addModule(
   state: GraphState,
   type: ModuleType,
   position: Vec2,
+  initialCapacity?: number,
 ): GraphState {
   const id = crypto.randomUUID();
 
@@ -65,7 +67,13 @@ export function addModule(
         type: 'stock',
         position,
         value: 0,
-        capacity: Infinity,
+        // Defensive: ?? only guards null/undefined; explicit check prevents
+        // 0 (division-by-zero), NaN, Infinity, and negative values.
+        capacity: (initialCapacity !== undefined
+          && Number.isFinite(initialCapacity)
+          && initialCapacity > 0)
+          ? initialCapacity
+          : 100,
         initialValue: 0,
       } as StockNode;
       break;
@@ -307,6 +315,34 @@ export function changeModuleColor(
       ...state.nodes,
       [moduleId]: { ...existing, color },
     },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// updateCapacity
+// ---------------------------------------------------------------------------
+
+/**
+ * Update a stock module's capacity.
+ *
+ * @returns A NEW `GraphState` with updated capacity and `version` incremented.
+ *   Returns unchanged state if:
+ *   - stockId is not found or the node is not a stock
+ *   - capacity is not a finite positive number (0, negative, NaN, Infinity rejected)
+ */
+export function updateCapacity(
+  state: GraphState,
+  stockId: string,
+  capacity: number,
+): GraphState {
+  const node = state.nodes[stockId];
+  if (!node || node.type !== 'stock') return unchanged(state);
+  // Defensive validation: capacity must be a finite positive number.
+  // Prevents division-by-zero in feedback formula and re-introduction of Infinity.
+  if (!Number.isFinite(capacity) || capacity <= 0) return unchanged(state);
+  return {
+    ...bump(state),
+    nodes: { ...state.nodes, [stockId]: { ...node, capacity } as StockNode },
   };
 }
 

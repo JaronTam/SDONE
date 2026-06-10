@@ -3,12 +3,17 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { InputManager, pointToSegmentDistance } from './InputManager.js';
-import type { ViewportManager } from '../canvas/Viewport.js';
+import { ViewportManager, MIN_ZOOM } from '../canvas/Viewport.js';
 import { vec2 } from '../shared/Vec2.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Check if a number is close to target within tolerance (default 0.01). */
+function closeTo(value: number, target: number, tolerance = 0.01): boolean {
+  return Math.abs(value - target) <= tolerance;
+}
 
 interface MockCanvas extends HTMLCanvasElement {
   _listeners: Map<string, EventListener[]>;
@@ -30,6 +35,12 @@ function createMockCanvas(width = 800, height = 600): MockCanvas {
       const list = listeners.get(type) ?? [];
       const idx = list.indexOf(fn);
       if (idx >= 0) list.splice(idx, 1);
+    },
+    dispatchEvent(event: Event): boolean {
+      const type = event.type;
+      const list = listeners.get(type) ?? [];
+      for (const fn of list) fn(event);
+      return !event.defaultPrevented;
     },
     _listeners: listeners,
   } as unknown as MockCanvas;
@@ -605,12 +616,12 @@ describe('InputManager', () => {
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
       const startSpy = vi.fn();
       input.onConnectionDragStart = startSpy;
-      // Stock hit radius = 72px; inner fraction 0.7 → inner 50.4px, edge 50.4-72px
+      // Stock hit radius = 72px; visualEdgeDistance = 28px → inner 0-28px, edge 28-72px
       input.nodesProvider = () => ({
         node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
       });
 
-      // Click at 60px from center → within edge zone (50.4 < 60 ≤ 72)
+      // Click at 60px from center → within edge zone (28 < 60 ≤ 72)
       dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
       expect(input.isDraggingConnectionEdge).toBe(false);
 
@@ -633,11 +644,11 @@ describe('InputManager', () => {
         node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
       });
 
-      // Click at 30px from center → within inner zone (≤ 50.4px)
-      dispatchMouseEvent(canvas, 'mousedown', 0, 130, 100);
+      // Click at 20px from center → within inner zone (≤ 28px for stock)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 120, 100);
 
       const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 135, clientY: 100 })); // cross threshold
+      moveFn(new MouseEvent('mousemove', { clientX: 125, clientY: 100 })); // cross threshold
       expect(connStartSpy).not.toHaveBeenCalled();
       expect(moduleStartSpy).toHaveBeenCalledWith('node1');
 
@@ -1533,6 +1544,165 @@ describe('InputManager', () => {
     });
   });
 
+  // ── Story 3.3: Module placement edge cases ──────────────────────────
+
+  describe('module placement edge cases (Story 3.3)', () => {
+    it('onModuleDrop converts screen position to world correctly at zoom 2×', () => {
+      const realVM = new ViewportManager({ zoom: 2, offset: vec2(0, 0) });
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, realVM);
+      const dropSpy = vi.fn();
+      input.onModuleDrop = dropSpy;
+
+      // jsdom lacks DragEvent/DataTransfer — build a minimal mock
+      const dataStore: Record<string, string> = { 'application/x-sdone-module': 'stock' };
+      const mockDT = { getData: (k: string) => dataStore[k] ?? '', setData: (k: string, v: string) => { dataStore[k] = v; }, dropEffect: '' };
+      const dropEvent = new Event('drop', { cancelable: true }) as DragEvent;
+      Object.defineProperties(dropEvent, {
+        clientX: { value: 400 }, clientY: { value: 300 },
+        dataTransfer: { value: mockDT }, preventDefault: { value: () => {} },
+      });
+
+      const dropListeners = canvas._listeners.get('drop') ?? [];
+      for (const fn of dropListeners) fn(dropEvent);
+
+      expect(dropSpy).toHaveBeenCalledTimes(1);
+      const worldPos = dropSpy.mock.calls[0][1] as Vec2;
+      expect(closeTo(worldPos.x, 0)).toBe(true);
+      expect(closeTo(worldPos.y, 0)).toBe(true);
+
+      input.destroy();
+    });
+
+    it('onModuleDrop converts screen position to world correctly with offset', () => {
+      const realVM = new ViewportManager({ zoom: 1, offset: vec2(100, -50) });
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, realVM);
+      const dropSpy = vi.fn();
+      input.onModuleDrop = dropSpy;
+
+      const dataStore: Record<string, string> = { 'application/x-sdone-module': 'source' };
+      const mockDT = { getData: (k: string) => dataStore[k] ?? '', setData: (k: string, v: string) => { dataStore[k] = v; }, dropEffect: '' };
+      const dropEvent = new Event('drop', { cancelable: true }) as DragEvent;
+      Object.defineProperties(dropEvent, {
+        clientX: { value: 400 }, clientY: { value: 300 },
+        dataTransfer: { value: mockDT }, preventDefault: { value: () => {} },
+      });
+
+      const dropListeners = canvas._listeners.get('drop') ?? [];
+      for (const fn of dropListeners) fn(dropEvent);
+
+      expect(dropSpy).toHaveBeenCalledTimes(1);
+      const worldPos = dropSpy.mock.calls[0][1] as Vec2;
+      expect(closeTo(worldPos.x, 100)).toBe(true);
+      expect(closeTo(worldPos.y, -50)).toBe(true);
+
+      input.destroy();
+    });
+
+    it('onModuleDrop ignores invalid module type', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dropSpy = vi.fn();
+      input.onModuleDrop = dropSpy;
+
+      const dataStore: Record<string, string> = { 'application/x-sdone-module': 'invalid_type' };
+      const mockDT = { getData: (k: string) => dataStore[k] ?? '', setData: (k: string, v: string) => { dataStore[k] = v; }, dropEffect: '' };
+      const dropEvent = new Event('drop', { cancelable: true }) as DragEvent;
+      Object.defineProperties(dropEvent, {
+        clientX: { value: 400 }, clientY: { value: 300 },
+        dataTransfer: { value: mockDT }, preventDefault: { value: () => {} },
+      });
+
+      const dropListeners = canvas._listeners.get('drop') ?? [];
+      for (const fn of dropListeners) fn(dropEvent);
+
+      expect(dropSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('Enter key does NOT fire onModulePlaceAtCenter during connection drag', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.nodesProvider = () => ({
+        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
+      });
+
+      // Start connection drag from edge zone
+      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
+      expect(input.isDraggingConnectionEdge).toBe(true);
+
+      // Press Enter during connection drag — should NOT place module
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Enter' }),
+      );
+      expect(placeSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('onCanvasClickEmpty provides correct world position at min zoom', () => {
+      const realVM = new ViewportManager({ zoom: MIN_ZOOM, offset: vec2(0, 0) });
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, realVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      input.nodesProvider = () => ({});
+      input.connectionsProvider = () => ({});
+
+      // Click at screen center
+      dispatchMouseEvent(canvas, 'mousedown', 0, 400, 300);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 400, clientY: 300 }));
+
+      expect(clickEmptySpy).toHaveBeenCalledTimes(1);
+      const worldPos = clickEmptySpy.mock.calls[0][0] as Vec2;
+      // At MIN_ZOOM (0.1), screen center → world (0,0)
+      expect(closeTo(worldPos.x, 0, 0.1)).toBe(true);
+      expect(closeTo(worldPos.y, 0, 0.1)).toBe(true);
+
+      input.destroy();
+    });
+
+    it('onCanvasClickEmpty provides correct world position with large offset', () => {
+      const realVM = new ViewportManager({ zoom: 1, offset: vec2(5000, -3000) });
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, realVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      input.nodesProvider = () => ({});
+      input.connectionsProvider = () => ({});
+
+      // Click at screen center (400, 300) → world should be (5000, -3000)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 400, 300);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 400, clientY: 300 }));
+
+      expect(clickEmptySpy).toHaveBeenCalledTimes(1);
+      const worldPos = clickEmptySpy.mock.calls[0][0] as Vec2;
+      expect(closeTo(worldPos.x, 5000, 0.1)).toBe(true);
+      expect(closeTo(worldPos.y, -3000, 0.1)).toBe(true);
+
+      input.destroy();
+    });
+
+    it('onCanvasClickEmpty does NOT fire after drag beyond threshold', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      input.nodesProvider = () => ({});
+      input.connectionsProvider = () => ({});
+
+      // Mousedown at (200, 150), mouseup at (250, 200) — distance ~70px > 5px threshold
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 150);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 250, clientY: 200 }));
+
+      expect(clickEmptySpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
   // ── Story 6.5: onCanvasClickEmpty (click-to-place) ──────────────────
 
   describe('onCanvasClickEmpty (Story 6.5)', () => {
@@ -1608,6 +1778,45 @@ describe('InputManager', () => {
       dispatchMouseEvent(canvas, 'mousedown', 0, 200, 150);
       const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
       mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 250, clientY: 200 }));
+
+      expect(clickEmptySpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
+  // ── Regression: mouseup outside canvas (click on sidebar panels) ────
+
+  describe('mouseup guard — click originated outside canvas', () => {
+    it('should NOT fire onModuleSelect(null) on mouseup when mousedown did not originate on canvas', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      input.nodesProvider = () => ({});
+      input.connectionsProvider = () => ({});
+
+      // Simulate a click on the right sidebar (e.g. rate-editor input):
+      // mouse goes down outside canvas → no mousedown on canvas
+      // mouse goes up → window mouseup fires
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 900, clientY: 300 }));
+
+      // Should NOT fire any selection logic — the click originated outside the canvas
+      expect(selectSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('should NOT fire onCanvasClickEmpty on mouseup when mousedown did not originate on canvas', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const clickEmptySpy = vi.fn();
+      input.onCanvasClickEmpty = clickEmptySpy;
+      input.nodesProvider = () => ({});
+      input.connectionsProvider = () => ({});
+
+      // mouseup on window without prior canvas mousedown
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 500, clientY: 400 }));
 
       expect(clickEmptySpy).not.toHaveBeenCalled();
 

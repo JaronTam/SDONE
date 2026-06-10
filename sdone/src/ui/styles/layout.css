@@ -135,6 +135,36 @@ body {
   background: #1e1e2e;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   /* pointer-events: auto by default — minimap can receive events */
+  transition: right 0.25s ease, left 0.25s ease, top 0.25s ease, bottom 0.25s ease;
+}
+
+/* ── Story 7.7+ — UX-DR13: Minimap configurable corner positions ── */
+.layer-minimap--bottom-right {
+  right: 16px;
+  bottom: 16px;
+  left: auto;
+  top: auto;
+}
+
+.layer-minimap--bottom-left {
+  left: 16px;
+  bottom: 16px;
+  right: auto;
+  top: auto;
+}
+
+.layer-minimap--top-right {
+  right: 16px;
+  top: 16px;
+  left: auto;
+  bottom: auto;
+}
+
+.layer-minimap--top-left {
+  left: 16px;
+  top: 16px;
+  right: auto;
+  bottom: auto;
 }
 
 .layer-minimap canvas {

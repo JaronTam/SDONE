@@ -115,3 +115,26 @@
   color: #f59e0b; /* amber-500 */
   font-weight: 700;
 }
+
+/* capacity input styling */
+.analytics-panel__field-value--capacity {
+  background: transparent;
+  border: 1px solid #45475a;
+  border-radius: 3px;
+  padding: 1px 4px;
+  width: 56px;
+  text-align: right;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 14px;
+  transition: border-color 200ms ease;
+}
+.analytics-panel__field-value--capacity:focus {
+  border-color: #89b4fa;
+  outline: none;
+}
+.analytics-panel__field-value--error {
+  border-color: #f38ba8 !important;
+}

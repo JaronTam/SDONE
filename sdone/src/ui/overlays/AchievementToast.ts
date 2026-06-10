@@ -95,7 +95,11 @@ export class AchievementToast {
   dismissAll(): void {
     for (const entry of this.activeToasts) {
       clearTimeout(entry.timerId);
-      entry.el.remove();
+      // P2-4: parentNode check before DOM removal — defensive pattern
+      // consistent with ModalDialog.removeBackdrop()
+      if (entry.el.parentNode) {
+        entry.el.remove();
+      }
     }
     this.activeToasts = [];
   }

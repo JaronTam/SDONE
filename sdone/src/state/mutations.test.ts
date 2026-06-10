@@ -14,6 +14,7 @@ import {
   addConnection,
   deleteConnection,
   updateRate,
+  updateCapacity,
 } from './mutations.js';
 
 // ---------------------------------------------------------------------------
@@ -37,7 +38,7 @@ function withStock(state: GraphState, id: string, x = 0, y = 0): StockNode {
     type: 'stock',
     position: { x, y },
     value: 0,
-    capacity: Infinity,
+    capacity: 100,
     initialValue: 0,
   };
   state.nodes[id] = node;
@@ -100,7 +101,7 @@ describe('addModule', () => {
       type: 'stock',
       position: { x: 100, y: 200 },
       value: 0,
-      capacity: Infinity,
+      capacity: 100,
       initialValue: 0,
     });
 
@@ -208,7 +209,7 @@ describe('moveModule', () => {
       type: 'stock',
       position: { x: 300, y: 400 },
       value: 42,
-      capacity: Infinity,
+      capacity: 100,
       initialValue: 0,
     });
     expect(result.version).toBe(state.version + 1);
@@ -595,5 +596,141 @@ describe('edge cases', () => {
     const result = updateRate(state, 'c1', 2.718);
     expect(result.connections['c1'].formulaStr).toBe('2.718');
     expect(typeof result.connections['c1'].formulaStr).toBe('string');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Infinity Fix: updateCapacity mutation
+// ---------------------------------------------------------------------------
+
+describe('updateCapacity', () => {
+  it('updates capacity of a stock node', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateCapacity(state, 'st1', 500);
+    expect(result).not.toBe(state);
+    const updated = result.nodes['st1'] as StockNode;
+    expect(updated.capacity).toBe(500);
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('no-op if stock not found', () => {
+    const state = emptyState();
+    const result = updateCapacity(state, 'nonexistent', 500);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('no-op if node is not a stock (source)', () => {
+    const state = emptyState();
+    withSource(state, 'src1');
+    const result = updateCapacity(state, 'src1', 500);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('preserves other stock properties', () => {
+    const state = emptyState();
+    const stock = withStock(state, 'st1');
+    stock.value = 42;
+    const result = updateCapacity(state, 'st1', 500);
+    const updated = result.nodes['st1'] as StockNode;
+    expect(updated.value).toBe(42);
+    expect(updated.initialValue).toBe(0);
+    expect(updated.position).toEqual({ x: 0, y: 0 });
+  });
+
+  it('version monotonicity holds', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const r1 = updateCapacity(state, 'st1', 100);
+    const r2 = updateCapacity(r1, 'st1', 200);
+    expect(r2.version).toBeGreaterThan(r1.version);
+  });
+
+  // Defensive validation: reject invalid capacity values
+  it('no-op if capacity is 0 (division-by-zero prevention)', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateCapacity(state, 'st1', 0);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('no-op if capacity is negative', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateCapacity(state, 'st1', -5);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('no-op if capacity is NaN', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateCapacity(state, 'st1', NaN);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('no-op if capacity is Infinity (re-introduction prevention)', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateCapacity(state, 'st1', Infinity);
+    expect(result.version).toBe(state.version);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Infinity Fix: addModule initialCapacity parameter
+// ---------------------------------------------------------------------------
+
+describe('addModule with initialCapacity', () => {
+  it('default capacity is 100 when initialCapacity not provided', () => {
+    const state = emptyState();
+    const result = addModule(state, 'stock', { x: 0, y: 0 });
+    const stock = Object.values(result.nodes)[0] as StockNode;
+    expect(stock.capacity).toBe(100);
+  });
+
+  it('uses explicit initialCapacity when provided', () => {
+    const state = emptyState();
+    const result = addModule(state, 'stock', { x: 0, y: 0 }, 50);
+    const stock = Object.values(result.nodes)[0] as StockNode;
+    expect(stock.capacity).toBe(50);
+  });
+
+  it('source and sink modules are unaffected', () => {
+    const state = emptyState();
+    const r1 = addModule(state, 'source', { x: 0, y: 0 });
+    const source = Object.values(r1.nodes)[0];
+    expect(source.type).toBe('source');
+    const r2 = addModule(r1, 'sink', { x: 10, y: 10 });
+    const sink = Object.values(r2.nodes).find(n => n.type === 'sink');
+    expect(sink).toBeDefined();
+  });
+
+  // Defensive validation: initialCapacity ?? 100 does not protect 0/NaN/Infinity
+  it('falls back to 100 when initialCapacity is 0 (division-by-zero prevention)', () => {
+    const state = emptyState();
+    const result = addModule(state, 'stock', { x: 0, y: 0 }, 0);
+    const stock = Object.values(result.nodes)[0] as StockNode;
+    expect(stock.capacity).toBe(100);
+  });
+
+  it('falls back to 100 when initialCapacity is NaN', () => {
+    const state = emptyState();
+    const result = addModule(state, 'stock', { x: 0, y: 0 }, NaN);
+    const stock = Object.values(result.nodes)[0] as StockNode;
+    expect(stock.capacity).toBe(100);
+  });
+
+  it('falls back to 100 when initialCapacity is Infinity (re-introduction prevention)', () => {
+    const state = emptyState();
+    const result = addModule(state, 'stock', { x: 0, y: 0 }, Infinity);
+    const stock = Object.values(result.nodes)[0] as StockNode;
+    expect(stock.capacity).toBe(100);
+  });
+
+  it('falls back to 100 when initialCapacity is negative', () => {
+    const state = emptyState();
+    const result = addModule(state, 'stock', { x: 0, y: 0 }, -5);
+    const stock = Object.values(result.nodes)[0] as StockNode;
+    expect(stock.capacity).toBe(100);
   });
 });

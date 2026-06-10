@@ -41,7 +41,7 @@ export interface StockCountdown {
   direction: 'to-capacity' | 'to-zero' | 'stable';
   /** Current accumulated value. */
   currentValue: number;
-  /** Maximum capacity (Infinity if uncapped). */
+  /** Maximum capacity (always a finite positive number). */
   capacity: number;
   /** Whether the stock has at least one incoming or outgoing connection. Used for AC4 "--" vs full text. */
   hasConnections: boolean;
@@ -102,10 +102,8 @@ export function computeStockCountdown(
 
   if (netRate > 0) {
     direction = 'to-capacity';
-    // Infinite capacity → no meaningful countdown to infinity
-    remainingSeconds = Number.isFinite(stock.capacity)
-      ? (stock.capacity - stock.value) / netRate
-      : null;
+    // capacity is always finite post Infinity fix
+    remainingSeconds = (stock.capacity - stock.value) / netRate;
   } else if (netRate < 0) {
     direction = 'to-zero';
     remainingSeconds = Math.max(0, stock.value) / Math.abs(netRate);
@@ -151,9 +149,8 @@ export function computeAllStockCountdowns(state: GraphState): StockCountdown[] {
  * Sort order (composite comparator):
  * 1. Terminal states (remainingSeconds !== null && remainingSeconds <= 0) first
  * 2. Active countdowns (remainingSeconds > 0): shortest remaining first
- * 3. Infinite capacity (remainingSeconds === null && direction === 'to-capacity' && capacity === Infinity)
- * 4. Stable states (remainingSeconds === null && direction === 'stable'): last
- * 5. Within each group: alphabetical by label
+ * 3. Stable states (remainingSeconds === null && direction === 'stable'): last
+ * 4. Within each group: alphabetical by label
  *
  * Returns new array (does not mutate input).
  */
@@ -186,8 +183,7 @@ function getUrgencyGroup(cd: StockCountdown): number {
   // so urgency group matches what the user sees in the row.
   if (cd.remainingSeconds !== null && cd.remainingSeconds < 0.05) return 1; // terminal (display shows 已达上限/已归零)
   if (cd.remainingSeconds !== null && cd.remainingSeconds >= 0.05) return 2; // active
-  if (cd.remainingSeconds === null && cd.direction === 'to-capacity' && cd.capacity === Infinity) return 3; // infinite capacity
-  if (cd.remainingSeconds === null && cd.direction === 'stable') return 4; // stable
+  if (cd.remainingSeconds === null && cd.direction === 'stable') return 3; // stable
   // P6 fix: catch-all → stable (group 4) instead of infinite-capacity (group 3).
   // Unknown states should be deprioritized, not inserted mid-list.
   return 4;
@@ -352,10 +348,6 @@ export class CountdownPanel {
       timeSpan.textContent = data.remainingSeconds.toFixed(1);
       unitSpan.textContent = '秒';
       unitSpan.style.display = '';
-    } else if (data.remainingSeconds === null && data.direction === 'to-capacity' && data.capacity === Infinity) {
-      // Infinite capacity with positive rate
-      timeSpan.textContent = '∞';
-      unitSpan.style.display = 'none';
     } else if (data.remainingSeconds === null && data.direction === 'stable') {
       // Stable
       unitSpan.style.display = 'none';

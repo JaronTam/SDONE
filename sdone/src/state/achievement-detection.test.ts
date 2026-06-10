@@ -16,7 +16,7 @@ function makeState(
         position: n.position,
         value: 0,
         initialValue: 0,
-        capacity: Infinity,
+        capacity: 100,
         label: '',
       } as any;
     } else {

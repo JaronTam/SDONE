@@ -290,12 +290,20 @@ describe('Story 7.1: SimulationEngine Feedback Tick', () => {
     const sourceId = Object.keys(state.nodes).find(id => state.nodes[id].type === 'source')!;
     const stockId = Object.keys(state.nodes).find(id => state.nodes[id].type === 'stock')!;
 
-    // Set stock value to 100
+    // Set stock value to 50 (below capacity of 100) so feedback multiplier > 0.
+    // Also set source→stock rate to 5 for observable flow.
+    const sourceConnId = Object.keys(state.connections).find(
+      id => state.connections[id].fromId === sourceId && state.connections[id].toId === stockId
+    )!;
     const modifiedState = {
       ...state,
       nodes: {
         ...state.nodes,
-        [stockId]: { ...state.nodes[stockId], value: 100 },
+        [stockId]: { ...state.nodes[stockId], value: 50 },
+      },
+      connections: {
+        ...state.connections,
+        [sourceConnId]: { ...state.connections[sourceConnId], rate: 5, formulaStr: '5' },
       },
     };
 
@@ -312,13 +320,13 @@ describe('Story 7.1: SimulationEngine Feedback Tick', () => {
     return new Promise<void>((resolve) => {
       setTimeout(() => {
         simEngine.pause();
-        // The feedback should have reduced the source→stock inflow
-        // Default formula: -0.1 * 100 = -10, so effective rate = 1 + (-10) = -9
-        // Stock should decrease
+        // Feedback formula: max(0, (100 - 50) / 100) = 0.5
+        // Effective inflow = 5 * 0.5 = 2.5 per second
+        // Stock value should have changed from 50
         if (snapshotState) {
           const stockValue = (snapshotState.nodes[stockId] as StockNode | undefined)?.value;
-          // Stock value should have changed from 100
-          expect(stockValue).not.toBe(100);
+          // Stock value should have changed from 50
+          expect(stockValue).not.toBe(50);
         }
         resolve();
       }, 200);

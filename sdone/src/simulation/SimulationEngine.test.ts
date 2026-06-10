@@ -12,7 +12,7 @@ import type {
 // Test factories — match naming convention from Stories 1.5, 3.4, 3.7
 // ---------------------------------------------------------------------------
 
-function makeStock(id: string, value = 0, capacity = Infinity): StockNode {
+function makeStock(id: string, value = 0, capacity = 100): StockNode {
   return {
     id,
     type: 'stock',

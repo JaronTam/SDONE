@@ -1,0 +1,104 @@
+/**
+ * CapacityInputPopover — Stock Capacity Input Popover Styles (Infinity Fix)
+ *
+ * Matches existing dark theme tokens from layout.css and color-picker-popover.css.
+ * Theme tokens: #1e1e2e (bg), #313244 (surface), #45475a (border), #cdd6f4 (text)
+ */
+
+/* ════════════════════════════════════════════════════════════════════════
+   Popover Root
+   ════════════════════════════════════════════════════════════════════════ */
+.capacity-input-popover {
+  position: fixed;
+  z-index: var(--z-popover);
+  background: #1e1e2e;
+  border: 1px solid #45475a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 180px;
+  pointer-events: auto;
+  user-select: none;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Title
+   ════════════════════════════════════════════════════════════════════════ */
+.capacity-input-popover__title {
+  font-size: 11px;
+  color: #6c7086;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 4px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Input Row
+   ════════════════════════════════════════════════════════════════════════ */
+.capacity-input-popover__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Number Input
+   ════════════════════════════════════════════════════════════════════════ */
+.capacity-input-popover__input {
+  flex: 1;
+  background: #313244;
+  border: 1px solid #45475a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #cdd6f4;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  width: 80px;
+  transition: border-color 200ms ease;
+  /* Remove browser number spinners for cleaner look */
+  -moz-appearance: textfield;
+}
+.capacity-input-popover__input::-webkit-inner-spin-button,
+.capacity-input-popover__input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.capacity-input-popover__input:focus {
+  border-color: #89b4fa;
+  outline: none;
+}
+.capacity-input-popover__input--error {
+  border-color: #f38ba8 !important;
+  animation: capacity-input-shake 300ms ease;
+}
+
+@keyframes capacity-input-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Unit Label
+   ════════════════════════════════════════════════════════════════════════ */
+.capacity-input-popover__unit {
+  font-size: 12px;
+  color: #6c7086;
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Hint Text
+   ════════════════════════════════════════════════════════════════════════ */
+.capacity-input-popover__hint {
+  font-size: 10px;
+  color: #585b70;
+  text-align: center;
+}

@@ -26,7 +26,7 @@ function createStockAnalytics(overrides: Partial<StockAnalytics> = {}): StockAna
     outflow: 3.0,
     netChange: 2.0,
     currentValue: 10.0,
-    capacity: Infinity,
+    capacity: 100,
     ...overrides,
   };
 }
@@ -48,7 +48,7 @@ function createGraphState(
         position: { x: 0, y: 0 },
         label: def.label,
         value: def.value ?? 0,
-        capacity: def.capacity ?? Infinity,
+        capacity: def.capacity ?? 100,
         initialValue: def.initialValue ?? 0,
       };
     } else {
@@ -153,7 +153,7 @@ describe('AnalyticsPanel (Story 6.2)', () => {
         outflow: 3.0,
         netChange: 2.0,
         currentValue: 10.0,
-        capacity: Infinity,
+        capacity: 100,
       }));
 
       const label = container.querySelector('.analytics-panel__stock-label');
@@ -168,7 +168,8 @@ describe('AnalyticsPanel (Story 6.2)', () => {
       expect(outflow?.textContent).toBe('3.0');
       expect(net?.textContent).toBe('+2.0');
       expect(current?.textContent).toBe('10.0');
-      expect(capacity?.textContent).toBe('∞');
+      const capacityInput = capacity as HTMLInputElement;
+      expect(capacityInput?.value).toBe('100');
     });
   });
 
@@ -215,16 +216,16 @@ describe('AnalyticsPanel (Story 6.2)', () => {
   // ── Capacity display ────────────────────────────────────────────────
 
   describe('capacity display', () => {
-    it('Infinity capacity → displays "∞"', () => {
-      panel.setStock(createStockAnalytics({ capacity: Infinity }));
-      const capEl = container.querySelector('.analytics-panel__field-value--capacity');
-      expect(capEl?.textContent).toBe('∞');
+    it('capacity 100 → displays "100"', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+      const capEl = container.querySelector('.analytics-panel__field-value--capacity') as HTMLInputElement;
+      expect(capEl?.value).toBe('100');
     });
 
-    it('finite capacity → displays integer', () => {
-      panel.setStock(createStockAnalytics({ capacity: 100 }));
-      const capEl = container.querySelector('.analytics-panel__field-value--capacity');
-      expect(capEl?.textContent).toBe('100');
+    it('capacity 500 → displays "500"', () => {
+      panel.setStock(createStockAnalytics({ capacity: 500 }));
+      const capEl = container.querySelector('.analytics-panel__field-value--capacity') as HTMLInputElement;
+      expect(capEl?.value).toBe('500');
     });
   });
 
@@ -278,7 +279,7 @@ describe('AnalyticsPanel (Story 6.2)', () => {
 describe('computeStockAnalytics (Story 6.2)', () => {
   it('stock with one incoming connection → inflow=5, outflow=0, netChange=5', () => {
     const state = createGraphState(
-      { 'source-1': { type: 'source' }, 'stock-1': { type: 'stock', value: 0, capacity: Infinity } },
+      { 'source-1': { type: 'source' }, 'stock-1': { type: 'stock', value: 0, capacity: 100 } },
       { 'conn-1': { fromId: 'source-1', toId: 'stock-1', rate: 5 } },
     );
     const result = computeStockAnalytics(state, 'stock-1');
@@ -292,7 +293,7 @@ describe('computeStockAnalytics (Story 6.2)', () => {
     const state = createGraphState(
       {
         'source-1': { type: 'source' },
-        'stock-1': { type: 'stock', value: 0, capacity: Infinity },
+        'stock-1': { type: 'stock', value: 0, capacity: 100 },
         'sink-1': { type: 'sink' },
       },
       {
@@ -312,7 +313,7 @@ describe('computeStockAnalytics (Story 6.2)', () => {
       {
         'source-1': { type: 'source' },
         'source-2': { type: 'source' },
-        'stock-1': { type: 'stock', value: 0, capacity: Infinity },
+        'stock-1': { type: 'stock', value: 0, capacity: 100 },
         'sink-1': { type: 'sink' },
       },
       {
@@ -344,7 +345,7 @@ describe('computeStockAnalytics (Story 6.2)', () => {
 
   it('empty connections → inflow=0, outflow=0, netChange=0', () => {
     const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: Infinity } },
+      { 'stock-1': { type: 'stock', value: 0, capacity: 100 } },
     );
     const result = computeStockAnalytics(state, 'stock-1');
     expect(result).not.toBeNull();
@@ -353,18 +354,18 @@ describe('computeStockAnalytics (Story 6.2)', () => {
     expect(result!.netChange).toBe(0);
   });
 
-  it('stock with Infinity capacity → capacity field === Infinity', () => {
+  it('stock with capacity 100 → capacity field === 100', () => {
     const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: Infinity } },
+      { 'stock-1': { type: 'stock', value: 0, capacity: 100 } },
     );
     const result = computeStockAnalytics(state, 'stock-1');
     expect(result).not.toBeNull();
-    expect(result!.capacity).toBe(Infinity);
+    expect(result!.capacity).toBe(100);
   });
 
   it('stock with custom label → label field preserves custom label', () => {
     const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: Infinity, label: 'Water' } },
+      { 'stock-1': { type: 'stock', value: 0, capacity: 100, label: 'Water' } },
     );
     const result = computeStockAnalytics(state, 'stock-1');
     expect(result).not.toBeNull();
@@ -373,7 +374,7 @@ describe('computeStockAnalytics (Story 6.2)', () => {
 
   it('stock without label → label falls back to id prefix', () => {
     const state = createGraphState(
-      { 'stock-abc-123': { type: 'stock', value: 0, capacity: Infinity } },
+      { 'stock-abc-123': { type: 'stock', value: 0, capacity: 100 } },
     );
     const result = computeStockAnalytics(state, 'stock-abc-123');
     expect(result).not.toBeNull();
@@ -458,6 +459,176 @@ describe('Story 7.3 — Overflow section (RED PHASE)', () => {
       const dividerIndex = Array.from(container.querySelector('.analytics-panel__data')!.children).indexOf(divider!);
       const overflowIndex = Array.from(container.querySelector('.analytics-panel__data')!.children).indexOf(overflowEl!);
       expect(overflowIndex).toBeGreaterThan(dividerIndex);
+    });
+  });
+});
+
+// =============================================================================
+// Infinity Fix — Capacity input interaction tests (D3)
+// =============================================================================
+
+describe('Infinity Fix — Capacity input interaction', () => {
+  let container: HTMLElement;
+  let panel: AnalyticsPanel;
+
+  beforeEach(() => {
+    container = createContainer();
+    panel = new AnalyticsPanel(container);
+  });
+
+  afterEach(() => {
+    panel.destroy();
+    if (document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+  });
+
+  /** Helper: get the capacity input element */
+  function getCapInput(): HTMLInputElement {
+    return container.querySelector('.analytics-panel__field-value--capacity') as HTMLInputElement;
+  }
+
+  /** Helper: dispatch a keydown Enter event on an element */
+  function pressEnter(el: HTMLElement): void {
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  }
+
+  // ── onCapacitySubmit callback ────────────────────────────────────────
+
+  describe('onCapacitySubmit callback', () => {
+    it('valid input + Enter → onCapacitySubmit called with correct value', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+
+      let submittedValue: number | null = null;
+      panel.onCapacitySubmit = (newCapacity: number) => {
+        submittedValue = newCapacity;
+      };
+
+      const input = getCapInput();
+      input.value = '200';
+      pressEnter(input);
+
+      expect(submittedValue).toBe(200);
+    });
+
+    it('invalid input + Enter → onCapacitySubmit NOT called, input reverts', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+
+      let called = false;
+      panel.onCapacitySubmit = () => { called = true; };
+
+      const input = getCapInput();
+      // Set to empty string which parses to NaN
+      input.value = '';
+      pressEnter(input);
+
+      expect(called).toBe(false);
+      // Input should revert to last valid capacity
+      expect(input.value).toBe('100');
+    });
+
+    it('zero input + Enter → onCapacitySubmit NOT called (capacity must be > 0)', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+
+      let called = false;
+      panel.onCapacitySubmit = () => { called = true; };
+
+      const input = getCapInput();
+      input.value = '0';
+      pressEnter(input);
+
+      expect(called).toBe(false);
+      expect(input.value).toBe('100');
+    });
+
+    it('negative input + Enter → onCapacitySubmit NOT called', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+
+      let called = false;
+      panel.onCapacitySubmit = () => { called = true; };
+
+      const input = getCapInput();
+      input.value = '-5';
+      pressEnter(input);
+
+      expect(called).toBe(false);
+      expect(input.value).toBe('100');
+    });
+
+    it('duplicate value + Enter → onCapacitySubmit NOT called', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+
+      let called = false;
+      panel.onCapacitySubmit = () => { called = true; };
+
+      const input = getCapInput();
+      // Input already shows "100" — typing same value
+      input.value = '100';
+      pressEnter(input);
+
+      expect(called).toBe(false);
+    });
+  });
+
+  // ── _lastValidCapacity state tracking ────────────────────────────────
+
+  describe('_lastValidCapacity state tracking', () => {
+    it('setStock updates _lastValidCapacity (reflected by revert behavior)', () => {
+      // Set capacity to 500
+      panel.setStock(createStockAnalytics({ capacity: 500 }));
+
+      let submittedValue: number | null = null;
+      panel.onCapacitySubmit = (v) => { submittedValue = v; };
+
+      const input = getCapInput();
+      // Enter invalid value → should revert to 500 (not 100)
+      input.value = '';
+      pressEnter(input);
+
+      expect(input.value).toBe('500');
+      expect(submittedValue).toBeNull();
+    });
+
+    it('successful submit updates _lastValidCapacity for subsequent reverts', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+
+      const submittedValues: number[] = [];
+      panel.onCapacitySubmit = (v) => { submittedValues.push(v); };
+
+      const input = getCapInput();
+
+      // First: valid submit 200
+      input.value = '200';
+      pressEnter(input);
+      expect(submittedValues).toEqual([200]);
+
+      // Second: invalid input → should revert to 200 (not 100)
+      input.value = '';
+      pressEnter(input);
+      expect(input.value).toBe('200');
+    });
+
+    it('setStock after submit overrides _lastValidCapacity', () => {
+      panel.setStock(createStockAnalytics({ capacity: 100 }));
+
+      const submittedValues: number[] = [];
+      panel.onCapacitySubmit = (v) => { submittedValues.push(v); };
+
+      const input = getCapInput();
+
+      // Submit 200
+      input.value = '200';
+      pressEnter(input);
+      expect(submittedValues).toEqual([200]);
+
+      // Simulation updates capacity to 300 via setStock
+      panel.setStock(createStockAnalytics({ capacity: 300 }));
+      expect(input.value).toBe('300');
+
+      // Invalid input → should revert to 300 (setStock value), not 200 (user submit)
+      input.value = '';
+      pressEnter(input);
+      expect(input.value).toBe('300');
     });
   });
 });

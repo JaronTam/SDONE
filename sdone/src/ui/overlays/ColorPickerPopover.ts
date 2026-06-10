@@ -174,7 +174,11 @@ export class ColorPickerPopover {
       this._boundWheel = null;
     }
     if (this._el) {
-      this._el.remove();
+      // P2-4: parentNode check before DOM removal — defensive pattern
+      // consistent with ModalDialog.removeBackdrop()
+      if (this._el.parentNode) {
+        this._el.remove();
+      }
       this._el = null;
     }
     this._currentModuleId = null;
