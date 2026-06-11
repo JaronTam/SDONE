@@ -497,3 +497,124 @@ export function updateRate(
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// updateModuleLabel (Story 8.1)
+// ---------------------------------------------------------------------------
+
+/** Default label by module type — used when user clears the label. */
+const DEFAULT_LABEL: Record<ModuleType, string> = {
+  source: 'Source',
+  stock: 'Stock',
+  sink: 'Sink',
+};
+
+/**
+ * Update the `label` of a module.
+ *
+ * Processing order:
+ * 1. Truncate to 50 characters
+ * 2. If the result is empty or whitespace-only → fall back to the module
+ *    type's default name ('Source' / 'Stock' / 'Sink')
+ * 3. If the processed label equals the current label → no-op
+ *
+ * @returns A NEW `GraphState` with updated label and `version` incremented.
+ *   Returns no-op (unchanged version) if:
+ *   - The module `moduleId` is not found
+ *   - The processed label equals the current label
+ */
+export function updateModuleLabel(
+  state: GraphState,
+  moduleId: string,
+  newLabel: string,
+): GraphState {
+  const existing = state.nodes[moduleId];
+  if (!existing) {
+    return unchanged(state);
+  }
+
+  // Step 1: Truncate to 50 characters
+  let processed = newLabel.slice(0, 50);
+
+  // Step 2: Empty/whitespace-only → type-default fallback
+  if (processed.trim() === '') {
+    processed = DEFAULT_LABEL[existing.type];
+  }
+
+  // Step 3: No-op if unchanged
+  if (existing.label === processed) {
+    return unchanged(state);
+  }
+
+  return {
+    ...bump(state),
+    nodes: {
+      ...state.nodes,
+      [moduleId]: { ...existing, label: processed },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// updateModuleSize (Story 8.1)
+// ---------------------------------------------------------------------------
+
+/** Minimum allowed width in world-space pixels (FR-7: half default width). */
+const MIN_MODULE_WIDTH = 60;
+
+/** Minimum allowed height in world-space pixels (FR-7: half default height). */
+const MIN_MODULE_HEIGHT = 40;
+
+/**
+ * Update the `width` and `height` of a module.
+ *
+ * Values are clamped to minimums BEFORE comparison with current values.
+ * This ensures that `updateModuleSize(state, id, 30, 50)` when current is
+ * `{width: 60, height: 50}` correctly returns `unchanged(state)` (30 clamped
+ * to 60, both match).
+ *
+ * When `ModuleNode.width` is `undefined`, `undefined !== clampedWidth` is
+ * always `true` → counts as a change. This is correct: a module with no
+ * stored dimensions receiving its first `updateModuleSize` call should
+ * trigger a version bump.
+ *
+ * @returns A NEW `GraphState` with updated dimensions and `version` incremented.
+ *   Returns no-op (unchanged version) if:
+ *   - The module `moduleId` is not found
+ *   - Both clamped dimensions equal the current values
+ */
+export function updateModuleSize(
+  state: GraphState,
+  moduleId: string,
+  width: number,
+  height: number,
+): GraphState {
+  const existing = state.nodes[moduleId];
+  if (!existing) {
+    return unchanged(state);
+  }
+
+  // Defensive validation: reject NaN and Infinity (consistent with updateCapacity).
+  // Math.max() does NOT guard against NaN/Infinity - they pass through and would
+  // corrupt the state (e.g. width: NaN causes rendering to disappear).
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return unchanged(state);
+  }
+
+  // Clamp first, then compare with stored values
+  const clampedW = Math.max(MIN_MODULE_WIDTH, width);
+  const clampedH = Math.max(MIN_MODULE_HEIGHT, height);
+
+  // undefined !== number is always true → correct for first-set
+  if (existing.width === clampedW && existing.height === clampedH) {
+    return unchanged(state);
+  }
+
+  return {
+    ...bump(state),
+    nodes: {
+      ...state.nodes,
+      [moduleId]: { ...existing, width: clampedW, height: clampedH },
+    },
+  };
+}

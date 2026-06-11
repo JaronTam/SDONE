@@ -15,6 +15,8 @@ import {
   deleteConnection,
   updateRate,
   updateCapacity,
+  updateModuleLabel,
+  updateModuleSize,
 } from './mutations.js';
 
 // ---------------------------------------------------------------------------
@@ -732,5 +734,240 @@ describe('addModule with initialCapacity', () => {
     const result = addModule(state, 'stock', { x: 0, y: 0 }, -5);
     const stock = Object.values(result.nodes)[0] as StockNode;
     expect(stock.capacity).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Story 8.1: updateModuleLabel
+// ---------------------------------------------------------------------------
+
+describe('updateModuleLabel', () => {
+  it('normal update: updates label and increments version', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleLabel(state, 'st1', 'My Tank');
+    expect(result).not.toBe(state);
+    expect(result.nodes['st1'].label).toBe('My Tank');
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('normal update: is pure — original state unchanged', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleLabel(state, 'st1', 'My Tank');
+    expect(state.nodes['st1'].label).toBeUndefined();
+    expect(result.nodes['st1'].label).toBe('My Tank');
+  });
+
+  it('truncation: 51+ character input stored as 50 chars', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const longLabel = 'A'.repeat(51);
+    const result = updateModuleLabel(state, 'st1', longLabel);
+    expect(result.nodes['st1'].label).toBe('A'.repeat(50));
+    expect(result.nodes['st1'].label!.length).toBe(50);
+  });
+
+  it('empty string → type-default fallback (all 3 types)', () => {
+    const state = emptyState();
+    withSource(state, 'src1');
+    withStock(state, 'st1');
+    withSink(state, 'sink1');
+
+    // Set labels first so they differ from defaults
+    const labeled = updateModuleLabel(
+      updateModuleLabel(
+        updateModuleLabel(state, 'src1', 'CustomSrc'),
+        'st1', 'CustomSt',
+      ),
+      'sink1', 'CustomSink',
+    );
+
+    // Clear labels → should revert to type defaults
+    const rSrc = updateModuleLabel(labeled, 'src1', '');
+    expect(rSrc.nodes['src1'].label).toBe('Source');
+
+    const rSt = updateModuleLabel(rSrc, 'st1', '');
+    expect(rSt.nodes['st1'].label).toBe('Stock');
+
+    const rSink = updateModuleLabel(rSt, 'sink1', '');
+    expect(rSink.nodes['sink1'].label).toBe('Sink');
+  });
+
+  it('whitespace-only string → type-default fallback', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleLabel(state, 'st1', '   ');
+    expect(result.nodes['st1'].label).toBe('Stock');
+  });
+
+  it('nonexistent moduleId → no-op (unchanged state)', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleLabel(state, 'nonexistent', 'Hello');
+    expect(result.version).toBe(state.version);
+  });
+
+  it('unchanged label → no-op (unchanged state)', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    // First set a label
+    const labeled = updateModuleLabel(state, 'st1', 'Tank');
+    expect(labeled.version).toBe(1);
+
+    // Set same label again → no-op
+    const result = updateModuleLabel(labeled, 'st1', 'Tank');
+    expect(result.version).toBe(labeled.version);
+  });
+
+  it('unchanged label after truncation → no-op', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    // Set a 50-char label
+    const label50 = 'B'.repeat(50);
+    const labeled = updateModuleLabel(state, 'st1', label50);
+
+    // Send 51-char version that truncates to same 50 chars → no-op
+    const label51 = 'B'.repeat(51);
+    const result = updateModuleLabel(labeled, 'st1', label51);
+    expect(result.version).toBe(labeled.version);
+  });
+
+  it('unchanged label after whitespace fallback → no-op', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    // Module with no label set — label is undefined
+    // Whitespace fallback produces 'Stock', but existing.label is undefined
+    // So this IS a change (undefined !== 'Stock')
+    const result = updateModuleLabel(state, 'st1', '   ');
+    expect(result.nodes['st1'].label).toBe('Stock');
+    expect(result.version).toBe(state.version + 1);
+
+    // Now label is 'Stock', whitespace fallback also produces 'Stock' → no-op
+    const result2 = updateModuleLabel(result, 'st1', '  ');
+    expect(result2.version).toBe(result.version);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Story 8.1: updateModuleSize
+// ---------------------------------------------------------------------------
+
+describe('updateModuleSize', () => {
+  it('normal update: sets width and height, increments version', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleSize(state, 'st1', 200, 150);
+    expect(result).not.toBe(state);
+    expect(result.nodes['st1'].width).toBe(200);
+    expect(result.nodes['st1'].height).toBe(150);
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('normal update: is pure — original state unchanged', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleSize(state, 'st1', 200, 150);
+    expect(state.nodes['st1'].width).toBeUndefined();
+    expect(state.nodes['st1'].height).toBeUndefined();
+    expect(result.nodes['st1'].width).toBe(200);
+    expect(result.nodes['st1'].height).toBe(150);
+  });
+
+  it('min clamp: width <60 → 60, height <40 → 40', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleSize(state, 'st1', 30, 20);
+    expect(result.nodes['st1'].width).toBe(60);
+    expect(result.nodes['st1'].height).toBe(40);
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('partial clamp: only one dimension below min', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleSize(state, 'st1', 30, 100);
+    expect(result.nodes['st1'].width).toBe(60);
+    expect(result.nodes['st1'].height).toBe(100);
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('nonexistent moduleId → no-op (unchanged state)', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    const result = updateModuleSize(state, 'nonexistent', 200, 150);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('unchanged dimensions → no-op', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    // First set dimensions
+    const sized = updateModuleSize(state, 'st1', 200, 150);
+    expect(sized.version).toBe(1);
+
+    // Set same dimensions again → no-op
+    const result = updateModuleSize(sized, 'st1', 200, 150);
+    expect(result.version).toBe(sized.version);
+  });
+
+  it('clamped values matching current → no-op', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    // Set dimensions to min clamp values
+    const sized = updateModuleSize(state, 'st1', 60, 40);
+    expect(sized.version).toBe(1);
+
+    // Send values below min that clamp to same → no-op
+    const result = updateModuleSize(sized, 'st1', 30, 20);
+    expect(result.version).toBe(sized.version);
+  });
+
+  it('first set on module with undefined dimensions → version bump', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+
+    // Module has no width/height (undefined). Setting 120×80 should bump version
+    // even though 120×80 are the "default" rendering values.
+    const result = updateModuleSize(state, 'st1', 120, 80);
+    expect(result.nodes['st1'].width).toBe(120);
+    expect(result.nodes['st1'].height).toBe(80);
+    expect(result.version).toBe(state.version + 1);
+  });
+
+  it('no-op if width is NaN (defensive — consistent with updateCapacity)', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateModuleSize(state, 'st1', NaN, 100);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('no-op if height is Infinity (defensive — consistent with updateCapacity)', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateModuleSize(state, 'st1', 100, Infinity);
+    expect(result.version).toBe(state.version);
+  });
+
+  it('no-op if both dimensions are NaN', () => {
+    const state = emptyState();
+    withStock(state, 'st1');
+    const result = updateModuleSize(state, 'st1', NaN, NaN);
+    expect(result.version).toBe(state.version);
   });
 });

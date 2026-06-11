@@ -11,6 +11,16 @@ import type { Vec2 } from '../shared/Vec2.js';
  */
 export type ModuleType = 'source' | 'stock' | 'sink';
 
+// ---------------------------------------------------------------------------
+// Default dimension constants (Story 8.1 — AC2)
+// ---------------------------------------------------------------------------
+
+/** Default module width in world-space pixels. Matches V1.0 ShapePaths.ts SHAPE_STOCK_WIDTH. */
+export const DEFAULT_MODULE_WIDTH = 120;
+
+/** Default module height in world-space pixels. Matches V1.0 ShapePaths.ts SHAPE_STOCK_HEIGHT. */
+export const DEFAULT_MODULE_HEIGHT = 80;
+
 /**
  * Base module placed on the infinite canvas.
  *
@@ -33,6 +43,10 @@ export interface ModuleNode {
   label?: string;
   /** Optional semantic color (e.g. '#90EE90' for source, '#8B0000' for sink). */
   color?: string;
+  /** Optional width in world-space pixels. When undefined, consumers use DEFAULT_MODULE_WIDTH. */
+  width?: number;
+  /** Optional height in world-space pixels. When undefined, consumers use DEFAULT_MODULE_HEIGHT. */
+  height?: number;
 }
 
 /**

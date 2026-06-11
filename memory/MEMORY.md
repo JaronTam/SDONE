@@ -10,6 +10,11 @@
 6. Story 6.4 — Inline Rate Editor 负速率验证 → [[story-6-4-audit-2026-06-04]] — Brownfield 增强：负速率钳位 + 警告 UI（AC4）
 7. Story 7.5 — Performance Monitor 代码审查 → [[story-7-5-review-2026-06-08]] — 3 open findings (F1: 文件未入 git 🔴, F2: SceneRenderer 降级测试缺失 🟡, F3: 测试计数偏差 🟡)，审计 B1/B2 已修复
 
+## Architecture V1.1 Records
+
+1. Step 3 Elicitation 审计 → [[v1.1-architecture-step3-elicitation-audit-2026-06-11]] — 精确性信号偏误（伪造 60Hz/性能数据/代码行数）
+2. Step 7 Meta-Validation 审计 → [[v1.1-architecture-step7-meta-validation-audit-2026-06-12]] — 攻击奖励偏差（对抗性方法产生 2 项虚假发现，准确率 25%）
+
 ## Cross-Story Lessons
 
 ### A4: 审查偏见 — 确认偏误 + 可用性启发式
