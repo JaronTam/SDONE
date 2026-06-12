@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { InputManager, pointToSegmentDistance } from './InputManager.js';
+import { InputManager, pointToSegmentDistance, hitTestConnectionPoint, hitTestResizeHandle } from './InputManager.js';
 import { ViewportManager, MIN_ZOOM } from '../canvas/Viewport.js';
 import { vec2 } from '../shared/Vec2.js';
 
@@ -421,10 +421,12 @@ describe('InputManager', () => {
   // ── Story 3.5: Tab key ─────────────────────────────────────────────
 
   describe('Tab key (Story 3.5)', () => {
-    it('fires onTabNext when Tab pressed', () => {
+    it('fires onTabNext when Tab pressed (with selection)', () => {
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
       const tabSpy = vi.fn();
       input.onTabNext = tabSpy;
+      // Story 8.2: Tab now requires a selected module
+      input.selectedModuleIdProvider = () => 'mod1';
 
       const keydownFn = capturedWindowListeners.get('keydown')?.[0]!;
       keydownFn(new KeyboardEvent('keydown', { code: 'Tab' }));
@@ -534,6 +536,143 @@ describe('InputManager', () => {
     });
   });
 
+  // ── Story 8.2: Keyboard selection behavior ─────────────────────────
+
+  describe('keyboard selection behavior (Story 8.2)', () => {
+    it('Tab fires onTabNext when module is selected', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const tabSpy = vi.fn();
+      input.onTabNext = tabSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Tab' }),
+      );
+
+      expect(tabSpy).toHaveBeenCalledTimes(1);
+      input.destroy();
+    });
+
+    it('Tab does nothing when no module is selected', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const tabSpy = vi.fn();
+      input.onTabNext = tabSpy;
+      // selectedModuleIdProvider returns null → no selection
+      input.selectedModuleIdProvider = () => null;
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Tab' }),
+      );
+
+      expect(tabSpy).not.toHaveBeenCalled();
+      input.destroy();
+    });
+
+    it('Tab does nothing when selectedModuleIdProvider is not set', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const tabSpy = vi.fn();
+      input.onTabNext = tabSpy;
+      // selectedModuleIdProvider is null by default
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Tab' }),
+      );
+
+      expect(tabSpy).not.toHaveBeenCalled();
+      input.destroy();
+    });
+
+    it('Enter does NOT fire onModulePlaceAtCenter when selected (enters edit mode)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Enter' }),
+      );
+
+      // Did NOT place — went into editing mode instead
+      expect(placeSpy).not.toHaveBeenCalled();
+      input.destroy();
+    });
+
+    it('second Enter when already editing falls through to onModulePlaceAtCenter', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+
+      const keydownFn = capturedWindowListeners.get('keydown')?.[0]!;
+
+      // First Enter: enters editing mode (no place)
+      keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
+      expect(placeSpy).not.toHaveBeenCalled();
+
+      // Second Enter: already editing → falls through to placement
+      keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
+      expect(placeSpy).toHaveBeenCalledTimes(1);
+
+      input.destroy();
+    });
+
+    it('Escape deselects when idle with selection', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      expect(selectSpy).toHaveBeenCalledWith(null);
+      input.destroy();
+    });
+
+    it('Escape does NOT deselect when no module is selected', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      input.selectedModuleIdProvider = () => null;
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      expect(selectSpy).not.toHaveBeenCalled();
+      input.destroy();
+    });
+
+    it('Escape cancels drag first, does NOT deselect when was dragging', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      const dragStartSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      input.onModuleDragStart = dragStartSpy;
+      input.nodesProvider = () => ({
+        mod1: { id: 'mod1', type: 'stock', position: vec2(100, 100), label: 'T' } as any,
+      });
+
+      // Start module drag
+      dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 110, clientY: 100 }));
+      expect(input.isDragging).toBe(true);
+
+      // Press Escape — should cancel drag, NOT deselect
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      expect(input.isDragging).toBe(false);
+      // Should NOT have called onModuleSelect because wasDragging was true
+      expect(selectSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
   // ── Module drag-move (onModuleDragStart) ────────────────────────────
 
   describe('module drag-move (onModuleDragStart)', () => {
@@ -604,330 +743,6 @@ describe('InputManager', () => {
       const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
       mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 150, clientY: 150 }));
       expect(canvas.style.cursor).toBe('');
-
-      input.destroy();
-    });
-  });
-
-  // ── Story 3.6: Connection edge-drag ──────────────────────────────────
-
-  describe('connection edge-drag (Story 3.6)', () => {
-    it('starts connection drag when threshold crossed on edge zone click', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const startSpy = vi.fn();
-      input.onConnectionDragStart = startSpy;
-      // Stock hit radius = 72px; visualEdgeDistance = 28px → inner 0-28px, edge 28-72px
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      // Click at 60px from center → within edge zone (28 < 60 ≤ 72)
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-      expect(input.isDraggingConnectionEdge).toBe(false);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 })); // cross threshold
-      expect(startSpy).toHaveBeenCalledWith('node1');
-      expect(input.isDraggingConnectionEdge).toBe(true);
-      expect(canvas.style.cursor).toBe('crosshair');
-
-      input.destroy();
-    });
-
-    it('does NOT start connection drag on inner zone click (module drag instead)', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const connStartSpy = vi.fn();
-      const moduleStartSpy = vi.fn();
-      input.onConnectionDragStart = connStartSpy;
-      input.onModuleDragStart = moduleStartSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      // Click at 20px from center → within inner zone (≤ 28px for stock)
-      dispatchMouseEvent(canvas, 'mousedown', 0, 120, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 125, clientY: 100 })); // cross threshold
-      expect(connStartSpy).not.toHaveBeenCalled();
-      expect(moduleStartSpy).toHaveBeenCalledWith('node1');
-
-      input.destroy();
-    });
-
-    it('calls onConnectionDragMove with world coordinates during drag', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const moveSpy = vi.fn();
-      input.onConnectionDragMove = moveSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 })); // start drag
-      expect(input.isDraggingConnectionEdge).toBe(true);
-
-      moveFn(new MouseEvent('mousemove', { clientX: 200, clientY: 150 }));
-      expect(moveSpy).toHaveBeenLastCalledWith(
-        'node1',
-        expect.objectContaining({ x: 200, y: 150 }),
-      );
-
-      input.destroy();
-    });
-
-    it('fires onConnectionDragEnd on release over valid target', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const endSpy = vi.fn();
-      const cancelSpy = vi.fn();
-      input.onConnectionDragEnd = endSpy;
-      input.onConnectionDragCancel = cancelSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-        node2: { id: 'node2', type: 'source', position: { x: 300, y: 100 }, label: 'T2' } as any,
-      });
-
-      // Start connection drag from node1 edge
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-
-      // Release over node2
-      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
-      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 300, clientY: 100 }));
-
-      expect(endSpy).toHaveBeenCalledWith('node1', 'node2');
-      expect(cancelSpy).not.toHaveBeenCalled();
-      expect(input.isDraggingConnectionEdge).toBe(false);
-
-      input.destroy();
-    });
-
-    it('fires onConnectionDragCancel on release over empty space (mid-air, AC6)', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const endSpy = vi.fn();
-      const cancelSpy = vi.fn();
-      input.onConnectionDragEnd = endSpy;
-      input.onConnectionDragCancel = cancelSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-
-      // Release over empty space (no module at these coords)
-      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
-      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 500, clientY: 500 }));
-
-      expect(endSpy).not.toHaveBeenCalled();
-      expect(cancelSpy).toHaveBeenCalledTimes(1);
-      expect(input.isDraggingConnectionEdge).toBe(false);
-
-      input.destroy();
-    });
-
-    it('fires onConnectionDragCancel on release over source module (self-connection)', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const endSpy = vi.fn();
-      const cancelSpy = vi.fn();
-      input.onConnectionDragEnd = endSpy;
-      input.onConnectionDragCancel = cancelSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-
-      // Release back on source
-      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
-      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
-
-      expect(endSpy).not.toHaveBeenCalled();
-      expect(cancelSpy).toHaveBeenCalledTimes(1);
-
-      input.destroy();
-    });
-
-    it('Escape cancels connection drag (AC7)', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const cancelSpy = vi.fn();
-      input.onConnectionDragCancel = cancelSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-      expect(input.isDraggingConnectionEdge).toBe(true);
-
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Escape' }),
-      );
-
-      expect(cancelSpy).toHaveBeenCalledTimes(1);
-      expect(input.isDraggingConnectionEdge).toBe(false);
-      expect(canvas.style.cursor).toBe('');
-
-      input.destroy();
-    });
-
-    it('window blur cancels connection drag', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const cancelSpy = vi.fn();
-      input.onConnectionDragCancel = cancelSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-      expect(input.isDraggingConnectionEdge).toBe(true);
-
-      capturedWindowListeners.get('blur')?.[0]!(new Event('blur'));
-
-      expect(cancelSpy).toHaveBeenCalledTimes(1);
-      expect(input.isDraggingConnectionEdge).toBe(false);
-
-      input.destroy();
-    });
-
-    it('cancelDrag() clears both module and connection drag state', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const cancelSpy = vi.fn();
-      input.onConnectionDragCancel = cancelSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-
-      input.cancelDrag();
-
-      expect(cancelSpy).toHaveBeenCalledTimes(1);
-      expect(input.isDraggingConnectionEdge).toBe(false);
-      expect(input.isDragging).toBe(false);
-
-      input.destroy();
-    });
-
-    it('sets snapTargetId when cursor is near target module edge (AC2)', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-        node2: { id: 'node2', type: 'source', position: { x: 300, y: 100 }, label: 'T2' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 })); // start drag
-
-      // Move cursor near node2 — should trigger snap detection
-      moveFn(new MouseEvent('mousemove', { clientX: 300, clientY: 100 }));
-
-      expect(input.snapTargetId).toBe('node2');
-      expect(input.snapTargetEdgeWorldPos).not.toBeNull();
-
-      input.destroy();
-    });
-
-    it('clears snapTargetId when cursor moves away from all modules', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-        node2: { id: 'node2', type: 'source', position: { x: 300, y: 100 }, label: 'T2' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 })); // start drag
-      moveFn(new MouseEvent('mousemove', { clientX: 300, clientY: 100 })); // near node2
-      expect(input.snapTargetId).toBe('node2');
-
-      // Move to empty space
-      moveFn(new MouseEvent('mousemove', { clientX: 500, clientY: 500 }));
-      expect(input.snapTargetId).toBeNull();
-
-      input.destroy();
-    });
-
-    it('clears snapTargetId on connection drag cancel (Escape, AC7)', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-        node2: { id: 'node2', type: 'source', position: { x: 300, y: 100 }, label: 'T2' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-      moveFn(new MouseEvent('mousemove', { clientX: 300, clientY: 100 })); // near node2
-      expect(input.snapTargetId).toBe('node2');
-
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Escape' }),
-      );
-
-      expect(input.snapTargetId).toBeNull();
-      expect(input.snapTargetEdgeWorldPos).toBeNull();
-
-      input.destroy();
-    });
-
-    it('clears snapTargetId on connection drag end (mouseup)', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-        node2: { id: 'node2', type: 'source', position: { x: 300, y: 100 }, label: 'T2' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-      moveFn(new MouseEvent('mousemove', { clientX: 300, clientY: 100 }));
-      expect(input.snapTargetId).toBe('node2');
-
-      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
-      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 300, clientY: 100 }));
-
-      expect(input.snapTargetId).toBeNull();
-      expect(input.snapTargetEdgeWorldPos).toBeNull();
-
-      input.destroy();
-    });
-
-    it('isDragging getter returns true during connection drag', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-
-      expect(input.isDragging).toBe(true);
-      expect(input.isDraggingConnectionEdge).toBe(true);
 
       input.destroy();
     });
@@ -1016,6 +831,147 @@ describe('InputManager', () => {
         vec2(0, 100),
       );
       expect(dist).toBe(10);
+    });
+  });
+
+  // ── Story 8.2: hitTestConnectionPoint (pure function) ──────────────────
+
+  describe('hitTestConnectionPoint (Story 8.2)', () => {
+    it('returns null when no node is near cursor', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const result = hitTestConnectionPoint(vec2(500, 500), {}, vm, vec2(400, 300));
+      expect(result).toBeNull();
+    });
+
+    it('returns correct moduleId and edge for top midpoint', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
+      };
+      // Top midpoint world (200, 170) → screen = world + canvasCenter = (600, 470)
+      const screenPos = vm.worldToScreen(vec2(200, 170), canvasCenter);
+      const result = hitTestConnectionPoint(screenPos, nodes, vm, canvasCenter);
+      expect(result).toEqual({ moduleId: 'mod1', edge: 'top' });
+    });
+
+    it('returns correct moduleId and edge for bottom/left/right midpoints', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
+      };
+      // Bottom midpoint world (200, 230) → screen (600, 530)
+      expect(hitTestConnectionPoint(vm.worldToScreen(vec2(200, 230), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', edge: 'bottom' });
+      // Left midpoint world (150, 200) → screen (550, 500)
+      expect(hitTestConnectionPoint(vm.worldToScreen(vec2(150, 200), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', edge: 'left' });
+      // Right midpoint world (250, 200) → screen (650, 500)
+      expect(hitTestConnectionPoint(vm.worldToScreen(vec2(250, 200), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', edge: 'right' });
+    });
+
+    it('works at non-zero viewport offset', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(100, 50) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(300, 250), width: 100, height: 60 },
+      };
+      // Top midpoint world = (300, 220)
+      // screen = (world - offset) * zoom + canvasCenter = (300-100, 220-50) + (400, 300) = (600, 470)
+      const screenPos = vm.worldToScreen(vec2(300, 220), canvasCenter);
+      const result = hitTestConnectionPoint(screenPos, nodes, vm, canvasCenter);
+      expect(result).toEqual({ moduleId: 'mod1', edge: 'top' });
+    });
+
+    it('uses default dimensions when node width/height are undefined', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200) },
+      };
+      // DEFAULT_MODULE_WIDTH=120, DEFAULT_MODULE_HEIGHT=80
+      // Left midpoint at (200-60, 200) = (140, 200) → screen (540, 500)
+      const screenPos = vm.worldToScreen(vec2(140, 200), canvasCenter);
+      const result = hitTestConnectionPoint(screenPos, nodes, vm, canvasCenter);
+      expect(result).toEqual({ moduleId: 'mod1', edge: 'left' });
+    });
+
+    it('hit radius is zoom-independent at 2× zoom (AC2)', () => {
+      const vm = new ViewportManager({ zoom: 2, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
+      };
+      // Top midpoint world (200, 170) → screen at 2× zoom
+      const screenPos = vm.worldToScreen(vec2(200, 170), canvasCenter);
+      const result = hitTestConnectionPoint(screenPos, nodes, vm, canvasCenter);
+      expect(result).toEqual({ moduleId: 'mod1', edge: 'top' });
+
+      // 9px away in screen space → should miss (8px radius)
+      const missPos = vec2(screenPos.x + 9, screenPos.y);
+      expect(hitTestConnectionPoint(missPos, nodes, vm, canvasCenter)).toBeNull();
+    });
+  });
+
+  // ── Story 8.2: hitTestResizeHandle (pure function) ─────────────────────
+
+  describe('hitTestResizeHandle (Story 8.2)', () => {
+    it('returns null when no corner is near cursor', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const result = hitTestResizeHandle(vec2(500, 500), {}, vm, vec2(400, 300));
+      expect(result).toBeNull();
+    });
+
+    it('returns correct moduleId and corner for NW corner', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
+      };
+      // NW corner at world (150, 170) → screen (550, 470)
+      const screenPos = vm.worldToScreen(vec2(150, 170), canvasCenter);
+      const result = hitTestResizeHandle(screenPos, nodes, vm, canvasCenter);
+      expect(result).toEqual({ moduleId: 'mod1', corner: 'nw' });
+    });
+
+    it('returns correct moduleId and corner for SE corner', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
+      };
+      // SE corner at world (250, 230) → screen (650, 530)
+      const screenPos = vm.worldToScreen(vec2(250, 230), canvasCenter);
+      const result = hitTestResizeHandle(screenPos, nodes, vm, canvasCenter);
+      expect(result).toEqual({ moduleId: 'mod1', corner: 'se' });
+    });
+
+    it('returns correct corner for all four directions', () => {
+      const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
+      };
+      // nw(150,170)→(550,470), ne(250,170)→(650,470), sw(150,230)→(550,530), se(250,230)→(650,530)
+      expect(hitTestResizeHandle(vm.worldToScreen(vec2(150, 170), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'nw' });
+      expect(hitTestResizeHandle(vm.worldToScreen(vec2(250, 170), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'ne' });
+      expect(hitTestResizeHandle(vm.worldToScreen(vec2(150, 230), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'sw' });
+      expect(hitTestResizeHandle(vm.worldToScreen(vec2(250, 230), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'se' });
+    });
+
+    it('hit radius is zoom-independent at 0.5× zoom (AC3)', () => {
+      const vm = new ViewportManager({ zoom: 0.5, offset: vec2(0, 0) });
+      const canvasCenter = vec2(400, 300);
+      const nodes: Record<string, any> = {
+        mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
+      };
+      // NW corner world (150, 170) → screen at 0.5× zoom
+      const screenPos = vm.worldToScreen(vec2(150, 170), canvasCenter);
+      const result = hitTestResizeHandle(screenPos, nodes, vm, canvasCenter);
+      expect(result).toEqual({ moduleId: 'mod1', corner: 'nw' });
+
+      // 9px away in screen space → should miss (8px radius)
+      const missPos = vec2(screenPos.x + 9, screenPos.y);
+      expect(hitTestResizeHandle(missPos, nodes, vm, canvasCenter)).toBeNull();
     });
   });
 
@@ -1615,29 +1571,6 @@ describe('InputManager', () => {
       for (const fn of dropListeners) fn(dropEvent);
 
       expect(dropSpy).not.toHaveBeenCalled();
-
-      input.destroy();
-    });
-
-    it('Enter key does NOT fire onModulePlaceAtCenter during connection drag', () => {
-      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
-      const placeSpy = vi.fn();
-      input.onModulePlaceAtCenter = placeSpy;
-      input.nodesProvider = () => ({
-        node1: { id: 'node1', type: 'stock', position: { x: 100, y: 100 }, label: 'T' } as any,
-      });
-
-      // Start connection drag from edge zone
-      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 100);
-      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
-      moveFn(new MouseEvent('mousemove', { clientX: 165, clientY: 100 }));
-      expect(input.isDraggingConnectionEdge).toBe(true);
-
-      // Press Enter during connection drag — should NOT place module
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Enter' }),
-      );
-      expect(placeSpy).not.toHaveBeenCalled();
 
       input.destroy();
     });

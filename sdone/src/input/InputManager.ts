@@ -2,6 +2,7 @@ import type { Vec2 } from '../shared/Vec2.js';
 import { vec2, distance } from '../shared/Vec2.js';
 import type { ViewportManager } from '../canvas/Viewport.js';
 import type { ModuleNode, Connection, StockNode } from '../state/GraphState.js';
+import { DEFAULT_MODULE_WIDTH, DEFAULT_MODULE_HEIGHT } from '../state/GraphState.js';
 import { getHitRadius, getVisualEdgeDistance, getEdgePoint, STOCK_WIDTH, STOCK_HEIGHT, FEEDBACK_HANDLE_RADIUS, FEEDBACK_ARC_OFFSET } from '../canvas/SceneRenderer.js';
 
 /** Minimum screen-pixel distance before a mousedown becomes a drag. */
@@ -25,6 +26,9 @@ const FEEDBACK_HANDLE_HIT_RADIUS_PX = 12;
 /** Story 7.1 — Number of samples for Bezier curve hit-testing. */
 const BEZIER_HIT_SAMPLES = 20;
 
+/** Story 8.2 — Hit radius for diamond/handle hit-testing in screen pixels. */
+const DIAMOND_HANDLE_HIT_RADIUS_PX = 8;
+
 /**
  * Story 3.7 — Pure function (module-level, exported for testing).
  * Computes the shortest distance from point p to the line segment ab.
@@ -47,6 +51,82 @@ export function pointToSegmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
   const projX = a.x + t * dx;
   const projY = a.y + t * dy;
   return distance(p, vec2(projX, projY));
+}
+
+/**
+ * Story 8.2 AC1 — Pure function (module-level, exported for testing).
+ * Hit-test the connection-point diamonds at module edge midpoints.
+ *
+ * Each module has 4 edge midpoints (top/bottom/left/right) computed from
+ * its world-space dimensions. Hit radius is in screen pixels (zoom-independent).
+ *
+ * Returns the first match found, or null if no diamond is within range.
+ */
+export function hitTestConnectionPoint(
+  screenPos: Vec2,
+  nodes: Record<string, ModuleNode>,
+  viewportManager: ViewportManager,
+  canvasCenter: Vec2,
+): { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null {
+  for (const node of Object.values(nodes)) {
+    const w = node.width ?? DEFAULT_MODULE_WIDTH;
+    const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+    const cx = node.position.x;
+    const cy = node.position.y;
+
+    const midpoints: { edge: 'top' | 'bottom' | 'left' | 'right'; world: Vec2 }[] = [
+      { edge: 'top', world: vec2(cx, cy - h / 2) },
+      { edge: 'bottom', world: vec2(cx, cy + h / 2) },
+      { edge: 'left', world: vec2(cx - w / 2, cy) },
+      { edge: 'right', world: vec2(cx + w / 2, cy) },
+    ];
+
+    for (const { edge, world } of midpoints) {
+      const screen = viewportManager.worldToScreen(world, canvasCenter);
+      if (distance(screenPos, screen) <= DIAMOND_HANDLE_HIT_RADIUS_PX) {
+        return { moduleId: node.id, edge };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Story 8.2 AC3 — Pure function (module-level, exported for testing).
+ * Hit-test the resize handles at module corners.
+ *
+ * Each module has 4 corners (nw/ne/sw/se) computed from its world-space
+ * dimensions. Hit radius is in screen pixels (zoom-independent).
+ *
+ * Returns the first match found, or null if no handle is within range.
+ */
+export function hitTestResizeHandle(
+  screenPos: Vec2,
+  nodes: Record<string, ModuleNode>,
+  viewportManager: ViewportManager,
+  canvasCenter: Vec2,
+): { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null {
+  for (const node of Object.values(nodes)) {
+    const w = node.width ?? DEFAULT_MODULE_WIDTH;
+    const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+    const cx = node.position.x;
+    const cy = node.position.y;
+
+    const corners: { corner: 'nw' | 'ne' | 'sw' | 'se'; world: Vec2 }[] = [
+      { corner: 'nw', world: vec2(cx - w / 2, cy - h / 2) },
+      { corner: 'ne', world: vec2(cx + w / 2, cy - h / 2) },
+      { corner: 'sw', world: vec2(cx - w / 2, cy + h / 2) },
+      { corner: 'se', world: vec2(cx + w / 2, cy + h / 2) },
+    ];
+
+    for (const { corner, world } of corners) {
+      const screen = viewportManager.worldToScreen(world, canvasCenter);
+      if (distance(screenPos, screen) <= DIAMOND_HANDLE_HIT_RADIUS_PX) {
+        return { moduleId: node.id, corner };
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -115,14 +195,25 @@ export class InputManager {
   // ── Click-vs-drag disambiguation ──────────────────────────────
   private mouseDownPos: Vec2 = vec2(0, 0);
   private mouseDownModuleId: string | null = null;
-  /** True if the mouse-down was in the edge zone (outside visual shape core), meaning
-   *  the drag should create a connection rather than move the module. */
-  private mouseDownInEdgeZone = false;
   /** True if the most recent mousedown that this manager saw was on the canvas.
    *  Guards handleMouseUp against processing clicks that originated outside the
    *  canvas (e.g. sidebar panels) — without this, a click on the rate-editor
    *  input would be misrouted as "clicked empty canvas" and deselect everything. */
   private _mouseDownOnCanvas = false;
+
+  // ── Story 8.2: V1.1 boolean state flags ────────────────────────
+  /** True during resize handle drag (drag wiring → Story 8.5). */
+  // @ts-ignore TS6133 — forward-declared, consumed by Story 8.5
+  private _isResizing = false;
+  /** True while Toolbar name input is focused (ToolbarController → Story 8.4). */
+  private isEditingName = false;
+  /** True while ColorPickerPopover is visible (ToolbarController → Story 8.4). */
+  // @ts-ignore TS6133 — forward-declared, consumed by Story 8.4
+  private _isColorPickerOpen = false;
+
+  // ── Story 8.2: Diamond & Handle hover tracking ─────────────────
+  private hoveredDiamond: { moduleId: string; edge: string } | null = null;
+  private hoveredHandle: { moduleId: string; corner: string } | null = null;
 
   // ── Story 3.6: Edge-drag connection state ─────────────────────
   private isDraggingConnection = false;
@@ -236,6 +327,45 @@ export class InputManager {
    *  Fires when the hovered connection changes. Passes null + current
    *  screen position when cursor moves away from all connections. */
   public onConnectionHover: ((connectionId: string | null, screenPos: Vec2) => void) | null = null;
+
+  // ── Story 8.2: V1.1 callbacks ──────────────────────────────────
+
+  /** Provides the currently selected module ID (null if none selected).
+   *  Story 8.5 wires this to state.selectedModuleIds[0]. */
+  public selectedModuleIdProvider: (() => string | null) | null = null;
+
+  /** Story 8.5 — Called when resize handle drag starts. */
+  public onResizeStart: ((moduleId: string) => void) | null = null;
+
+  /** Story 8.5 — Called every frame during resize handle drag.
+   *  Passes world-space positions. */
+  public onResizeMove:
+    | ((moduleId: string, fromWorld: Vec2, toWorld: Vec2) => void)
+    | null = null;
+
+  /** Story 8.5 — Called when resize handle drag ends.
+   *  Passes new dimensions (not Vec2 — dimensions use {width, height}). */
+  public onResizeEnd:
+    | ((moduleId: string, newSize: { width: number; height: number }) => void)
+    | null = null;
+
+  /** Story 8.4 — Called when toolbar name label is clicked. */
+  public onToolbarNameClick: ((moduleId: string) => void) | null = null;
+
+  /** Story 8.4 — Called when color dot in toolbar is clicked. */
+  public onColorDotClick: ((moduleId: string) => void) | null = null;
+
+  /** Story 8.5 — Called when diamond hover state changes.
+   *  Passes null for moduleId and edge when cursor leaves all diamonds. */
+  public onDiamondHover:
+    | ((moduleId: string | null, edge: string | null, screenPos: Vec2) => void)
+    | null = null;
+
+  /** Story 8.5 — Called when handle hover state changes.
+   *  Passes null for moduleId and corner when cursor leaves all handles. */
+  public onHandleHover:
+    | ((moduleId: string | null, corner: string | null, screenPos: Vec2) => void)
+    | null = null;
 
   /** Currently hovered connection ID (null if cursor not near any connection). */
   private hoveredConnectionId: string | null = null;
@@ -397,10 +527,16 @@ export class InputManager {
     this.isDraggingModule = false;
     this.dragModuleId = null;
     this.mouseDownModuleId = null;
-    this.mouseDownInEdgeZone = false;
     this._mouseDownOnCanvas = false;
     this.ghostModuleType = null;
     this.ghostWorldPosition = null;
+    // Story 8.2 — reset V1.1 boolean state flags
+    this._isResizing = false;
+    this.isEditingName = false;
+    this._isColorPickerOpen = false;
+    // Story 8.2 — reset hover tracking
+    this.hoveredDiamond = null;
+    this.hoveredHandle = null;
     // Story 3.6 — cancel connection drag on blur
     if (this.isDraggingConnection) {
       this.cancelConnectionDrag();
@@ -452,6 +588,7 @@ export class InputManager {
    * and clicks in the halo between the visual edge and the hit radius are
    * "edge" (connection drag).
    */
+  // @ts-ignore TS6133 — preserved per AC5 for future reuse; call site removed in Story 8.2
   private classifyHitZone(moduleId: string, screenPos: Vec2): 'none' | 'inner' | 'edge' {
     const nodes = this.nodesProvider?.();
     if (!nodes) return 'none';
@@ -603,6 +740,34 @@ export class InputManager {
     return null;
   }
 
+  // ── Story 8.2: Diamond & Handle hit-test instance wrappers ────
+
+  /**
+   * Story 8.2 AC1 — Instance wrapper for the module-level hitTestConnectionPoint.
+   * Resolves nodesProvider and canvasCenter before delegating.
+   */
+  private hitTestConnectionPointInstance(
+    screenPos: Vec2,
+  ): { moduleId: string; edge: string } | null {
+    const nodes = this.nodesProvider?.();
+    if (!nodes) return null;
+    const canvasCenter = this.getCanvasCenter();
+    return hitTestConnectionPoint(screenPos, nodes, this.viewportManager, canvasCenter);
+  }
+
+  /**
+   * Story 8.2 AC3 — Instance wrapper for the module-level hitTestResizeHandle.
+   * Resolves nodesProvider and canvasCenter before delegating.
+   */
+  private hitTestResizeHandleInstance(
+    screenPos: Vec2,
+  ): { moduleId: string; corner: string } | null {
+    const nodes = this.nodesProvider?.();
+    if (!nodes) return null;
+    const canvasCenter = this.getCanvasCenter();
+    return hitTestResizeHandle(screenPos, nodes, this.viewportManager, canvasCenter);
+  }
+
   /** Story 7.1 — Returns the stock ID whose feedback handle is currently hovered. */
   public get feedbackHandleHoveredStockId(): string | null {
     return this._feedbackHandleHoveredStockId;
@@ -741,14 +906,8 @@ export class InputManager {
 
       this.mouseDownPos = screenPos;
       this.mouseDownModuleId = hitId;
-      this.mouseDownInEdgeZone = false;
 
       if (hitId) {
-        const zone = this.classifyHitZone(hitId, screenPos);
-        if (zone === 'edge') {
-          // Story 3.6 AC1 — edge zone click → will start connection drag
-          this.mouseDownInEdgeZone = true;
-        }
         // Story 5.4: on any interaction start, clear connection hover
         this.clearHoveredConnection();
       }
@@ -804,7 +963,7 @@ export class InputManager {
     }
 
     // ── Module drag (Story 2.3) ─────────────────────────────────
-    if (this.mouseDownModuleId !== null && !this.mouseDownInEdgeZone) {
+    if (this.mouseDownModuleId !== null) {
       const dist = distance(current, this.mouseDownPos);
       if (dist >= DRAG_THRESHOLD_PX && !this.isDraggingModule) {
         // Story 5.4: clear hover when module drag starts
@@ -836,23 +995,6 @@ export class InputManager {
       }
     }
 
-    // ── Story 3.6: Start connection drag on threshold ───────────
-    if (this.mouseDownModuleId !== null && this.mouseDownInEdgeZone && !this.isDraggingConnection) {
-      const dist = distance(current, this.mouseDownPos);
-      if (dist >= DRAG_THRESHOLD_PX) {
-        // Story 5.4: clear hover when connection drag starts
-        this.clearHoveredConnection();
-        this.isDraggingConnection = true;
-        this.edgeDragSourceId = this.mouseDownModuleId;
-        this.connectionDragSourceId = this.mouseDownModuleId;
-        const canvasCenter = this.getCanvasCenter();
-        const worldPos = this.viewportManager.screenToWorld(current, canvasCenter);
-        this.connectionDragWorldPosition = worldPos;
-        this.onConnectionDragStart?.(this.mouseDownModuleId);
-        this.canvas.style.cursor = 'crosshair';
-      }
-    }
-
     // ── Story 7.1: Feedback handle hover detection ──────────────
     // Track which stock's feedback handle the cursor is near (for opacity change)
     if (
@@ -866,6 +1008,48 @@ export class InputManager {
       this._feedbackHandleHoveredStockId = this.hitTestFeedbackHandle(current);
       if (this._feedbackHandleHoveredStockId !== prevHovered) {
         this.onFeedbackHandleHover?.(this._feedbackHandleHoveredStockId, current);
+      }
+    }
+
+    // ── Story 8.2: Diamond & Handle hover detection ─────────────
+    // Only when a module is selected and the user is idle.
+    // Fires onDiamondHover / onHandleHover on state transition.
+    if (
+      !this.isPanning &&
+      !this.isDraggingModule &&
+      !this.isDraggingConnection &&
+      !this.isDraggingFeedback &&
+      this.mouseDownModuleId === null &&
+      this.selectedModuleIdProvider?.() != null
+    ) {
+      // Diamond hover
+      const diamondHit = this.hitTestConnectionPointInstance(current);
+      const prevDiamond = this.hoveredDiamond;
+      if (
+        diamondHit?.moduleId !== prevDiamond?.moduleId ||
+        diamondHit?.edge !== prevDiamond?.edge
+      ) {
+        this.hoveredDiamond = diamondHit;
+        this.onDiamondHover?.(
+          diamondHit?.moduleId ?? null,
+          diamondHit?.edge ?? null,
+          current,
+        );
+      }
+
+      // Handle hover
+      const handleHit = this.hitTestResizeHandleInstance(current);
+      const prevHandle = this.hoveredHandle;
+      if (
+        handleHit?.moduleId !== prevHandle?.moduleId ||
+        handleHit?.corner !== prevHandle?.corner
+      ) {
+        this.hoveredHandle = handleHit;
+        this.onHandleHover?.(
+          handleHit?.moduleId ?? null,
+          handleHit?.corner ?? null,
+          current,
+        );
       }
     }
 
@@ -955,7 +1139,6 @@ export class InputManager {
       this.snapTargetId = null;
       this.snapTargetEdgeWorldPos = null;
       this.mouseDownModuleId = null;
-      this.mouseDownInEdgeZone = false;
       this.canvas.style.cursor = '';
       return;
     }
@@ -984,7 +1167,6 @@ export class InputManager {
         this.dragModuleId = null;
         this.dragModuleWorldStart = null;
         this.mouseDownModuleId = null;
-        this.mouseDownInEdgeZone = false;
         this.canvas.style.cursor = '';
         return;
       }
@@ -1057,7 +1239,6 @@ export class InputManager {
 
       // Reset tracking
       this.mouseDownModuleId = null;
-      this.mouseDownInEdgeZone = false;
     }
   }
 
@@ -1113,8 +1294,9 @@ export class InputManager {
       return;
     }
 
-    // ── Escape → cancel active drag ──────────────────────────────
+    // ── Escape → cancel active drag, then deselect if idle ──────
     if (e.code === 'Escape') {
+      const wasDragging = this.isDragging || this._feedbackDragStockId !== null;
       if (this.isDraggingFeedback || this._feedbackDragStockId !== null) {
         this.cancelFeedbackDrag();
       }
@@ -1124,14 +1306,25 @@ export class InputManager {
       if (this.isDraggingConnection) {
         this.cancelConnectionDrag();
       }
+      // AC10: If no drag was active and a module is selected, deselect
+      if (!wasDragging && this.selectedModuleIdProvider?.() != null) {
+        this.onModuleSelect?.(null);
+        // Reset selection-scoped state on deselect
+        this.isEditingName = false;
+        this._isColorPickerOpen = false;
+        this.hoveredDiamond = null;
+        this.hoveredHandle = null;
+      }
       return;
     }
 
-    // ── Story 3.5: Tab → cycle to next module (AC1, AC5) ────
+    // ── Story 3.5 + Story 8.2: Tab → cycle to next module (only when selected) ──
     if (e.code === 'Tab') {
       e.preventDefault();
       if (this.isDragging) return;
-      this.onTabNext?.();
+      if (this.selectedModuleIdProvider?.() != null) {
+        this.onTabNext?.();
+      }
       return;
     }
 
@@ -1149,11 +1342,15 @@ export class InputManager {
       return;
     }
 
-    // ── Story 3.5: Enter → place module at viewport center (AC4) ─
+    // ── Story 3.5 + Story 8.2: Enter → edit name (selected) or place module (idle) ─
     if (e.code === 'Enter') {
       e.preventDefault();
       if (this.isDragging) return;
-      this.onModulePlaceAtCenter?.();
+      if (this.selectedModuleIdProvider?.() != null && !this.isEditingName) {
+        this.isEditingName = true;
+      } else {
+        this.onModulePlaceAtCenter?.();
+      }
       return;
     }
 
@@ -1219,7 +1416,6 @@ export class InputManager {
     this.dragModuleId = null;
     this.dragModuleWorldStart = null;
     this.mouseDownModuleId = null;
-    this.mouseDownInEdgeZone = false;
     this._mouseDownOnCanvas = false;
     if (this.isDraggingConnection) {
       this.cancelConnectionDrag();
@@ -1250,7 +1446,6 @@ export class InputManager {
     this.snapTargetId = null;
     this.snapTargetEdgeWorldPos = null;
     this.mouseDownModuleId = null;
-    this.mouseDownInEdgeZone = false;
     this.onConnectionDragCancel?.();
     this.canvas.style.cursor = '';
   }
