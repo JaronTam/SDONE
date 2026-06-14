@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { InputManager, pointToSegmentDistance, hitTestConnectionPoint, hitTestResizeHandle } from './InputManager.js';
 import { ViewportManager, MIN_ZOOM } from '../canvas/Viewport.js';
-import { vec2 } from '../shared/Vec2.js';
+import { vec2, type Vec2 } from '../shared/Vec2.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -597,7 +597,7 @@ describe('InputManager', () => {
       input.destroy();
     });
 
-    it('second Enter when already editing falls through to onModulePlaceAtCenter', () => {
+    it('second Enter when already editing does NOT place module (AC9)', () => {
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
       const placeSpy = vi.fn();
       input.onModulePlaceAtCenter = placeSpy;
@@ -609,9 +609,9 @@ describe('InputManager', () => {
       keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
       expect(placeSpy).not.toHaveBeenCalled();
 
-      // Second Enter: already editing → falls through to placement
+      // Second Enter: already editing → still does NOT place (AC9: Enter never places when selected)
       keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
-      expect(placeSpy).toHaveBeenCalledTimes(1);
+      expect(placeSpy).not.toHaveBeenCalled();
 
       input.destroy();
     });
@@ -641,6 +641,65 @@ describe('InputManager', () => {
       );
 
       expect(selectSpy).not.toHaveBeenCalled();
+      input.destroy();
+    });
+
+    it('isEditingName resets on mouse click empty space (PATCH-1 regression)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({});
+
+      const keydownFn = capturedWindowListeners.get('keydown')?.[0]!;
+
+      // Step 1: Enter → isEditingName = true
+      keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
+      expect(placeSpy).not.toHaveBeenCalled(); // entered editing, not placed
+
+      // Step 2: Click empty space → deselect → resetSelectionState()
+      dispatchMouseEvent(canvas, 'mousedown', 0, 500, 400);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 500, clientY: 400 }));
+
+      // Step 3: Select module again → Enter should enter editing (not place)
+      // Simulate re-selection by setting provider and pressing Enter
+      input.selectedModuleIdProvider = () => 'mod2';
+      keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
+      // isEditingName was reset, so Enter enters editing mode again (no place)
+      expect(placeSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('isEditingName resets on clicking a different module (PATCH-1a regression)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      const placeSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      input.onModulePlaceAtCenter = placeSpy;
+      input.nodesProvider = () => ({
+        modA: { id: 'modA', type: 'stock', position: vec2(100, 100), label: 'A' } as any,
+        modB: { id: 'modB', type: 'stock', position: vec2(300, 100), label: 'B' } as any,
+      });
+
+      const keydownFn = capturedWindowListeners.get('keydown')?.[0]!;
+
+      // Step 1: Select modA and enter editing
+      input.selectedModuleIdProvider = () => 'modA';
+      keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
+      expect(placeSpy).not.toHaveBeenCalled(); // entered editing
+
+      // Step 2: Click modB → selection change → resetSelectionState()
+      dispatchMouseEvent(canvas, 'mousedown', 0, 300, 100);
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 300, clientY: 100 }));
+
+      // Step 3: Now selected modB, press Enter → should enter editing (not place)
+      input.selectedModuleIdProvider = () => 'modB';
+      keydownFn(new KeyboardEvent('keydown', { code: 'Enter' }));
+      expect(placeSpy).not.toHaveBeenCalled(); // isEditingName was reset, enters editing
+
       input.destroy();
     });
 

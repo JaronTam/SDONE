@@ -1,7 +1,7 @@
 # SDONE 故事状态总览
 
-**最后更新：** 2026-06-09 19:10
-**更新原因：** Story 7.7 审查+深度审计+修复完成（760 测试 / 33 文件 / Epic 7 接近完成）
+**最后更新：** 2026-06-15 00:04
+**更新原因：** Story 8.2 审查+深度审计+修复完成（822 测试 / 34 文件 / Epic 8 进行中）
 
 ---
 
@@ -16,6 +16,7 @@
 | Epic 5 — Particles & Visual Feedback | ✅ 完成 | 7 (5.1–5.5) | 全部审查 |
 | Epic 6 — Countdown & Grouping | ✅ 完成 | 7 (6.1–6.7) | 全部审查 |
 | Epic 7 — NFR & Testing | ✅ 完成 | 7 (7.1–7.7) | 7/7 审查+修复完成（7.8 部署上云 → V2） |
+| Epic 8 — Select First, Then Act | 🔄 进行中 | 6 (8.1–8.6) | 2/6 完成（8.1+8.2 审查+修复+深度审计） |
 
 ---
 
@@ -137,9 +138,9 @@
 
 | 指标 | 数值 |
 |------|------|
-| 测试文件数 | 33 |
-| 测试总数 | **760** |
-| 通过 | **760** |
+| 测试文件数 | 34 |
+| 测试总数 | **822** |
+| 通过 | **822** |
 | 失败 | 0 |
 | `npx tsc --noEmit` | **0 错误** |
 | 已实现故事数 | ≥35 |
@@ -158,7 +159,10 @@
 | 5 — Particles & Visual Feedback | ParticleEngine(14) + PerformanceMonitor(20) + ConfettiEngine(7) + EmptyCanvasAffordance(14) | 55 |
 | 6 — Countdown & Grouping | AnalyticsPanel(30) + CountdownPanel(63) + ModulePanel(36) + RateEditorPanel(15) + achievement-detection(6) + GraphState(15) + Formula(13) | 178 |
 | 7 — NFR & Testing | NumericalDrift(3) + SimulationEngine.integration(25) + PerformanceMonitor(20) + Playwright smoke(4) | 52 |
-| **合计** | **33 文件** | **760** |
+| 8 — Select First, Then Act | mutations(66) + InputManager(90) + ShapePaths(7) + GraphState(15) + EventBus(17) + evaluator(33) + ConfettiEngine(7) + StackValidator(17) + FormulaEngine(13) + NudgeDebouncer(7) + StackValidator-rendering(26) + ParticleEngine(14) + Formula(13) + utils(3) + achievement-detection(6) | 822* |
+| **合计** | **34 文件** | **822** |
+
+*Epic 8 测试含全量回归套件，非仅 Epic 8 新增测试
 
 ---
 
@@ -189,16 +193,54 @@ docs/code-reviews/
 ├── story-7-7-deep-audit-2026-06-09.md        ← Story 7.7 深度审计
 ├── story-7-7-fix-report-2026-06-09.md        ← Story 7.7 修复报告
 └── epic-2-retrospective-confession-report.md ← Epic 2 回顾独立审计
-
-docs/stories/
-├── 3-4-module-deletion-click-delete-key.md  ← Story 3.4 规格文件
-└── 5.1-particle-engine.md                   ← Story 5.1 规格文件
-
-docs/retrospectives/
-├── epic-1.md                                 ← Epic 1 回顾
-├── epic-1-revisit.md                         ← Epic 1 回顾复查
-└── epic-2.md                                 ← Epic 2 回顾
 ```
+
+---
+
+## Epic 8 — Select First, Then Act 🔄
+
+| 故事 | 描述 | 审查状态 | 测试 | 备注 |
+|------|------|----------|------|------|
+| 8.1 | Schema Extension & Pure Mutations | ✅ 审查+修复完成 | 66 测试 (mutations) | updateModuleLabel/updateModuleSize + NaN 防御 |
+| 8.2 | Selection State & Hit-Test Infrastructure | ✅ 审查+修复+深度审计 | 90 测试 (InputManager) | 7 项修复 + 2 回归测试 |
+
+### Story 8.1 审查文件
+
+| 文件 | 用途 |
+|------|------|
+| `story-8-1-code-review-2026-06-12.md` | 三层对抗性审查（1 P2 + 1 P3） |
+| `story-8-1-audit-2026-06-12.md` | 独立审计 |
+| `story-8-1-deep-audit-2026-06-12.md` | 深度审计 |
+
+### Story 8.2 审查文件
+
+| 文件 | 用途 |
+|------|------|
+| `story-8-2-code-review-2026-06-14.md` | 三层对抗性审查（2 P2 + 3 P3 + 1 Decision） |
+| `story-8-2-fix-report-2026-06-14.md` | 7 项修复报告（含深度审计发现的 PATCH-1a） |
+| `story-8-2-deep-audit-2026-06-14.md` | 深度审计（1 P2 遗漏 + 认知偏差分析） |
+
+### Story 8.2 关键修复
+
+| Patch | 严重度 | 修复 |
+|-------|--------|------|
+| PATCH-1 | 🔴 P2 | isEditingName 鼠标取消选择时未重置 → resetSelectionState() |
+| PATCH-1a | 🔴 P2 | isEditingName 选择变更时未重置（深度审计发现） |
+| PATCH-2 | 🔴 P2 | hit-test 未过滤到已选模块 → selectedId 过滤 |
+| PATCH-3 | 🟡 P3 | hover 状态取消选择时未清理 → 与 PATCH-1 合并 |
+| PATCH-4 | 🟡 P3 | handleMouseLeave 未清理 hover → 清理+回调触发 |
+| PATCH-5 | 🟡 P3 | Enter 二次按下违反 AC9 → 选中时 Enter 永不放置 |
+| DECISION-1 | 🟡 P3 | 类型拓宽丢失精度 → 恢复精确联合类型 |
+
+### Story 8.2 Forward-Deferred Items
+
+| 目标 Story | 描述 | 优先级 |
+|-----------|------|--------|
+| 8.4 | Escape 不区分 SELECTED/EDITING_NAME 状态 → 逐层退出 | P3 |
+| 8.4 | _isColorPickerOpen 前向声明 + @ts-ignore → 接线后清理 | P4 |
+| 8.5 | classifyHitZone 死代码 + @ts-ignore → 评估是否删除 | P4 |
+| 8.5 | _isResizing 前向声明 + @ts-ignore → 接线后清理 | P4 |
+| 8.5 | PATCH-2/4 回归测试 → 消费者接线后补充集成测试 | P3 |
 
 ---
 
@@ -226,6 +268,8 @@ docs/retrospectives/
 |---|------|------|
 | P3-1 | main.ts 中未使用的 vec2 导入 | `main.ts` |
 | P3-2 | getContext 失败时静默返回 | `ModulePanel.ts` |
+| P3-3 | classifyHitZone 死代码 + @ts-ignore → Story 8.5 后评估 | `InputManager.ts` |
+| P3-4 | _isResizing/_isColorPickerOpen 前向声明 + @ts-ignore → Story 8.4/8.5 后清理 | `InputManager.ts` |
 
 ---
 

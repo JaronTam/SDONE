@@ -212,8 +212,18 @@ export class InputManager {
   private _isColorPickerOpen = false;
 
   // ── Story 8.2: Diamond & Handle hover tracking ─────────────────
-  private hoveredDiamond: { moduleId: string; edge: string } | null = null;
-  private hoveredHandle: { moduleId: string; corner: string } | null = null;
+  // DECISION-1 fix: use precise union types instead of widened `string`
+  private hoveredDiamond: { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null = null;
+  private hoveredHandle: { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null = null;
+
+  /** Story 8.2 — Reset all selection-scoped state on deselect.
+   *  Called from Escape handler and handleMouseUp deselect paths. */
+  private resetSelectionState(): void {
+    this.isEditingName = false;
+    this._isColorPickerOpen = false;
+    this.hoveredDiamond = null;
+    this.hoveredHandle = null;
+  }
 
   // ── Story 3.6: Edge-drag connection state ─────────────────────
   private isDraggingConnection = false;
@@ -748,7 +758,7 @@ export class InputManager {
    */
   private hitTestConnectionPointInstance(
     screenPos: Vec2,
-  ): { moduleId: string; edge: string } | null {
+  ): { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null {
     const nodes = this.nodesProvider?.();
     if (!nodes) return null;
     const canvasCenter = this.getCanvasCenter();
@@ -761,7 +771,7 @@ export class InputManager {
    */
   private hitTestResizeHandleInstance(
     screenPos: Vec2,
-  ): { moduleId: string; corner: string } | null {
+  ): { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null {
     const nodes = this.nodesProvider?.();
     if (!nodes) return null;
     const canvasCenter = this.getCanvasCenter();
@@ -865,6 +875,15 @@ export class InputManager {
     this.clearHoveredConnection();
     this.ghostModuleType = null;
     this.ghostWorldPosition = null;
+    // PATCH-4 fix: clear diamond/handle hover on cursor leave
+    if (this.hoveredDiamond !== null) {
+      this.hoveredDiamond = null;
+      this.onDiamondHover?.(null, null, this.lastScreenPos);
+    }
+    if (this.hoveredHandle !== null) {
+      this.hoveredHandle = null;
+      this.onHandleHover?.(null, null, this.lastScreenPos);
+    }
   }
 
   // -------------------------------------------------------------------
@@ -1022,8 +1041,14 @@ export class InputManager {
       this.mouseDownModuleId === null &&
       this.selectedModuleIdProvider?.() != null
     ) {
+      // PATCH-2 fix: only report hover for the selected module
+      const selectedId = this.selectedModuleIdProvider?.();
+
       // Diamond hover
-      const diamondHit = this.hitTestConnectionPointInstance(current);
+      const rawDiamondHit = this.hitTestConnectionPointInstance(current);
+      const diamondHit = (rawDiamondHit && rawDiamondHit.moduleId === selectedId)
+        ? rawDiamondHit
+        : null;
       const prevDiamond = this.hoveredDiamond;
       if (
         diamondHit?.moduleId !== prevDiamond?.moduleId ||
@@ -1038,7 +1063,10 @@ export class InputManager {
       }
 
       // Handle hover
-      const handleHit = this.hitTestResizeHandleInstance(current);
+      const rawHandleHit = this.hitTestResizeHandleInstance(current);
+      const handleHit = (rawHandleHit && rawHandleHit.moduleId === selectedId)
+        ? rawHandleHit
+        : null;
       const prevHandle = this.hoveredHandle;
       if (
         handleHit?.moduleId !== prevHandle?.moduleId ||
@@ -1201,6 +1229,9 @@ export class InputManager {
               this.onConnectionSelect?.(connId);
             } else {
               this.onModuleSelect?.(hitId);
+              // PATCH-1a fix: reset selection-scoped state on selection change
+              // (clicking a different module also needs reset, not just deselect)
+              this.resetSelectionState();
             }
           }
         } else {
@@ -1213,6 +1244,8 @@ export class InputManager {
             this.onConnectionSelect?.(connId);
           } else {
             this.onModuleSelect?.(null);
+            // PATCH-1+3 fix: reset selection-scoped state on mouse deselect
+            this.resetSelectionState();
           }
         }
       } else {
@@ -1234,6 +1267,8 @@ export class InputManager {
             this.onCanvasClickEmpty?.(worldPos);
           }
           this.onModuleSelect?.(null);
+            // PATCH-1+3 fix: reset selection-scoped state on mouse deselect
+            this.resetSelectionState();
         }
       }
 
@@ -1309,11 +1344,8 @@ export class InputManager {
       // AC10: If no drag was active and a module is selected, deselect
       if (!wasDragging && this.selectedModuleIdProvider?.() != null) {
         this.onModuleSelect?.(null);
-        // Reset selection-scoped state on deselect
-        this.isEditingName = false;
-        this._isColorPickerOpen = false;
-        this.hoveredDiamond = null;
-        this.hoveredHandle = null;
+        // Reset selection-scoped state on deselect (PATCH-1+3 fix)
+        this.resetSelectionState();
       }
       return;
     }
@@ -1343,12 +1375,18 @@ export class InputManager {
     }
 
     // ── Story 3.5 + Story 8.2: Enter → edit name (selected) or place module (idle) ─
+    // PATCH-5 fix: when a module is selected, Enter NEVER places a new module (AC9)
     if (e.code === 'Enter') {
       e.preventDefault();
       if (this.isDragging) return;
-      if (this.selectedModuleIdProvider?.() != null && !this.isEditingName) {
-        this.isEditingName = true;
+      if (this.selectedModuleIdProvider?.() != null) {
+        if (!this.isEditingName) {
+          this.isEditingName = true;
+        }
+        // When a module is selected, Enter NEVER places a new module (AC9)
+        // If already editing, this Enter is consumed by the name input (Story 8.4)
       } else {
+        // IDLE state: V1.0 behavior preserved
         this.onModulePlaceAtCenter?.();
       }
       return;
