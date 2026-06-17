@@ -17,3 +17,4 @@ export { ParticleEngine, type ParticleState } from './ParticleEngine.js';
 export { ConfettiEngine, type ConfettiParticle } from './ConfettiEngine.js';
 // Story 7.5: Performance monitor (NFR-P1, NFR-P7)
 export { PerformanceMonitor } from './PerformanceMonitor.js';
+export { OverlaySyncManager } from './OverlaySyncManager.js';
