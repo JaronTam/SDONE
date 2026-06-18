@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Fix all defects in ToolbarController.ts"""
+import sys
+
+filepath = 'src/ui/overlays/ToolbarController.ts'
+
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Track fixes
+fixes = []
+
+# Fix 1: P3-1 - Fix indentation of 'export class' (remove leading 2 spaces)
+if '  export class ToolbarController {' in content:
+    content = content.replace('  export class ToolbarController {', 'export class ToolbarController {')
+    fixes.append('P3-1: Fixed export class indentation')
+
+# Fix 2: P3-1 - Fix destroy() type assertion assignment
+old_destroy = '(this._options as ToolbarControllerOptions | null) = null;'
+new_destroy = 'this._options = null;'
+if old_destroy in content:
+    content = content.replace(old_destroy, new_destroy)
+    fixes.append('P3-1: Fixed destroy() type assertion -> direct assignment')
+
+# Fix 3: Add COLOR_DOT_HIDDEN_CLASS constant
+old_const = "const COLOR_DOT_CLASS = `${TOOLBAR_CLASS}__color-dot`;\nconst NAME_CLASS"
+new_const = "const COLOR_DOT_CLASS = `${TOOLBAR_CLASS}__color-dot`;\nconst COLOR_DOT_HIDDEN_CLASS = `${TOOLBAR_CLASS}__color-dot--hidden`;\nconst NAME_CLASS"
+if old_const in content and 'COLOR_DOT_HIDDEN_CLASS' not in content:
+    content = content.replace(old_const, new_const)
+    fixes.append('P3-4: Added COLOR_DOT_HIDDEN_CLASS constant')
+
+# Fix 4: P3-3 - Don't overwrite input.value when editing
+old_name = """    // ── Name ──────────────────────────────────────────────────
+    if (this._isEditing) {
+      // Update input value to reflect tick changes
+      const input = this._el!.querySelector(
+        `${NAME_EDITING_CLASS}`,
+      ) as HTMLInputElement | null;
+      if (input) {
+        input.value = data.label;
+      }
+    } else if (this._nameEl) {
+      this._nameEl.textContent = data.label;
+    }"""
+
+new_name = """    // ── Name ──────────────────────────────────────────────────
+    // AC11: _preEditName only updates when NOT editing.
+    // AC6/AC11 tension: When editing, do NOT overwrite input.value
+    // to preserve user's in-progress edits. Only update name span
+    // when not in edit mode.
+    if (!this._isEditing && this._nameEl) {
+      this._nameEl.textContent = data.label;
+    }"""
+
+if old_name in content:
+    content = content.replace(old_name, new_name)
+    fixes.append('P3-3: Fixed input.value overwrite during editing')
+
+# Fix 5: P3-4 - Use BEM --hidden class instead of style.display
+old_color = """    // ── Color Dot ─────────────────────────────────────────────
+    if (this._colorDotEl) {
+      if (data.moduleType === 'stock') {
+        this._colorDotEl.style.display = 'none';
+      } else {
+        this._colorDotEl.style.display = '';
+        if (data.color) {
+          this._colorDotEl.style.backgroundColor = data.color;
+        }
+      }
+    }"""
+
+new_color = """    // ── Color Dot ─────────────────────────────────────────────
+    if (this._colorDotEl) {
+      if (data.moduleType === 'stock') {
+        // AC19: Stock excludes color dot via BEM --hidden modifier class
+        this._colorDotEl.classList.add(COLOR_DOT_HIDDEN_CLASS);
+      } else {
+        this._colorDotEl.classList.remove(COLOR_DOT_HIDDEN_CLASS);
+        if (data.color) {
+          this._colorDotEl.style.backgroundColor = data.color;
+        }
+      }
+    }"""
+
+if old_color in content:
+    content = content.replace(old_color, new_color)
+    fixes.append('P3-4: Replaced style.display with BEM --hidden class')
+
+# Write back
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(content)
+
+# Report
+print(f"Applied {len(fixes)} fixes:")
+for fix in fixes:
+    print(f"  ✓ {fix}")
+
+if not fixes:
+    print("WARNING: No fixes were applied - patterns may not match")
+    sys.exit(1)

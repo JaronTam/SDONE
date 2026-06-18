@@ -7,3 +7,6 @@ export { AchievementToast } from './AchievementToast.js';
 // Story 6.1: Modal dialog
 export { ModalDialog } from './ModalDialog.js';
 export type { ModalConfig } from './ModalDialog.js';
+// Story 8.4: Module toolbar
+export { ToolbarController } from './ToolbarController.js';
+export type { ToolbarData, ToolbarControllerOptions } from './ToolbarController.js';

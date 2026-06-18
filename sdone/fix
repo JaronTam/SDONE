@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+/**
+ * Fix all defects in ToolbarController.ts
+ * Using Node.js for reliable string matching with template literals
+ */
+const fs = require('fs');
+
+const filepath = 'src/ui/overlays/ToolbarController.ts';
+let content = fs.readFileSync(filepath, 'utf-8');
+const fixes = [];
+
+// Fix 1: P3-1 - Fix indentation of 'export class' (remove leading 2 spaces)
+if (content.includes('  export class ToolbarController {')) {
+  content = content.replace('  export class ToolbarController {', 'export class ToolbarController {');
+  fixes.push('P3-1: Fixed export class indentation');
+}
+
+// Fix 2: P3-1 - Fix destroy() type assertion assignment
+const oldDestroy = '(this._options as ToolbarControllerOptions | null) = null;';
+const newDestroy = 'this._options = null;';
+if (content.includes(oldDestroy)) {
+  content = content.replace(oldDestroy, newDestroy);
+  fixes.push('P3-1: Fixed destroy() type assertion -> direct assignment');
+}
+
+// Fix 3: Add COLOR_DOT_HIDDEN_CLASS constant
+const oldConst = 'const COLOR_DOT_CLASS = `${TOOLBAR_CLASS}__color-dot`;\nconst NAME_CLASS';
+const newConst = 'const COLOR_DOT_CLASS = `${TOOLBAR_CLASS}__color-dot`;\nconst COLOR_DOT_HIDDEN_CLASS = `${TOOLBAR_CLASS}__color-dot--hidden`;\nconst NAME_CLASS';
+if (content.includes(oldConst) && !content.includes('COLOR_DOT_HIDDEN_CLASS')) {
+  content = content.replace(oldConst, newConst);
+  fixes.push('P3-4: Added COLOR_DOT_HIDDEN_CLASS constant');
+}
+
+// Fix 4: P3-3 - Don't overwrite input.value when editing
+const oldName = `    // ── Name ──────────────────────────────────────────────────
+    if (this._isEditing) {
+      // Update input value to reflect tick changes
+      const input = this._el!.querySelector(
+        \`\${NAME_EDITING_CLASS}\`,
+      ) as HTMLInputElement | null;
+      if (input) {
+        input.value = data.label;
+      }
+    } else if (this._nameEl) {
+      this._nameEl.textContent = data.label;
+    }`;
+
+const newName = `    // ── Name ──────────────────────────────────────────────────
+    // AC11: _preEditName only updates when NOT editing.
+    // AC6/AC11 tension: When editing, do NOT overwrite input.value
+    // to preserve user's in-progress edits. Only update name span
+    // when not in edit mode.
+    if (!this._isEditing && this._nameEl) {
+      this._nameEl.textContent = data.label;
+    }`;
+
+if (content.includes(oldName)) {
+  content = content.replace(oldName, newName);
+  fixes.push('P3-3: Fixed input.value overwrite during editing');
+}
+
+// Fix 5: P3-4 - Use BEM --hidden class instead of style.display
+const oldColor = `    // ── Color Dot ─────────────────────────────────────────────
+    if (this._colorDotEl) {
+      if (data.moduleType === 'stock') {
+        this._colorDotEl.style.display = 'none';
+      } else {
+        this._colorDotEl.style.display = '';
+        if (data.color) {
+          this._colorDotEl.style.backgroundColor = data.color;
+        }
+      }
+    }`;
+
+const newColor = `    // ── Color Dot ─────────────────────────────────────────────
+    if (this._colorDotEl) {
+      if (data.moduleType === 'stock') {
+        // AC19: Stock excludes color dot via BEM --hidden modifier class
+        this._colorDotEl.classList.add(COLOR_DOT_HIDDEN_CLASS);
+      } else {
+        this._colorDotEl.classList.remove(COLOR_DOT_HIDDEN_CLASS);
+        if (data.color) {
+          this._colorDotEl.style.backgroundColor = data.color;
+        }
+      }
+    }`;
+
+if (content.includes(oldColor)) {
+  content = content.replace(oldColor, newColor);
+  fixes.push('P3-4: Replaced style.display with BEM --hidden class');
+}
+
+// Write back
+fs.writeFileSync(filepath, content, 'utf-8');
+
+// Report
+console.log(`Applied ${fixes.length} fixes:`);
+fixes.forEach(fix => console.log(`  ✓ ${fix}`));
+
+if (fixes.length === 0) {
+  console.log('WARNING: No fixes were applied - patterns may not match');
+  process.exit(1);
+}

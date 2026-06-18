@@ -29,6 +29,7 @@ body {
   --z-panel: 1;          /* Left + Right panels */
   --z-control-bar: 2;    /* Top control bar — above panels */
   --z-minimap: 3;        /* Minimap overlay — above control bar */
+  --z-toolbar: 100;      /* Module toolbar — above minimap, below modal (Story 8.4) */
 
   /* Overlay layers (200+): fixed-position UI on top of base layers */
   --z-modal: 200;        /* Modal dialog backdrop — above minimap, below popover/toast */

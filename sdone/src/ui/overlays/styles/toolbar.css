@@ -1,0 +1,86 @@
+/* ---------------------------------------------------------------------------
+ * SDONE — Toolbar BEM Styles (Story 8.4)
+ * AC7 / AC14 / AC25
+ * --------------------------------------------------------------------------- */
+
+/* ── Root block ─────────────────────────────────────────────────────── */
+
+.toolbar {
+  position: fixed;
+  z-index: var(--z-toolbar, 100);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  min-width: 120px;
+  background: rgba(24, 24, 27, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  user-select: none;
+  /* No transition/animation — ≤50ms render target (SM-3) */
+}
+
+/* ── Color dot element ──────────────────────────────────────────────── */
+
+  .toolbar__color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  /* ── Color dot hidden modifier (Stock — AC19) ──────────────────────── */
+
+  .toolbar__color-dot--hidden {
+    display: none;
+  }
+
+/* ── Name element (read-only span) ──────────────────────────────────── */
+
+.toolbar__name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ffffff;
+  cursor: text;
+  flex-grow: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── Name editing modifier (input replacing span) ───────────────────── */
+
+.toolbar__name--editing {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+  flex-grow: 1;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  caret-color: #ffffff;
+}
+
+/* ── Data text element ──────────────────────────────────────────────── */
+
+.toolbar__data {
+  font-size: 11px;
+  font-weight: 400;
+  color: #c0c0c0;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
