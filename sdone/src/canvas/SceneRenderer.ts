@@ -11,6 +11,7 @@ import {
   drawSink as drawSinkShape,
 } from '../shared/ShapePaths.js';
 import type { GraphState, StockNode, SourceNode, SinkNode, ModuleType } from '../state/GraphState.js';
+import { DEFAULT_MODULE_WIDTH, DEFAULT_MODULE_HEIGHT } from '../state/GraphState.js';
 import type { ViewportManager } from './Viewport.js';
 import type { ConfettiParticle } from './ConfettiEngine.js';
 import type { PerformanceMonitor } from './PerformanceMonitor.js';
@@ -324,6 +325,15 @@ export class SceneRenderer {
    *  Only rendered when simStateProvider returns 'paused'. */
   public breathingGlowStockIdsProvider: (() => Set<string>) | null = null;
 
+  // ── Story 8.5 — Selection overlay hover providers ─────────────────────
+  /** Story 8.5 — Provides current diamond hover state for overlay rendering.
+   *  Returns null when no diamond is hovered or module is not selected. */
+  public diamondHoverProvider: (() => { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null) | null = null;
+
+  /** Story 8.5 — Provides current handle hover state for overlay rendering.
+   *  Returns null when no handle is hovered or module is not selected. */
+  public handleHoverProvider: (() => { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null) | null = null;
+
   /** Story 7.3 — Animation start time for the breathing glow (continuous from page load). */
   private readonly breathingGlowStartTime: number = performance.now();
 
@@ -396,6 +406,7 @@ export class SceneRenderer {
     this.drawGrid();
     if (this.graphState) {
       this.drawModules(this.graphState);
+      this.drawSelectionOverlay(this.graphState);   // Story 8.5 — diamonds + handles above modules
       this.drawBorderFlash(this.graphState);  // Story 5.5 AC2: flash rings around achieved stack
       this.drawSnapTargetEdgeGlow();  // Story 5.4 AC4 — between modules and connections
       this.drawConnections(this.graphState);
@@ -1280,6 +1291,126 @@ export class SceneRenderer {
     ctx.closePath();
     ctx.stroke();
     ctx.restore();
+  }
+
+  // ── Story 8.5 — Selection Overlay (Diamonds + Resize Handles) ────────
+
+  /**
+   * Story 8.5 AC1 — Draw a solid-filled diamond (rotated square) at a world position.
+   * Pattern: save/restore → translate → rotate(π/4) → fillRect → restore.
+   * No stroke. Used for connection-point diamonds on selected module edges.
+   */
+  private drawDiamond(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    fillColor: string,
+  ): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
+  }
+
+  /**
+   * Story 8.5 AC1-AC3, AC12-AC14, AC29-AC34 — Render diamonds at edge
+   * midpoints and resize handles at corners for each selected module.
+   *
+   * Fail-Safe #6 (Non-Negotiable): Entire body wrapped in try-catch.
+   * Any error → console.warn → skip overlay for this frame. rAF continues.
+   *
+   * Immutable Boundary #3: Pure rendering method. Reads from providers.
+   * Does NOT call mutations or update GraphState.
+   */
+  private drawSelectionOverlay(state: GraphState): void {
+    try {
+      const { ctx } = this;
+      // Iterate all selected modules (supports future multi-select)
+      for (const id of state.selectedModuleIds) {
+        const node = state.nodes[id];
+        if (!node) continue;
+
+        const cx = node.position.x;
+        const cy = node.position.y;
+        const w = node.width ?? DEFAULT_MODULE_WIDTH;
+        const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+
+        // Edge case: 0-dimension module (shouldn't exist, but defensive)
+        if (w <= 0 || h <= 0) continue;
+
+        // Query hover providers
+        const diamondHover = this.diamondHoverProvider?.();
+        const handleHover = this.handleHoverProvider?.();
+
+        const hw = w / 2;
+        const hh = h / 2;
+
+        // ── Draw diamonds at 4 edge midpoints ──
+        const edges: Array<{
+          edge: 'top' | 'bottom' | 'left' | 'right';
+          baseX: number;
+          baseY: number;
+          offsetX: number;
+          offsetY: number;
+        }> = [
+          { edge: 'top',    baseX: cx,       baseY: cy - hh, offsetX: 0,  offsetY: -2 },
+          { edge: 'bottom', baseX: cx,       baseY: cy + hh, offsetX: 0,  offsetY: +2 },
+          { edge: 'left',   baseX: cx - hw,  baseY: cy,      offsetX: -2, offsetY: 0  },
+          { edge: 'right',  baseX: cx + hw,  baseY: cy,      offsetX: +2, offsetY: 0  },
+        ];
+
+        for (const { edge, baseX, baseY, offsetX, offsetY } of edges) {
+          const isHovered =
+            diamondHover !== null &&
+            diamondHover !== undefined &&
+            diamondHover.moduleId === id &&
+            diamondHover.edge === edge;
+
+          if (isHovered) {
+            // AC3: Hover → outward shift + brighter fill
+            this.drawDiamond(
+              ctx,
+              baseX + offsetX,
+              baseY + offsetY,
+              4,
+              'rgba(255,255,255,0.85)',
+            );
+          } else {
+            // AC2: Idle → no offset, dim fill
+            this.drawDiamond(ctx, baseX, baseY, 4, 'rgba(255,255,255,0.35)');
+          }
+        }
+
+        // ── Draw resize handles at 4 corners ──
+        const corners: Array<{
+          corner: 'nw' | 'ne' | 'sw' | 'se';
+          x: number;
+          y: number;
+        }> = [
+          { corner: 'nw', x: cx - hw, y: cy - hh },
+          { corner: 'ne', x: cx + hw, y: cy - hh },
+          { corner: 'sw', x: cx - hw, y: cy + hh },
+          { corner: 'se', x: cx + hw, y: cy + hh },
+        ];
+
+        for (const { corner, x, y } of corners) {
+          const isHovered =
+            handleHover !== null &&
+            handleHover !== undefined &&
+            handleHover.moduleId === id &&
+            handleHover.corner === corner;
+
+          ctx.fillStyle = isHovered ? '#f9e2af' : '#ffffff';  // AC13/AC14
+          ctx.fillRect(x - 3, y - 3, 6, 6);  // AC12: 6×6 axis-aligned squares
+        }
+      }
+    } catch (e) {
+      // Fail-Safe #6: overlay is cosmetic — never crash the rAF loop
+      console.warn('[drawSelectionOverlay] skipped:', e);
+    }
   }
 
   // ── Story 7.1 — Feedback Drag Preview ──────────────────────────────

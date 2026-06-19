@@ -202,8 +202,7 @@ export class InputManager {
   private _mouseDownOnCanvas = false;
 
   // ── Story 8.2: V1.1 boolean state flags ────────────────────────
-  /** True during resize handle drag (drag wiring → Story 8.5). */
-  // @ts-ignore TS6133 — forward-declared, consumed by Story 8.5
+  /** True during resize handle drag (Story 8.5). */
   private _isResizing = false;
   /** True while Toolbar name input is focused (ToolbarController → Story 8.4). */
   private isEditingName = false;
@@ -223,7 +222,35 @@ export class InputManager {
     this._isColorPickerOpen = false;
     this.hoveredDiamond = null;
     this.hoveredHandle = null;
+    // Story 8.5: Reset resize drag state on deselect
+    this._isResizing = false;
+    this._resizeDragActive = false;
+    this._resizeModuleId = null;
+    this._resizeCorner = null;
+    this._resizeInitialDims = null;
+    this._resizeAnchorWorld = null;
+    this._resizePrevCenter = null;
+    // Story 8.5: Reset pending connection drag on deselect
+    this._pendingConnectionDrag = false;
   }
+
+  // ── Story 8.5: Resize drag state ──────────────────────────────
+  /** Module being resized (null when not resizing). */
+  private _resizeModuleId: string | null = null;
+  /** Which corner is being dragged during resize. */
+  private _resizeCorner: 'nw' | 'ne' | 'sw' | 'se' | null = null;
+  /** Module dimensions at resize drag start (for Esc/blur revert). */
+  private _resizeInitialDims: { width: number; height: number } | null = null;
+  /** Opposite-corner world position (fixed anchor during resize). */
+  private _resizeAnchorWorld: Vec2 | null = null;
+  /** True after mouse has moved ≥DRAG_THRESHOLD_PX from resize mousedown. */
+  private _resizeDragActive: boolean = false;
+  /** Previous module center from last resize drag frame (for fromWorld in onResizeMove). */
+  private _resizePrevCenter: Vec2 | null = null;
+
+  // ── Story 8.5: Diamond drag pending state ─────────────────────
+  /** True after diamond mousedown, transitions to isDraggingConnection after threshold. */
+  private _pendingConnectionDrag: boolean = false;
 
   // ── Story 3.6: Edge-drag connection state ─────────────────────
   private isDraggingConnection = false;
@@ -344,8 +371,11 @@ export class InputManager {
    *  Story 8.5 wires this to state.selectedModuleIds[0]. */
   public selectedModuleIdProvider: (() => string | null) | null = null;
 
-  /** Story 8.5 — Called when resize handle drag starts. */
-  public onResizeStart: ((moduleId: string) => void) | null = null;
+  /** Story 8.5 — Called when resize handle drag starts.
+   *  @param moduleId Module being resized
+   *  @param corner Which corner is being dragged ('nw'|'ne'|'sw'|'se')
+   *  @param anchorWorld Opposite-corner world position (fixed during resize) */
+  public onResizeStart: ((moduleId: string, corner: string, anchorWorld: Vec2) => void) | null = null;
 
   /** Story 8.5 — Called every frame during resize handle drag.
    *  Passes world-space positions. */
@@ -547,6 +577,27 @@ export class InputManager {
     // Story 8.2 — reset hover tracking
     this.hoveredDiamond = null;
     this.hoveredHandle = null;
+    // Story 8.5 AC24: Cancel resize drag → revert to original dimensions
+    if (this._resizeModuleId && this._resizeInitialDims) {
+      this.onResizeEnd?.(this._resizeModuleId, {
+        width: this._resizeInitialDims.width,
+        height: this._resizeInitialDims.height,
+      });
+    }
+    this._resizeDragActive = false;
+    this._resizeModuleId = null;
+    this._resizeCorner = null;
+    this._resizeInitialDims = null;
+    this._resizeAnchorWorld = null;
+    this._resizePrevCenter = null;
+    // Story 8.5 AC10: Cancel pending connection drag on blur
+    if (this._pendingConnectionDrag) {
+      this._pendingConnectionDrag = false;
+      this.edgeDragSourceId = null;
+      this.connectionDragSourceId = null;
+      this.connectionDragWorldPosition = null;
+      this.onConnectionDragCancel?.();
+    }
     // Story 3.6 — cancel connection drag on blur
     if (this.isDraggingConnection) {
       this.cancelConnectionDrag();
@@ -921,6 +972,71 @@ export class InputManager {
         return;
       }
 
+      // ── Story 8.5: Diamond + Handle hit-tests (AC5, AC16, AC28) ──
+      // Only check when a module is selected — precedence per AC28:
+      // feedback handle → resize handle → connection diamond → module body → empty
+      const selectedId = this.selectedModuleIdProvider?.();
+      if (selectedId !== null && selectedId !== undefined) {
+        const nodes = this.nodesProvider?.();
+
+        // Resize handle hit test (priority 2)
+        const handleHit = this.hitTestResizeHandleInstance(screenPos);
+        if (handleHit && handleHit.moduleId === selectedId) {
+          if (nodes) {
+            const node = nodes[handleHit.moduleId];
+            if (node) {
+              this._isResizing = true;
+              this._resizeDragActive = false;
+              this._resizeModuleId = handleHit.moduleId;
+              this._resizeCorner = handleHit.corner;
+              const w = node.width ?? DEFAULT_MODULE_WIDTH;
+              const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+              this._resizeInitialDims = { width: w, height: h };
+              // Compute anchor (opposite corner) per AC17
+              const cornerDirX =
+                handleHit.corner === 'ne' || handleHit.corner === 'se' ? +1 : -1;
+              const cornerDirY =
+                handleHit.corner === 'sw' || handleHit.corner === 'se' ? +1 : -1;
+              this._resizeAnchorWorld = {
+                x: node.position.x - cornerDirX * w / 2,
+                y: node.position.y - cornerDirY * h / 2,
+              };
+              this._resizePrevCenter = vec2(node.position.x, node.position.y);
+              this.mouseDownPos = screenPos;
+              this.onResizeStart?.(
+                handleHit.moduleId,
+                handleHit.corner,
+                this._resizeAnchorWorld,
+              );
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+          }
+          return; // Hit but can't resolve node — don't fall through to module drag
+        }
+
+        // Connection diamond hit test (priority 3)
+        const diamondHit = this.hitTestConnectionPointInstance(screenPos);
+        if (diamondHit && diamondHit.moduleId === selectedId) {
+          this._pendingConnectionDrag = true;
+          this.edgeDragSourceId = diamondHit.moduleId;
+          this.connectionDragSourceId = diamondHit.moduleId;
+          if (nodes) {
+            const node = nodes[diamondHit.moduleId];
+            if (node) {
+              this.connectionDragWorldPosition = vec2(
+                node.position.x,
+                node.position.y,
+              );
+            }
+          }
+          this.mouseDownPos = screenPos;
+          this.onConnectionDragStart?.(diamondHit.moduleId);
+          return;
+        }
+      }
+
       const hitId = this.hitTest(screenPos);
 
       this.mouseDownPos = screenPos;
@@ -965,6 +1081,21 @@ export class InputManager {
       return;
     }
 
+    // ── Story 8.5: Diamond drag threshold activation (AC11) ────
+    // Following the feedback drag pattern (L949-958): set _pendingConnectionDrag
+    // on mousedown, only activate isDraggingConnection after ≥DRAG_THRESHOLD_PX
+    if (this._pendingConnectionDrag && !this.isDraggingConnection) {
+      if (distance(current, this.mouseDownPos) >= DRAG_THRESHOLD_PX) {
+        this.isDraggingConnection = true;
+        // Transition complete: invalidate the pending flag so it cannot re-fire
+        // (prevents Esc/blur double-cancel and undo/redo re-activation on stale mouseDownPos)
+        this._pendingConnectionDrag = false;
+        this.clearHoveredConnection();
+      } else {
+        return; // Still waiting for drag threshold
+      }
+    }
+
     // ── Story 3.6: Connection edge-drag ─────────────────────────
     if (this.isDraggingConnection && this.edgeDragSourceId) {
       const canvasCenter = this.getCanvasCenter();
@@ -978,6 +1109,87 @@ export class InputManager {
 
       this.onConnectionDragMove?.(this.edgeDragSourceId, worldPos);
       this.canvas.style.cursor = 'crosshair';
+      return;
+    }
+
+    // ── Story 8.5: Resize drag (AC18-AC22) ────────────────────
+    // Threshold activation — defer until mouse moves ≥DRAG_THRESHOLD_PX
+    if (this._isResizing && !this._resizeDragActive) {
+      if (distance(current, this.mouseDownPos) >= DRAG_THRESHOLD_PX) {
+        this._resizeDragActive = true;
+      } else {
+        return; // Still waiting for drag threshold
+      }
+    }
+
+    // Active resize move
+    if (
+      this._isResizing &&
+      this._resizeDragActive &&
+      this._resizeModuleId &&
+      this._resizeAnchorWorld &&
+      this._resizeInitialDims
+    ) {
+      const canvasCenter = this.getCanvasCenter();
+      const mouseWorld = this.viewportManager.screenToWorld(current, canvasCenter);
+      const anchor = this._resizeAnchorWorld;
+
+      // Determine corner direction
+      const corner = this._resizeCorner!;
+      const cornerDirX =
+        corner === 'ne' || corner === 'se' ? +1 : -1;
+      const cornerDirY =
+        corner === 'sw' || corner === 'se' ? +1 : -1;
+
+      // Aspect ratio from initial dimensions (AC19)
+      const initW = this._resizeInitialDims.width;
+      const initH = this._resizeInitialDims.height;
+      const ar =
+        initH !== 0 ? initW / initH : DEFAULT_MODULE_WIDTH / DEFAULT_MODULE_HEIGHT;
+
+      // Compute diagonal direction vector (AC18)
+      const dirLen = Math.sqrt(ar * ar + 1);
+      const dirX = (cornerDirX * ar) / dirLen;
+      const dirY = cornerDirY / dirLen;
+
+      // Project mouse vector onto diagonal
+      const dx = mouseWorld.x - anchor.x;
+      const dy = mouseWorld.y - anchor.y;
+      const proj = dx * dirX + dy * dirY;
+
+      // Compute new dimensions
+      let newW = (proj * ar) / dirLen;
+      let newH = proj / dirLen;
+
+      // Clamp with aspect ratio preservation (AC21)
+      if (newH < 40) {
+        newH = 40;
+        newW = 40 * ar;
+      }
+      if (newW < 60) {
+        newW = 60;
+        newH = 60 / ar;
+      }
+
+      // Compute new center
+      const newCx = anchor.x + cornerDirX * (newW / 2);
+      const newCy = anchor.y + cornerDirY * (newH / 2);
+
+      // fromWorld = previous center, toWorld = new center
+      const fromWorld =
+        this._resizePrevCenter ??
+        vec2(
+          anchor.x - cornerDirX * (initW / 2),
+          anchor.y - cornerDirY * (initH / 2),
+        );
+      const toWorld = vec2(newCx, newCy);
+      this._resizePrevCenter = toWorld;
+
+      this.onResizeMove?.(this._resizeModuleId!, fromWorld, toWorld);
+
+      // Set cursor based on corner (AC22)
+      const nwse = corner === 'nw' || corner === 'se';
+      this.canvas.style.cursor = nwse ? 'nwse-resize' : 'nesw-resize';
       return;
     }
 
@@ -1061,6 +1273,10 @@ export class InputManager {
           current,
         );
       }
+      // Story 8.5 AC4: Diamond hover → crosshair (Space pan has global priority per UX-DR5)
+      if (!this.spaceHeld && this.hoveredDiamond) {
+        this.canvas.style.cursor = 'crosshair';
+      }
 
       // Handle hover
       const rawHandleHit = this.hitTestResizeHandleInstance(current);
@@ -1078,6 +1294,11 @@ export class InputManager {
           handleHit?.corner ?? null,
           current,
         );
+      }
+      // Story 8.5 AC15: Handle hover → resize cursor (Space pan has global priority per UX-DR5)
+      if (!this.spaceHeld && this.hoveredHandle) {
+        const nwse = this.hoveredHandle.corner === 'nw' || this.hoveredHandle.corner === 'se';
+        this.canvas.style.cursor = nwse ? 'nwse-resize' : 'nesw-resize';
       }
     }
 
@@ -1143,6 +1364,55 @@ export class InputManager {
       this._feedbackDragStockId = null;
       this._feedbackHandleHoveredStockId = null;
       this.feedbackDragWorldPosition = null;
+      this.canvas.style.cursor = '';
+      return;
+    }
+
+    // ── Story 8.5: Resize handle drag release (AC20) ────────────
+    if (e.button === 0 && this._isResizing) {
+      if (
+        this._resizeDragActive &&
+        this._resizeModuleId &&
+        this._resizeAnchorWorld &&
+        this._resizePrevCenter
+      ) {
+        // Threshold was crossed → compute final dimensions from last center + anchor
+        const finalW =
+          2 * Math.abs(this._resizePrevCenter.x - this._resizeAnchorWorld.x);
+        const finalH =
+          2 * Math.abs(this._resizePrevCenter.y - this._resizeAnchorWorld.y);
+        this.onResizeEnd?.(this._resizeModuleId, {
+          width: finalW,
+          height: finalH,
+        });
+      } else if (this._resizeModuleId && this._resizeInitialDims) {
+        // Click without drag → fire with initial dimensions (no change)
+        this.onResizeEnd?.(this._resizeModuleId, {
+          width: this._resizeInitialDims.width,
+          height: this._resizeInitialDims.height,
+        });
+      }
+      // Reset all resize state
+      this._isResizing = false;
+      this._resizeDragActive = false;
+      this._resizeModuleId = null;
+      this._resizeCorner = null;
+      this._resizeInitialDims = null;
+      this._resizeAnchorWorld = null;
+      this._resizePrevCenter = null;
+      this.mouseDownModuleId = null;
+      this.canvas.style.cursor = '';
+      return;
+    }
+
+    // ── Story 8.5: Diamond drag click (AC11 — threshold NOT crossed) ──
+    if (e.button === 0 && this._pendingConnectionDrag && !this.isDraggingConnection) {
+      this._pendingConnectionDrag = false;
+      this.edgeDragSourceId = null;
+      this.connectionDragSourceId = null;
+      this.connectionDragWorldPosition = null;
+      this.mouseDownModuleId = null;
+      this.onConnectionDragCancel?.();
       this.canvas.style.cursor = '';
       return;
     }
@@ -1331,7 +1601,11 @@ export class InputManager {
 
     // ── Escape → cancel active drag, then deselect if idle ──────
     if (e.code === 'Escape') {
-      const wasDragging = this.isDragging || this._feedbackDragStockId !== null;
+      const wasDragging =
+        this.isDragging ||
+        this._feedbackDragStockId !== null ||
+        this._isResizing ||
+        this._pendingConnectionDrag;
       if (this.isDraggingFeedback || this._feedbackDragStockId !== null) {
         this.cancelFeedbackDrag();
       }
@@ -1340,6 +1614,33 @@ export class InputManager {
       }
       if (this.isDraggingConnection) {
         this.cancelConnectionDrag();
+      }
+      // Story 8.5 AC23: Cancel resize drag → revert to original dimensions
+      if (this._isResizing) {
+        if (this._resizeModuleId && this._resizeInitialDims) {
+          this.onResizeEnd?.(this._resizeModuleId, {
+            width: this._resizeInitialDims.width,
+            height: this._resizeInitialDims.height,
+          });
+        }
+        this._isResizing = false;
+        this._resizeDragActive = false;
+        this._resizeModuleId = null;
+        this._resizeCorner = null;
+        this._resizeInitialDims = null;
+        this._resizeAnchorWorld = null;
+        this._resizePrevCenter = null;
+        this.canvas.style.cursor = '';
+        e.preventDefault();
+      }
+      // Story 8.5 AC9: Cancel pending connection drag
+      if (this._pendingConnectionDrag) {
+        this._pendingConnectionDrag = false;
+        this.edgeDragSourceId = null;
+        this.connectionDragSourceId = null;
+        this.connectionDragWorldPosition = null;
+        this.onConnectionDragCancel?.();
+        this.canvas.style.cursor = '';
       }
       // AC10: If no drag was active and a module is selected, deselect
       if (!wasDragging && this.selectedModuleIdProvider?.() != null) {
@@ -1450,6 +1751,8 @@ export class InputManager {
    * would reference stale state after the undo/redo replaces `currentState`.
    */
   public cancelDrag(): void {
+    // Story 8.5: Guard — resize has its own cancel path (Esc/blur/mouseup)
+    if (this._isResizing) return;
     this.isDraggingModule = false;
     this.dragModuleId = null;
     this.dragModuleWorldStart = null;
@@ -1478,6 +1781,10 @@ export class InputManager {
    */
   private cancelConnectionDrag(): void {
     this.isDraggingConnection = false;
+    // Clear the pending transition flag too — otherwise a later mousemove could
+    // re-enter the threshold block on a stale mouseDownPos (undo/redo re-activation),
+    // and the Esc/blur pending branch would fire a second cancel.
+    this._pendingConnectionDrag = false;
     this.edgeDragSourceId = null;
     this.connectionDragWorldPosition = null;
     this.connectionDragSourceId = null;

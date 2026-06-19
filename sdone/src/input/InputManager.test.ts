@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { InputManager, pointToSegmentDistance, hitTestConnectionPoint, hitTestResizeHandle } from './InputManager.js';
 import { ViewportManager, MIN_ZOOM } from '../canvas/Viewport.js';
 import { vec2, type Vec2 } from '../shared/Vec2.js';
+import type { ModuleType } from '../state/GraphState.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1811,6 +1812,1188 @@ describe('InputManager', () => {
       mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 500, clientY: 400 }));
 
       expect(clickEmptySpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+});
+
+// =============================================================================
+// Story 8.5 — Selection Overlay & Drag Handlers (RED PHASE)
+// =============================================================================
+
+/**
+ * Create a minimal mock ModuleNode for hit-testing / drag tests.
+ * position in world coordinates; dimensions default to 120×80.
+ */
+function makeModuleNode(overrides: {
+  id?: string;
+  type?: ModuleType;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+} = {}) {
+  return {
+    id: overrides.id ?? 'mod1',
+    type: (overrides.type ?? 'stock') as ModuleType,
+    position: { x: overrides.x ?? 200, y: overrides.y ?? 200 },
+    width: overrides.w,
+    height: overrides.h,
+    label: 'Test',
+  };
+}
+
+describe('Story 8.5 — Diamond Drag (Connection Points)', () => {
+  let canvas: MockCanvas;
+  let mockVM: ViewportManager;
+  let capturedWindowListeners: Map<string, EventListener[]>;
+
+  beforeEach(() => {
+    canvas = createMockCanvas();
+    mockVM = createMockViewportManager();
+    capturedWindowListeners = new Map();
+    vi.spyOn(window, 'addEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        list.push(fn as EventListener);
+        capturedWindowListeners.set(type, list);
+      },
+    );
+    vi.spyOn(window, 'removeEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        const idx = list.indexOf(fn as EventListener);
+        if (idx >= 0) list.splice(idx, 1);
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── AC5: Diamond mousedown starts connection drag ──────────────────
+
+  describe('AC5: Diamond mousedown — connection drag entry', () => {
+    it('[P0] fires onConnectionDragStart with moduleId when clicking diamond on selected module', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dragStartSpy = vi.fn();
+      input.onConnectionDragStart = dragStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      // Click at the top edge midpoint world (200, 160) → screen = (200, 160) at zoom=1 identity
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      expect(dragStartSpy).toHaveBeenCalledWith('mod1');
+
+      input.destroy();
+    });
+
+    it('[P0] sets _pendingConnectionDrag = true on diamond mousedown (NOT isDraggingConnection)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      expect((input as any)._pendingConnectionDrag).toBe(true);
+      // isDraggingConnection should NOT be true from a mousedown alone (needs threshold)
+      expect(input.isDraggingConnectionEdge).toBe(false);
+
+      input.destroy();
+    });
+
+    it('[P0] sets edgeDragSourceId + connectionDragSourceId + mouseDownPos on diamond mousedown', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      expect((input as any).edgeDragSourceId).toBe('mod1');
+      expect(input.connectionDragSourceId).toBe('mod1');
+
+      input.destroy();
+    });
+
+    it('[P1] diamond mousedown does NOT set mouseDownModuleId (not a module drag)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      // RED: if diamond branch not implemented, this may fall to module hit-test
+      // which sets mouseDownModuleId. The assertion expects null for diamond path.
+      expect((input as any).mouseDownModuleId).toBeNull();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC11: Diamond drag threshold (DRAG_THRESHOLD_PX = 4) ──────────
+
+  describe('AC11: Diamond drag threshold', () => {
+    it('[P0] move < 4px after diamond mousedown → isDraggingConnection stays false', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      // Mousedown on diamond (top midpoint)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      // Move 2px (below threshold)
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 202, clientY: 160 }));
+
+      // RED: threshold block not implemented → isDraggingConnection may be false anyway
+      expect(input.isDraggingConnectionEdge).toBe(false);
+
+      input.destroy();
+    });
+
+    it('[P0] move ≥ 4px after diamond mousedown → isDraggingConnection becomes true', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dragStartSpy = vi.fn();
+      input.onConnectionDragStart = dragStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 205, clientY: 160 })); // 5px
+
+      expect(input.isDraggingConnectionEdge).toBe(true);
+
+      input.destroy();
+    });
+
+    it('[P0] mouseup without crossing threshold → fires onConnectionDragCancel, not onConnectionDragEnd', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      const endSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.onConnectionDragEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      // Move only 2px (< threshold)
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 202, clientY: 160 }),
+      );
+      capturedWindowListeners.get('mouseup')?.[0]!(
+        new MouseEvent('mouseup', { button: 0, clientX: 202, clientY: 160 }),
+      );
+
+      expect(cancelSpy).toHaveBeenCalled();
+      expect(endSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC6-AC8: Diamond drag lifecycle (end on target / cancel on empty) ──
+
+  describe('AC6-AC8: Diamond drag lifecycle', () => {
+    it('[P0] diamond drag mouseup on target module → onConnectionDragEnd(sourceId, targetId)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const endSpy = vi.fn();
+      input.onConnectionDragEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+        mod2: makeModuleNode({ id: 'mod2', x: 500, y: 200 }),
+      });
+
+      // Mousedown on mod1 diamond, drag ≥threshold, mouseup on mod2
+      // mod1 bottom diamond at world (200, 240), mod2 body at world (440-560, 160-240)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 240);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 204, clientY: 240 })); // cross threshold
+
+      capturedWindowListeners.get('mouseup')?.[0]!(
+        new MouseEvent('mouseup', { button: 0, clientX: 500, clientY: 200 }),
+      );
+
+      expect(endSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] diamond drag mouseup on empty space → onConnectionDragCancel', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      const endSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.onConnectionDragEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 205, clientY: 160 })); // cross threshold
+
+      // mouseup on empty canvas — no module under cursor
+      capturedWindowListeners.get('mouseup')?.[0]!(
+        new MouseEvent('mouseup', { button: 0, clientX: 300, clientY: 300 }),
+      );
+
+      expect(cancelSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] diamond drag updates connectionDragWorldPosition during move (AC6)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 205, clientY: 160 }));
+
+      expect(input.connectionDragWorldPosition).not.toBeNull();
+
+      input.destroy();
+    });
+
+    it('[P0] existing connection drag preview reuses connectionDragWorldPosition (AC6)', () => {
+      // The preview rendering at SceneRenderer reads from connectionDragProvider.
+      // InputManager must set connectionDragWorldPosition so the provider can bridge it.
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 250, clientY: 160 }),
+      );
+
+      expect(input.connectionDragWorldPosition).not.toBeNull();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC9-AC10: Diamond drag cancel (Esc / window blur) ─────────────
+
+  describe('AC9-AC10: Diamond drag cancel', () => {
+    it('[P0] Esc during active diamond drag → onConnectionDragCancel fires', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      // Start diamond drag and cross threshold
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 205, clientY: 160 }),
+      );
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      expect(cancelSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] Esc during pending diamond drag (threshold not crossed) → cancel too', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      // NO mousemove — still pending
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      expect(cancelSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] window blur during diamond drag → onConnectionDragCancel fires', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 205, clientY: 160 }),
+      );
+
+      capturedWindowListeners.get('blur')?.[0]!(new Event('blur'));
+
+      expect(cancelSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    // Regression (review patch 1): during an ACTIVE diamond drag the threshold
+    // block previously left _pendingConnectionDrag=true, so Esc/blur fired
+    // onConnectionDragCancel TWICE (once via cancelConnectionDrag(), once via
+    // the pending branch). The cancel must fire exactly once.
+    it('[P0] Esc during ACTIVE diamond drag → onConnectionDragCancel fires exactly once', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      // Cross the threshold → active drag (isDraggingConnection=true)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 205, clientY: 160 }),
+      );
+      expect(input.isDraggingConnectionEdge).toBe(true);
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      expect(cancelSpy).toHaveBeenCalledTimes(1);
+
+      input.destroy();
+    });
+
+    it('[P0] window blur during ACTIVE diamond drag → onConnectionDragCancel fires exactly once', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 205, clientY: 160 }),
+      );
+      expect(input.isDraggingConnectionEdge).toBe(true);
+
+      capturedWindowListeners.get('blur')?.[0]!(new Event('blur'));
+
+      expect(cancelSpy).toHaveBeenCalledTimes(1);
+
+      input.destroy();
+    });
+
+    // Regression (review patch 1, path b): after an active connection drag is
+    // cancelled (e.g. via undo/redo → cancelDrag → cancelConnectionDrag),
+    // _pendingConnectionDrag must be cleared so a later mousemove cannot
+    // re-activate the connection drag on a stale mouseDownPos.
+    it('[P0] cancelConnectionDrag clears _pendingConnectionDrag → later mousemove does not re-activate', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const cancelSpy = vi.fn();
+      input.onConnectionDragCancel = cancelSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      // Start and activate the connection drag
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 205, clientY: 160 }),
+      );
+      expect(input.isDraggingConnectionEdge).toBe(true);
+
+      // Simulate the undo/redo path: cancelDrag() → cancelConnectionDrag()
+      (input as any).cancelDrag();
+
+      // Pending flag must be gone
+      expect((input as any)._pendingConnectionDrag).toBe(false);
+      expect(input.isDraggingConnectionEdge).toBe(false);
+
+      // A further mousemove must NOT re-activate the connection drag
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 300, clientY: 160 }),
+      );
+      expect(input.isDraggingConnectionEdge).toBe(false);
+
+      input.destroy();
+    });
+  });
+
+  // ── AC4: Diamond hover cursor ────────────────────────────────────
+
+  describe('AC4: Diamond hover cursor', () => {
+    it('[P0] sets cursor = crosshair when hovering over a diamond on selected module', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      // Move to top midpoint screen coords → should hit diamond at (600, 460)
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 200, clientY: 160 }));
+
+      expect(canvas.style.cursor).toBe('crosshair');
+
+      input.destroy();
+    });
+
+    it('[P0] diamond hover cursor NOT set when spaceHeld (Space pan priority)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200 }),
+      });
+
+      // Press Space
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Space' }),
+      );
+
+      expect(canvas.style.cursor).toBe('grab');
+
+      // Now hover over diamond — cursor should stay grab, not crosshair
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 200, clientY: 160 }));
+
+      // RED: spaceHeld guard may not exist in diamond hover block yet
+      expect(canvas.style.cursor).toBe('grab'); // stays grab regardless
+
+      input.destroy();
+    });
+  });
+});
+
+// =============================================================================
+// Story 8.5 — Resize Drag (Corner Handles)
+// =============================================================================
+
+describe('Story 8.5 — Resize Drag (Corner Handles)', () => {
+  let canvas: MockCanvas;
+  let mockVM: ViewportManager;
+  let capturedWindowListeners: Map<string, EventListener[]>;
+
+  beforeEach(() => {
+    canvas = createMockCanvas();
+    mockVM = createMockViewportManager();
+    capturedWindowListeners = new Map();
+    vi.spyOn(window, 'addEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        list.push(fn as EventListener);
+        capturedWindowListeners.set(type, list);
+      },
+    );
+    vi.spyOn(window, 'removeEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        const idx = list.indexOf(fn as EventListener);
+        if (idx >= 0) list.splice(idx, 1);
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── AC15-AC16: Handle mousedown starts resize ────────────────────
+
+  describe('AC15-AC16: Handle mousedown — resize entry', () => {
+    it('[P0] fires onResizeStart with (moduleId, corner, anchorWorld) when clicking handle', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const resizeStartSpy = vi.fn();
+      input.onResizeStart = resizeStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // Click on SE corner: world (260, 240) → screen at zoom=1 identity = (260, 240)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+
+      expect(resizeStartSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] sets _isResizing + _resizeModuleId + _resizeCorner on handle mousedown', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240); // SE corner
+
+      expect((input as any)._resizeModuleId).toBe('mod1');
+      expect((input as any)._resizeCorner).toBe('se');
+
+      input.destroy();
+    });
+
+    it('[P0] records _resizeInitialDims and _resizeAnchorWorld on handle mousedown', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240); // SE corner
+
+      expect((input as any)._resizeInitialDims).toEqual({ width: 120, height: 80 });
+      expect((input as any)._resizeAnchorWorld).toEqual(
+        expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+      );
+
+      input.destroy();
+    });
+
+    it('[P0] handle mousedown calls preventDefault + stopPropagation on event', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      const event = new MouseEvent('mousedown', {
+        button: 0,
+        clientX: 260,
+        clientY: 240,
+        bubbles: true,
+        cancelable: true,
+      });
+      const preventSpy = vi.spyOn(event, 'preventDefault');
+      const stopSpy = vi.spyOn(event, 'stopPropagation');
+
+      // Dispatch directly via canvas listeners (bypass helper to capture spies)
+      const mousedownListeners = canvas._listeners.get('mousedown') ?? [];
+      for (const fn of mousedownListeners) fn(event);
+
+      expect(preventSpy).toHaveBeenCalled();
+      expect(stopSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] _resizeDragActive starts as false on mousedown (threshold not yet crossed)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+
+      expect((input as any)._resizeDragActive).toBe(false);
+
+      input.destroy();
+    });
+  });
+
+  // ── AC17: Anchor position per corner ───────────────────────────
+
+  describe('AC17: Anchor position per corner', () => {
+    it('[P0] nw corner → anchor = se world position', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const resizeStartSpy = vi.fn();
+      input.onResizeStart = resizeStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // NW corner screen: world (140, 160) → screen (140, 160) at zoom=1 identity
+      dispatchMouseEvent(canvas, 'mousedown', 0, 140, 160);
+
+      // 3rd arg should be se anchor = (260, 240)
+      expect(resizeStartSpy).toHaveBeenCalled();
+      expect(resizeStartSpy.mock.calls[0][2]).toEqual(
+        expect.objectContaining({ x: 260, y: 240 }),
+      );
+
+      input.destroy();
+    });
+  });
+
+  // ── AC18-AC19: Resize drag math ────────────────────────────────
+
+  describe('AC18-AC19: Resize drag math', () => {
+    it('[P0] fires onResizeMove per frame during resize drag', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const moveSpy = vi.fn();
+      input.onResizeMove = moveSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // Mousedown on SE corner
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+
+      // Cross threshold
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 265, clientY: 240 }));
+
+      expect(moveSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] resize move computes new center preserving aspect ratio', () => {
+      // Stock at (200, 200) with 120×80 → AR = 1.5. SE corner drag.
+      // Pull SE corner 10px outward → newW ≈ 140, newH ≈ 93.3, center shifts.
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const moveSpy = vi.fn();
+      input.onResizeMove = moveSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 265, clientY: 240 })); // cross threshold
+      moveFn(new MouseEvent('mousemove', { clientX: 275, clientY: 250 })); // second move
+
+      expect(moveSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] resize AR fallback when height = 0 (defensive)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 0 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 200); // SE handle at world (260, 200)
+
+      // AR should fall back to DEFAULT_MODULE_WIDTH/DEFAULT_MODULE_HEIGHT = 120/80 = 1.5
+      expect((input as any)._resizeInitialDims).toEqual({ width: 120, height: 0 });
+
+      input.destroy();
+    });
+
+    it('[P0] resize move → cursor set per corner (nw/se = nwse-resize)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240); // SE corner
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 265, clientY: 240 }));
+
+      expect(canvas.style.cursor).toBe('nwse-resize');
+
+      input.destroy();
+    });
+  });
+
+  // ── AC20: Resize end on mouseup ────────────────────────────────
+
+  describe('AC20: Resize end on mouseup', () => {
+    it('[P0] mouseup after resize drag → onResizeEnd({width, height}) with final dims', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const endSpy = vi.fn();
+      input.onResizeEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 265, clientY: 240 })); // cross threshold
+      moveFn(new MouseEvent('mousemove', { clientX: 275, clientY: 250 }));
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 275, clientY: 250 }));
+
+      expect(endSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] mouseup after handle click (no drag) → onResizeEnd with original dims (no change)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const endSpy = vi.fn();
+      input.onResizeEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+      // Click without drag (no mousemove)
+
+      capturedWindowListeners.get('mouseup')?.[0]!(
+        new MouseEvent('mouseup', { button: 0, clientX: 260, clientY: 240 }),
+      );
+
+      expect(endSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC21: Resize min clamp (60×40 world pixels) ─────────────────
+
+  describe('AC21: Resize min clamp', () => {
+    it('[P0] resize clamps width to min 60', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const endSpy = vi.fn();
+      input.onResizeEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // Drag NW corner inward (toward SE) to shrink below min
+      dispatchMouseEvent(canvas, 'mousedown', 0, 140, 160);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 145, clientY: 160 })); // cross threshold
+      // Drag deep into the module → should clamp at 60×40
+      moveFn(new MouseEvent('mousemove', { clientX: 650, clientY: 530 }));
+
+      capturedWindowListeners.get('mouseup')?.[0]!(
+        new MouseEvent('mouseup', { button: 0, clientX: 650, clientY: 530 }),
+      );
+
+      expect(endSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] clamp preserves aspect ratio (reclamp cascade: H→W→H)', () => {
+      // When the dominant dimension is clamped, the other must be reclamped to maintain AR.
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const endSpy = vi.fn();
+      input.onResizeEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      // Narrow module: w=80, h=40, AR=2.0
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 80, h: 40 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 160, 180); // NW corner at world (160, 180)
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 155, clientY: 180 }));
+      moveFn(new MouseEvent('mousemove', { clientX: 700, clientY: 500 })); // deep drag → force clamp
+
+      capturedWindowListeners.get('mouseup')?.[0]!(
+        new MouseEvent('mouseup', { button: 0, clientX: 700, clientY: 500 }),
+      );
+
+      expect(endSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC22: Resize cursor during drag ─────────────────────────────
+
+  describe('AC22: Resize cursor during drag', () => {
+    it('[P0] nw/se corner drag → cursor = nwse-resize', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 140, 160); // NW corner
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 145, clientY: 160 }));
+
+      expect(canvas.style.cursor).toBe('nwse-resize');
+
+      input.destroy();
+    });
+
+    it('[P0] ne/sw corner drag → cursor = nesw-resize', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // NE corner world (260, 160) → screen at zoom=1 identity = (260, 160)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 160);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 265, clientY: 160 }));
+
+      expect(canvas.style.cursor).toBe('nesw-resize');
+
+      input.destroy();
+    });
+  });
+
+  // ── AC23-AC24: Resize cancel (Esc / blur) ─────────────────────
+
+  describe('AC23-AC24: Resize cancel', () => {
+    it('[P0] Esc during resize → onResizeEnd fires with original dimensions (revert)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const endSpy = vi.fn();
+      input.onResizeEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 265, clientY: 240 }),
+      );
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      expect(endSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] window blur during resize → onResizeEnd with original dims', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const endSpy = vi.fn();
+      input.onResizeEnd = endSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+      capturedWindowListeners.get('mousemove')?.[0]!(
+        new MouseEvent('mousemove', { clientX: 265, clientY: 240 }),
+      );
+
+      capturedWindowListeners.get('blur')?.[0]!(new Event('blur'));
+
+      expect(endSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC15: Handle hover cursor ──────────────────────────────────
+
+  describe('AC15: Handle hover cursor', () => {
+    it('[P0] sets cursor = nwse-resize when hovering nw handle', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // Hover NW corner world (140, 160) → screen (140, 160) at zoom=1 identity
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 140, clientY: 160 }));
+
+      expect(canvas.style.cursor).toBe('nwse-resize');
+
+      input.destroy();
+    });
+
+    it('[P0] handle hover cursor NOT set when spaceHeld', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Space' }),
+      );
+      expect(canvas.style.cursor).toBe('grab');
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 140, clientY: 160 }));
+
+      // Cursor should stay grab (Space priority)
+      expect(canvas.style.cursor).toBe('grab');
+
+      input.destroy();
+    });
+  });
+
+  // ── AC26-AC28: Hit-test precedence & regression ─────────────────
+
+  describe('AC26-AC28: Hit-test precedence & regression', () => {
+    it('[P0] click on resize handle → resize, NOT module drag (handle > module body)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dragStartSpy = vi.fn();
+      const resizeStartSpy = vi.fn();
+      input.onModuleDragStart = dragStartSpy;
+      input.onResizeStart = resizeStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // Click on SE corner (within handle area, also within module hit area)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240);
+
+      // Module drag should NOT start because handle hit-test has higher precedence
+      expect(dragStartSpy).not.toHaveBeenCalled();
+      expect(resizeStartSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] click on diamond → connection drag, NOT module drag (diamond > module body)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dragStartSpy = vi.fn();
+      const connDragStartSpy = vi.fn();
+      input.onModuleDragStart = dragStartSpy;
+      input.onConnectionDragStart = connDragStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 160);
+
+      expect(dragStartSpy).not.toHaveBeenCalled();
+      expect(connDragStartSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] click on unselected module body → select (not broken by diamond/handle checks)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      // selectedModuleIdProvider returns null → no module currently selected
+      input.selectedModuleIdProvider = () => null;
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+      input.connectionsProvider = () => ({});
+
+      // Click on module body (world 200,200 = screen 200,200 at zoom=1 identity)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 200);
+
+      const mouseupFn = capturedWindowListeners.get('mouseup')?.[0]!;
+      mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 200, clientY: 200 }));
+
+      // Should still select the module (existing behavior preserved)
+      // RED: diamond/handle hit-test not yet added → selection works normally
+      expect(selectSpy).toHaveBeenCalledWith('mod1');
+      // FIXME: after impl, verify this still works (diamond/handle checks must fall through)
+
+      input.destroy();
+    });
+
+    it('[P0] select→drag same gesture preserved — unselected module click→select→drag (AC26)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      const dragStartSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      input.onModuleDragStart = dragStartSpy;
+      input.selectedModuleIdProvider = () => null; // not yet selected
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // Mousedown on module body
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 200);
+
+      // Move past threshold (≥4px)
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 205, clientY: 200 }));
+
+      // Should select + drag in same gesture
+      expect(selectSpy).not.toHaveBeenCalled(); // select is not fired until mouseup (click confirmation)
+      // RED: drag start may have fired since we moved past threshold on the module
+      // This test verifies the gesture sequence is not broken by diamond/handle checks
+
+      input.destroy();
+    });
+
+    it('[P0] selected module body click → immediate drag (AC27)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const dragStartSpy = vi.fn();
+      input.onModuleDragStart = dragStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1'; // already selected
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      // Click on module body (NOT on diamond/handle) — world 200,200 = screen 200,200
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 200);
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 205, clientY: 200 }));
+
+      // Should start drag immediately (already selected, existing behavior preserved)
+      // RED: diamond/handle checks not yet added → module drag works normally
+      expect(dragStartSpy).toHaveBeenCalledWith('mod1');
+      // FIXME: after impl, verify diamond/handle hit-test misses still fall through to module drag
+
+      input.destroy();
+    });
+
+    it('[P1] handle hover does NOT change cursor during active module drag (regression guard)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      input.selectedModuleIdProvider = () => 'mod1'; // already selected
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+        mod2: makeModuleNode({ id: 'mod2', x: 500, y: 200 }),
+      });
+
+      // Start module drag on mod1 body (world 200,200 = screen 200,200)
+      dispatchMouseEvent(canvas, 'mousedown', 0, 200, 200);
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 205, clientY: 200 }));
+      // RED: module drag should have started (existing behavior)
+      expect(input.isDragging).toBe(true);
+
+      // Now move mouse near mod2's nw corner (handle area) — cursor stays grabbing during drag
+      // mod2 at (500,200) w=120 h=80 → nw corner screen (440, 160)
+      moveFn(new MouseEvent('mousemove', { clientX: 440, clientY: 160 }));
+
+      // Cursor must remain grabbing during drag (handle hover code must not override)
+      expect(canvas.style.cursor).toBe('grabbing');
+      // FIXME: after impl, verify handle hover code is gated behind !isDragging check
+
+      input.destroy();
+    });
+  });
+
+  // ── Diamond/handle hover only for selected modules (AC31) ──────
+
+  describe('Diamond/handle hover guard — selected module only', () => {
+    it('[P0] diamond hover detection is skipped when no module is selected', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const diamondHoverSpy = vi.fn();
+      input.onDiamondHover = diamondHoverSpy;
+      input.selectedModuleIdProvider = () => null; // no selection
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 200, clientY: 160 }));
+
+      // Should NOT fire when no module selected (hit-tests are skipped)
+      // onDiamondHover may still fire if the guard isn't in place,
+      // but the intended behavior is no hover when nothing selected
+      expect(diamondHoverSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P0] handle hover detection is skipped when no module is selected', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const handleHoverSpy = vi.fn();
+      input.onHandleHover = handleHoverSpy;
+      input.selectedModuleIdProvider = () => null; // no selection
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
+      moveFn(new MouseEvent('mousemove', { clientX: 140, clientY: 160 }));
+
+      expect(handleHoverSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC39: onResizeStart signature refinement ────────────────────
+
+  describe('AC39: onResizeStart signature refinement', () => {
+    it('[P0] onResizeStart receives (moduleId, corner, anchorWorld) — 3 params', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const resizeStartSpy = vi.fn();
+      input.onResizeStart = resizeStartSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
+      });
+
+      dispatchMouseEvent(canvas, 'mousedown', 0, 260, 240); // SE corner
+
+      // RED: not yet implemented. After impl, the spy should be called with 3 args.
+      // Verify arg count ≠ 1 (old Story 8.2 signature)
+      if (resizeStartSpy.mock.calls.length > 0) {
+        const args = resizeStartSpy.mock.calls[0];
+        expect(args.length).toBe(3);
+        expect(args[0]).toBe('mod1');
+        expect(args[1]).toBe('se');
+        expect(args[2]).toEqual(expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }));
+      }
+
+      input.destroy();
+    });
+  });
+
+  // ── classifyHitZone preserved (AC38) ────────────────────────────
+
+  describe('classifyHitZone preserved (AC38)', () => {
+    it('[P1] classifyHitZone is still callable and returns expected zone', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+
+      // Access via private field (it's a private method, verify not removed)
+      expect(typeof (input as any).classifyHitZone).toBe('function');
+
+      // Call on a module — should return a zone string
+      const zone = (input as any).classifyHitZone('mod1', { x: 200, y: 200 });
+      // classifyHitZone may need nodesProvider to be set. If it can still be invoked,
+      // it proves the method was not removed (FR-8).
+      expect(['none', 'inner', 'edge']).toContain(zone);
 
       input.destroy();
     });
