@@ -18,13 +18,15 @@ import './ui/overlays/styles/color-picker-popover.css';
 import './ui/overlays/styles/achievement-toast.css'; // Story 5.5
 import './ui/overlays/styles/modal-dialog.css'; // Story 6.1
 import './ui/overlays/styles/capacity-input-popover.css'; // Infinity fix
-import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, PerformanceMonitor, type ConfettiParticle } from './canvas/index.js';
+import './ui/overlays/styles/toolbar.css'; // Story 8.6
+import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, PerformanceMonitor, OverlaySyncManager, type ConfettiParticle } from './canvas/index.js';
 import { ModulePanel, RateEditorPanel, ControlBar, AnalyticsPanel, computeStockAnalytics, CountdownPanel, computeAllStockCountdowns, sortCountdownsByUrgency } from './ui/panels/index.js';
-import { ColorPickerPopover, AchievementToast, ModalDialog, CapacityInputPopover } from './ui/overlays/index.js';
+import { ColorPickerPopover, AchievementToast, ModalDialog, CapacityInputPopover, ToolbarController } from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
+import { DEFAULT_MODULE_HEIGHT } from './state/GraphState.js';
 import type { Vec2 } from './shared/Vec2.js';
-import { moveModule, deleteModule, addModule, addConnection, addFeedbackConnection, deleteConnection, updateRate, updateFormula, changeModuleColor, updateCapacity } from './state/mutations.js';
+import { moveModule, deleteModule, addModule, addConnection, addFeedbackConnection, deleteConnection, updateRate, updateFormula, changeModuleColor, updateCapacity, updateModuleSize, updateModuleLabel } from './state/mutations.js';
 import { detectFirstCompleteStack } from './state/achievement-detection.js';
 import { HistoryManager } from './state/HistoryManager.js';
 import { EventBus } from './event-bus/EventBus.js';
@@ -75,6 +77,42 @@ const canvasResizer = new CanvasResizer(sceneCanvas, minimapCanvas);
 
 // ── Viewport + Render Loop ────────────────────────────────────────────
 const viewportManager = new ViewportManager();
+
+// ── Story 8.6: Overlay Coordinate Sync + Toolbar Controller ────────────────
+const overlaySyncManager = new OverlaySyncManager(viewportManager);
+
+const toolbarController = new ToolbarController({
+  onNameEditStart: () => { inputManager.isEditingName = true; },
+  onNameCommit: (label: string) => {
+    const moduleId = currentState.selectedModuleIds[0];
+    if (!moduleId) return;
+    currentState = updateModuleLabel(currentState, moduleId, label);
+    historyManager.push(currentState);
+    inputManager.isEditingName = false;
+  },
+  onNameEditCancel: () => { inputManager.isEditingName = false; },
+  onColorDotClick: () => {
+    const moduleId = currentState.selectedModuleIds[0];
+    if (!moduleId) return;
+    const node = currentState.nodes[moduleId];
+    if (!node || node.type === 'stock') return;
+    // Compute toolbar screen position for popover anchor
+    const canvasCenter = { x: sceneCanvas.clientWidth / 2, y: sceneCanvas.clientHeight / 2 };
+    const moduleHeight = node.height ?? DEFAULT_MODULE_HEIGHT;
+    const screenPos = overlaySyncManager.getToolbarScreenPosition(node.position, moduleHeight, canvasCenter);
+    const palette = node.type === 'source' ? SOURCE_PALETTE : SINK_PALETTE;
+    const currentColor = node.color ?? palette[0];
+    // No flag assignment — colorPickerOpenProvider reads colorPickerPopover.isOpen directly
+    colorPickerPopover.open({
+      moduleId,
+      moduleType: node.type,
+      currentColor,
+      anchorScreenX: screenPos.x,
+      anchorScreenY: screenPos.y,
+      palette,
+    });
+  },
+});
 
 // ── Application State ─────────────────────────────────────────────────
 let currentState: GraphState = {
@@ -177,6 +215,9 @@ sceneRenderer.hoveredConnectionProvider = () => inputManager.getHoveredConnectio
 // ── Story 2.3: Module Selection ──────────────────────────────────────
 inputManager.onModuleSelect = (moduleId: string | null) => {
   if (moduleId === null) {
+    // Story 8.6: Hide toolbar on deselect (AC2)
+    toolbarController.hide();
+
     // Deselect all (mutual exclusivity: clear both module & connection selection)
     currentState = { ...currentState, selectedModuleIds: [], selectedConnectionIds: [], version: currentState.version + 1 };
     // Story 4.5: Deselect connection when clicking empty space
@@ -203,6 +244,33 @@ inputManager.onModuleSelect = (moduleId: string | null) => {
   refreshAnalyticsPanel();
   // Story 7.2: Update countdown panels on module selection
   refreshCountdownPanels();
+
+  // Story 8.6: Show toolbar with module data on select (AC1, AC4)
+  const node = currentState.nodes[moduleId];
+  if (node) {
+    // Compute stock-specific dataText (net change)
+    let dataText = '';
+    let dataTextColor: string | undefined;
+    if (node.type === 'stock') {
+      const stats = computeStockAnalytics(currentState, moduleId);
+      if (stats) {
+        const netChange = stats.netChange;
+        dataText = `净变化：${netChange >= 0 ? '+' : ''}${netChange.toFixed(1)}`;
+        dataTextColor = netChange > 0 ? '#10b981' : netChange < 0 ? '#ef4444' : undefined;
+      }
+    }
+
+    toolbarController.show();
+    toolbarController.updateData({
+      moduleId,
+      moduleType: node.type,
+      label: node.label ?? node.type,
+      color: node.color,
+      dataText,
+      dataTextColor,
+    });
+  }
+
   minimapRenderer.markDirty();
 };
 
@@ -211,6 +279,9 @@ inputManager.onConnectionSelect = (connectionId: string | null) => {
   if (connectionId === null) {
     // Deselect all — clear both selections for mutual exclusivity
     currentState = { ...currentState, selectedConnectionIds: [], selectedModuleIds: [], version: currentState.version + 1 };
+    // Story 8.6 (code review 2026-06-21): hide toolbar — a previously-selected module's
+    // toolbar would otherwise stay visible since this path clears module selection directly.
+    toolbarController.hide();
     // Story 4.5: Deselect connection → hide rate editor
     rateEditorPanel.setConnection(null);
     // Story 6.2: Clear analytics panel when deselecting via connection click (AC3)
@@ -227,6 +298,10 @@ inputManager.onConnectionSelect = (connectionId: string | null) => {
     selectedModuleIds: [],
     version: currentState.version + 1,
   };
+  // Story 8.6 (code review 2026-06-21): hide toolbar — selecting a connection clears
+  // module selection, so the module toolbar must be hidden (InputManager routes connection
+  // hits before module hits, so onModuleSelect(null)'s hide branch is not reached).
+  toolbarController.hide();
 
   // Story 4.5 AC1: Populate RateEditorPanel when connection is selected
   const conn = currentState.connections[connectionId];
@@ -272,6 +347,35 @@ inputManager.onModuleDragEnd = (moduleId: string, fromWorld: import('./shared/Ve
   historyManager.push(currentState);
   eventBus.emit('MODULE_MOVED', { type: 'move', moduleId, from: fromWorld, to: toWorld });
 };
+// ── Story 8.6: Resize Drag (AC13, AC14) ─────────────────────────────
+let resizeAnchorWorld: Vec2 | null = null;
+
+inputManager.onResizeStart = (_moduleId: string, _corner: string, anchorWorld: Vec2) => {
+  resizeAnchorWorld = anchorWorld;
+  // No history push — follows move-drag pattern: push at onResizeEnd
+};
+
+inputManager.onResizeMove = (moduleId: string, _fromWorld: Vec2, toWorld: Vec2) => {
+  if (!resizeAnchorWorld) return;
+  // toWorld IS the new center (InputManager contract: InputManager.ts:1176,1183);
+  // resizeAnchorWorld is the fixed opposite corner (InputManager.ts:243-244).
+  // newCenter is therefore toWorld itself — NOT the midpoint of (toWorld, anchor).
+  // width/height = 2 * |center - fixed corner|.
+  const newCenter = toWorld;
+  const newW = 2 * Math.abs(toWorld.x - resizeAnchorWorld.x);
+  const newH = 2 * Math.abs(toWorld.y - resizeAnchorWorld.y);
+  currentState = moveModule(currentState, moduleId, newCenter);
+  currentState = updateModuleSize(currentState, moduleId, newW, newH);
+};
+
+inputManager.onResizeEnd = (moduleId: string, newSize: { width: number; height: number }) => {
+  // Apply final size (handles both normal completion and Escape revert)
+  currentState = updateModuleSize(currentState, moduleId, newSize.width, newSize.height);
+  // POST-mutation push: currentState already reflects all onResizeMove calls
+  historyManager.push(currentState);
+  eventBus.emit('MODULE_RESIZED', { moduleId, width: newSize.width, height: newSize.height });
+  resizeAnchorWorld = null;
+};
 
   // ── Story 3.4: Module Delete (Click + Delete Key) ──────────────────────
   inputManager.onModuleDelete = () => {
@@ -281,6 +385,11 @@ inputManager.onModuleDragEnd = (moduleId: string, fromWorld: import('./shared/Ve
     currentState = deleteModule(currentState, selected);  // AC1 + AC2
     // Clear all selections (mutual exclusivity)
     currentState = { ...currentState, selectedModuleIds: [], selectedConnectionIds: [] };
+    // Story 8.6 (code review 2026-06-21): hide toolbar — the deleted module's toolbar
+    // would otherwise stay mounted/visible since this path clears selection directly
+    // rather than going through onModuleSelect(null), and onPreFrame skips toolbar
+    // updates when no module is selected.
+    toolbarController.hide();
     historyManager.push(currentState);            // AC3: POST-mutation push
     eventBus.emit('MODULE_DELETED', { moduleId: selected });  // audit event
     minimapRenderer.markDirty();
@@ -529,32 +638,9 @@ colorPickerPopover.onColorPicked = (moduleId: string, color: string) => {
   minimapRenderer.markDirty();
 };
 
-// ── Story 5.3: Double-click → open color picker popover ───────────────
-inputManager.onModuleDoubleClick = (moduleId: string) => {
-  const node = currentState.nodes[moduleId];
-  if (!node) return;
-  // AC8: stock modules have fixed white colour — no popover
-  if (node.type === 'stock') return;
-
-  // Compute module center in screen space
-  const canvasCenter = {
-    x: sceneCanvas.clientWidth / 2,
-    y: sceneCanvas.clientHeight / 2,
-  };
-  const worldPos = { x: node.position.x, y: node.position.y };
-  const screenPos = viewportManager.worldToScreen(worldPos, canvasCenter);
-
-  const palette = node.type === 'source' ? SOURCE_PALETTE : SINK_PALETTE;
-  const currentColor = node.color ?? palette[0];
-
-  colorPickerPopover.open({
-    moduleId,
-    moduleType: node.type,
-    currentColor,
-    anchorScreenX: screenPos.x,
-    anchorScreenY: screenPos.y,
-    palette,
-  });
+// ── Story 8.6: Name editing via Enter key (AC5, DEFER-8.4b) ─────
+inputManager.onToolbarNameClick = (_moduleId: string) => {
+  toolbarController.startEditing();
 };
 
 // ── Story 3.5: Enter → place module at viewport center (AC4) ─────────────────
@@ -985,6 +1071,9 @@ void import.meta.hot?.dispose(() => {
   sceneRenderer.stockWarningProvider = null;
   sceneRenderer.onPreFrame = null;
   sceneRenderer.particleStateProvider = null;
+  // Story 8.6: Clean up selection overlay providers
+  sceneRenderer.diamondHoverProvider = null;
+  sceneRenderer.handleHoverProvider = null;
   minimapRenderer.destroy();
   inputManager.destroy();
   modulePanel.destroy();
@@ -1003,6 +1092,7 @@ void import.meta.hot?.dispose(() => {
   controlBar.destroy();    // Story 6.1: cleanup button listeners + status element
   modalDialog.destroy();   // Story 6.1: cleanup modal DOM + keyboard listeners
   colorPickerPopover.destroy();
+  toolbarController.destroy(); // Story 8.6
   capacityInputPopover.destroy(); // Infinity fix
   achievementToast.destroy(); // Story 5.5: clean up toast timers + DOM
   // UX-DR13: Clean up minimap position cycle listener
@@ -1377,6 +1467,39 @@ sceneRenderer.onPreFrame = (dt: number) => {
     borderFlashState = { ...borderFlashState, life: borderFlashState.life - dt };
     if (borderFlashState.life <= 0) borderFlashState = null;
   }
+
+  // ── Story 8.6: Toolbar position sync + data refresh (AC3, AC4) ──────────
+  const selectedModuleId = currentState.selectedModuleIds[0];
+  if (selectedModuleId) {
+    const node = currentState.nodes[selectedModuleId];
+    if (node) {
+      const canvasCenter = { x: sceneCanvas.clientWidth / 2, y: sceneCanvas.clientHeight / 2 };
+      const moduleHeight = node.height ?? DEFAULT_MODULE_HEIGHT;
+      const screenPos = overlaySyncManager.getToolbarScreenPosition(node.position, moduleHeight, canvasCenter);
+      toolbarController.updatePosition(screenPos);
+
+      // Refresh dataText each frame (stock value changes during sim)
+      let dataText = '';
+      let dataTextColor: string | undefined;
+      if (node.type === 'stock') {
+        const stats = computeStockAnalytics(currentState, selectedModuleId);
+        if (stats) {
+          const netChange = stats.netChange;
+          dataText = `净变化：${netChange >= 0 ? '+' : ''}${netChange.toFixed(1)}`;
+          dataTextColor = netChange > 0 ? '#10b981' : netChange < 0 ? '#ef4444' : undefined;
+        }
+      }
+
+      toolbarController.updateData({
+        moduleId: selectedModuleId,
+        moduleType: node.type,
+        label: node.label ?? node.type,
+        color: node.color,
+        dataText,
+        dataTextColor,
+      });
+    }
+  }
 };
 sceneRenderer.particleStateProvider = () => particleEngine.getState();
 sceneRenderer.confettiProvider = () => confettiParticles;
@@ -1397,6 +1520,13 @@ minimapRenderer.ghostProvider = () => {
   const moduleType = rawType as ModuleType;
   return { moduleType, worldPosition: worldPos };
 };
+
+// ── Story 8.6: Selection overlay providers ────────────────────────────────
+sceneRenderer.diamondHoverProvider = () => inputManager.hoveredDiamond;
+sceneRenderer.handleHoverProvider = () => inputManager.hoveredHandle;
+inputManager.selectedModuleIdProvider = () => currentState.selectedModuleIds[0] ?? null;
+// Color picker open state — reads popover ground truth (no manual flag sync)
+inputManager.colorPickerOpenProvider = () => colorPickerPopover.isOpen;
 
 // onModuleDrop: push history snapshot, create module, assign palette colour,
 // emit MODULE_PLACED event, and renderers pick up on next rAF.

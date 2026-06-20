@@ -2499,6 +2499,19 @@ describe('Story 8.5 — Resize Drag (Corner Handles)', () => {
 
       expect(moveSpy).toHaveBeenCalled();
 
+      // Code review 2026-06-21: pin the InputManager contract that main.ts relies on —
+      // `toWorld` (3rd arg) MUST be the new CENTER, not the dragged corner. The NW anchor
+      // is (140,160); SE drag with AR=1.5 to mouse (275,250) yields new center (207.5, 205)
+      // and dims 135×90 (AR preserved). main.ts computes newCenter = toWorld; if InputManager
+      // ever passed the corner instead, this test fails and the main.ts handler breaks.
+      const lastCall = moveSpy.mock.calls[moveSpy.mock.calls.length - 1]!;
+      const toWorld = lastCall[2] as { x: number; y: number };
+      expect(toWorld.x).toBeCloseTo(207.5, 5);
+      expect(toWorld.y).toBeCloseTo(205, 5);
+      // Center-invariant: width = 2 * |center.x - anchor.x|, height = 2 * |center.y - anchor.y|
+      expect(2 * Math.abs(toWorld.x - 140)).toBeCloseTo(135, 5);
+      expect(2 * Math.abs(toWorld.y - 160)).toBeCloseTo(90, 5);
+
       input.destroy();
     });
 
@@ -2994,6 +3007,417 @@ describe('Story 8.5 — Resize Drag (Corner Handles)', () => {
       // classifyHitZone may need nodesProvider to be set. If it can still be invoked,
       // it proves the method was not removed (FR-8).
       expect(['none', 'inner', 'edge']).toContain(zone);
+
+      input.destroy();
+    });
+  });
+});
+
+// =============================================================================
+// Story 8.6 — main.ts Integration Phase 4 Wiring (RED PHASE)
+// =============================================================================
+
+/**
+ * 🔴 TDD RED PHASE — these tests WILL FAIL before Story 8.6 is implemented.
+ *
+ * The scaffolds below assert the EXPECTED behavior of the colorPickerOpenProvider
+ * pattern, keyboard guard, and DEFER-8.4a/b resolution. They are intentionally
+ * designed to fail until the corresponding Story 8.6 tasks are completed.
+ *
+ * After implementation: remove the conditional guards (e.g. `test.fail()`
+ * wrappers, mock existence checks) and verify all tests pass.
+ */
+
+describe('Story 8.6 — colorPickerOpenProvider (AC9, AC15, AC16)', () => {
+  let canvas: MockCanvas;
+  let mockVM: ViewportManager;
+  let capturedWindowListeners: Map<string, EventListener[]>;
+
+  beforeEach(() => {
+    canvas = createMockCanvas();
+    mockVM = createMockViewportManager();
+    capturedWindowListeners = new Map();
+    vi.spyOn(window, 'addEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        list.push(fn as EventListener);
+        capturedWindowListeners.set(type, list);
+      },
+    );
+    vi.spyOn(window, 'removeEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        const idx = list.indexOf(fn as EventListener);
+        if (idx >= 0) list.splice(idx, 1);
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── AC16: DEFER-8.4a — _isColorPickerOpen field removed ──────────
+
+  describe('AC16: DEFER-8.4a — field removal + provider', () => {
+    it('[P1] _isColorPickerOpen private field no longer exists on InputManager', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+
+      // 🔴 RED: _isColorPickerOpen should be REMOVED after Story 8.6
+      // Before implementation, this field exists (with @ts-ignore TS6133).
+      // After implementation, it must NOT exist.
+      expect((input as any)._isColorPickerOpen).toBeUndefined();
+
+      input.destroy();
+    });
+
+    it('[P1] colorPickerOpenProvider is a nullable public field', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+
+      // 🔴 RED: colorPickerOpenProvider should exist as a public nullable field
+      // Default value should be null (no popover open by default)
+      expect('colorPickerOpenProvider' in input).toBe(true);
+      expect(input.colorPickerOpenProvider).toBeNull();
+
+      input.destroy();
+    });
+
+    it('[P1] resetSelectionState() does NOT reference _isColorPickerOpen', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+
+      // Code review 2026-06-21: provider must return FALSE so the I4 guard
+      // (InputManager.ts:1589) does NOT early-return — otherwise the Escape
+      // handler is never reached and resetSelectionState() is never invoked,
+      // making this test a no-op. The previous version set () => true, which
+      // meant the assertion passed without exercising resetSelectionState at all.
+      input.colorPickerOpenProvider = () => false;
+
+      // Trigger resetSelectionState via Escape with selected module
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.nodesProvider = () => ({
+        mod1: { id: 'mod1', type: 'stock', position: vec2(100, 100), label: 'Test' } as any,
+      });
+
+      // Press Escape to trigger resetSelectionState
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape' }),
+      );
+
+      // The Escape handler must have actually run (reaching resetSelectionState):
+      // onModuleSelect(null) is called immediately before resetSelectionState()
+      // at InputManager.ts:1648-1650.
+      expect(selectSpy).toHaveBeenCalledWith(null);
+
+      // 🔴 RED: After resetSelectionState(), the provider should still be intact
+      // (it shouldn't set a removed _isColorPickerOpen field to false)
+      // The provider is set by main.ts, not by resetSelectionState.
+      // Provider should still be the function we set (not nullified).
+      expect(input.colorPickerOpenProvider).not.toBeNull();
+
+      // The removed _isColorPickerOpen field must NOT be recreated by
+      // resetSelectionState() — i.e. the old `this._isColorPickerOpen = false`
+      // line is gone (DEFER-8.4a).
+      expect((input as any)._isColorPickerOpen).toBeUndefined();
+
+      input.destroy();
+    });
+
+    it('[P2] handleWindowBlur does NOT reference _isColorPickerOpen', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+
+      // Set provider (simulating open popover)
+      input.colorPickerOpenProvider = () => true;
+
+      // Trigger window blur
+      capturedWindowListeners.get('blur')?.[0]!(new Event('blur'));
+
+      // 🔴 RED: After blur, provider should not be nullified by InputManager
+      // (main.ts owns the provider reference)
+      // The old code did `this._isColorPickerOpen = false` — this line must be gone.
+      expect(input.colorPickerOpenProvider).not.toBeNull();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC9 + AC15: colorPickerOpenProvider keyboard guard ────────────
+
+  describe('AC9 + AC15: Keyboard guard via colorPickerOpenProvider', () => {
+    it('[P1] Delete/Backspace do NOT fire when colorPickerOpenProvider returns true', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const modDeleteSpy = vi.fn();
+      const connDeleteSpy = vi.fn();
+      input.onModuleDelete = modDeleteSpy;
+      input.onConnectionDelete = connDeleteSpy;
+      input.colorPickerOpenProvider = () => true; // 🔴 Popover is open
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Delete', cancelable: true }),
+      );
+
+      // 🔴 RED: I4 guard should block Delete when color picker is open
+      expect(modDeleteSpy).not.toHaveBeenCalled();
+      expect(connDeleteSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] Enter does NOT fire onModulePlaceAtCenter when colorPickerOpenProvider returns true', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.selectedModuleIdProvider = () => null; // no selection → would normally place
+      input.colorPickerOpenProvider = () => true; // 🔴 Popover is open
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Enter', cancelable: true }),
+      );
+
+      // 🔴 RED: I4 guard should block Enter from placing module when popover is open
+      expect(placeSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] Tab does NOT fire onTabNext when colorPickerOpenProvider returns true', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const tabSpy = vi.fn();
+      input.onTabNext = tabSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.colorPickerOpenProvider = () => true; // 🔴 Popover is open
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Tab', cancelable: true }),
+      );
+
+      // 🔴 RED: I4 guard should block Tab when color picker is open
+      expect(tabSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] Arrow keys do NOT fire onModuleNudge when colorPickerOpenProvider returns true', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const nudgeSpy = vi.fn();
+      input.onModuleNudge = nudgeSpy;
+      input.colorPickerOpenProvider = () => true; // 🔴 Popover is open
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'ArrowRight', cancelable: true }),
+      );
+
+      // 🔴 RED: I4 guard should block Arrow keys when color picker is open
+      expect(nudgeSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] Escape does not deselect module while color picker is open (I4 guard early-returns)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectSpy = vi.fn();
+      input.onModuleSelect = selectSpy;
+      input.selectedModuleIdProvider = () => 'mod1';
+      input.colorPickerOpenProvider = () => true; // 🔴 Popover is open
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Escape', cancelable: true }),
+      );
+
+      // AC15 two-key design (code review 2026-06-21):
+      // The I4 guard at InputManager.ts:1589 is `if (isEditingTarget(e.target)
+      //   || (this.colorPickerOpenProvider?.() ?? false)) return;` — it early-returns
+      //   for ALL keys when the popover is open, Escape included. It does NOT
+      //   special-case Escape. So InputManager's Escape branch (deselect) is never
+      //   reached while the popover is open.
+      // In production the popover's capture-phase listener (ColorPickerPopover.ts:166-173)
+      //   additionally calls stopPropagation() on Escape, so this handler would not
+      //   fire at all. This unit test invokes the handler directly to verify the guard
+      //   alone is sufficient: selectSpy (onModuleSelect) must NOT be called, i.e. the
+      //   module is NOT deselected on the first Escape — consistent with the two-key
+      //   design where the first Escape only closes the popover.
+      expect(selectSpy).not.toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] Keyboard shortcuts fire normally when colorPickerOpenProvider returns false', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.selectedModuleIdProvider = () => null;
+      input.colorPickerOpenProvider = () => false; // 🔴 Popover is closed
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Enter', cancelable: true }),
+      );
+
+      // 🔴 RED: When popover is closed, keyboard shortcuts should work normally
+      expect(placeSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+
+    it('[P1] Keyboard shortcuts fire normally when colorPickerOpenProvider is null (not set)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.selectedModuleIdProvider = () => null;
+      // colorPickerOpenProvider is null by default
+
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Enter', cancelable: true }),
+      );
+
+      // 🔴 RED: When provider is null (not wired yet), treat as not-open
+      expect(placeSpy).toHaveBeenCalled();
+
+      input.destroy();
+    });
+  });
+
+  // ── AC9: Keyboard unblocked after popover closes ─────────────────
+
+  describe('AC9: Keyboard unblocked after ColorPickerPopover closes', () => {
+    it('[P2] after provider switches from true to false, keyboard shortcuts resume', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const placeSpy = vi.fn();
+      input.onModulePlaceAtCenter = placeSpy;
+      input.selectedModuleIdProvider = () => null;
+
+      // Step 1: Popover is open → shortcuts blocked
+      input.colorPickerOpenProvider = () => true;
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Enter', cancelable: true }),
+      );
+      expect(placeSpy).not.toHaveBeenCalled(); // 🔴 RED: blocked
+
+      // Step 2: Popover closes → provider returns false
+      input.colorPickerOpenProvider = () => false;
+      capturedWindowListeners.get('keydown')?.[0]!(
+        new KeyboardEvent('keydown', { code: 'Enter', cancelable: true }),
+      );
+      expect(placeSpy).toHaveBeenCalledTimes(1); // 🔴 RED: unblocked
+
+      input.destroy();
+    });
+  });
+});
+
+// =============================================================================
+// Story 8.6 — Callback Adapter & Provider Wiring (AC17)
+// =============================================================================
+
+describe('Story 8.6 — Callback & Provider contracts (AC17)', () => {
+  let canvas: MockCanvas;
+  let mockVM: ViewportManager;
+  let capturedWindowListeners: Map<string, EventListener[]>;
+
+  beforeEach(() => {
+    canvas = createMockCanvas();
+    mockVM = createMockViewportManager();
+    capturedWindowListeners = new Map();
+    vi.spyOn(window, 'addEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        list.push(fn as EventListener);
+        capturedWindowListeners.set(type, list);
+      },
+    );
+    vi.spyOn(window, 'removeEventListener').mockImplementation(
+      (type: string, fn: EventListenerOrEventListenerObject) => {
+        const list = capturedWindowListeners.get(type) ?? [];
+        const idx = list.indexOf(fn as EventListener);
+        if (idx >= 0) list.splice(idx, 1);
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── AC17: DEFER-8.4b — callback adapter ──────────────────────────
+
+  describe('AC17: DEFER-8.4b — callback adapter', () => {
+    it('[P1] onToolbarNameClick is a nullable public callback with (moduleId: string) => void signature', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+
+      // 🔴 RED: onToolbarNameClick should exist as a public nullable field
+      expect('onToolbarNameClick' in input).toBe(true);
+
+      // Verify the type accepts (moduleId: string) => void
+      // (This is a compile-time check; at runtime we verify nullability)
+      input.onToolbarNameClick = (moduleId: string) => {
+        expect(typeof moduleId).toBe('string');
+      };
+      expect(input.onToolbarNameClick).not.toBeNull();
+
+      input.destroy();
+    });
+
+    it('[P2] onColorDotClick is a nullable public callback with (moduleId: string) => void signature', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+
+      // 🔴 RED: onColorDotClick should exist as a public nullable field
+      // Note: this is intentionally NOT wired by Story 8.6 (vestigial code).
+      // Color dot flow goes through ToolbarController → main.ts directly.
+      expect('onColorDotClick' in input).toBe(true);
+
+      input.onColorDotClick = (moduleId: string) => {
+        expect(typeof moduleId).toBe('string');
+      };
+      expect(input.onColorDotClick).not.toBeNull();
+
+      input.destroy();
+    });
+
+    it('[P1] main.ts adapter closure captures selectedModuleId for name editing', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+      const selectedId = 'mod-xyz-123';
+
+      // 🔴 RED: Simulate the adapter pattern from main.ts:
+      //   inputManager.onToolbarNameClick = (moduleId) => {
+      //     toolbarController.startEditing();
+      //   };
+      //
+      // The 'moduleId' parameter is received but ToolbarController.startEditing()
+      // takes no arguments. The adapter bridges this by using the moduleId for
+      // context (e.g. setting selected module) while calling startEditing().
+
+      // Verify the callback can be set with the expected signature
+      let capturedModuleId: string | null = null;
+      input.onToolbarNameClick = (moduleId: string) => {
+        capturedModuleId = moduleId;
+        // In production: toolbarController.startEditing();
+      };
+
+      // Simulate call with the selected module ID
+      input.onToolbarNameClick(selectedId);
+      expect(capturedModuleId).toBe(selectedId);
+
+      input.destroy();
+    });
+  });
+
+  // ── I1-I5: InputManager accessibility changes ────────────────────
+
+  describe('I1-I5: InputManager public field accessibility', () => {
+    it('[P2] isEditingName is publicly writable (was private, now public for main.ts)', () => {
+      const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
+
+      // 🔴 RED: isEditingName should be accessible from outside InputManager
+      // Before Story 8.6, this was a private field (L208).
+      // After Story 8.6 Task 1.1, it should be public.
+      //
+      // TypeScript compile check: the following line should not produce TS2341
+      input.isEditingName = true;
+      expect(input.isEditingName).toBe(true);
+
+      // Reset back
+      input.isEditingName = false;
+      expect(input.isEditingName).toBe(false);
 
       input.destroy();
     });

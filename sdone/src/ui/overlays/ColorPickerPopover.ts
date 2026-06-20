@@ -49,6 +49,7 @@ export class ColorPickerPopover {
   private _el: HTMLElement | null = null;
   private _boundDocClick: ((e: MouseEvent) => void) | null = null;
   private _boundWheel: ((e: WheelEvent) => void) | null = null;
+  private _boundKeyDown: ((e: KeyboardEvent) => void) | null = null;
   private _currentModuleId: string | null = null;
 
   constructor() {
@@ -158,6 +159,18 @@ export class ColorPickerPopover {
     // by the mousedown listener above; this handles wheel-driven pan.
     this._boundWheel = () => this.close();
     document.addEventListener('wheel', this._boundWheel, { passive: true });
+
+    // ── Story 8.6: Escape-to-dismiss (capture phase) ──────────────
+    // Capture-phase listener ensures Escape dismisses the popover BEFORE
+    // InputManager's keyboard handler sees the event (AC15).
+    this._boundKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.close();
+      }
+    };
+    document.addEventListener('keydown', this._boundKeyDown, true);
   }
 
   /**
@@ -172,6 +185,10 @@ export class ColorPickerPopover {
     if (this._boundWheel) {
       document.removeEventListener('wheel', this._boundWheel);
       this._boundWheel = null;
+    }
+    if (this._boundKeyDown) {
+      document.removeEventListener('keydown', this._boundKeyDown, true);
+      this._boundKeyDown = null;
     }
     if (this._el) {
       // P2-4: parentNode check before DOM removal — defensive pattern

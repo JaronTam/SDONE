@@ -36,6 +36,9 @@ export interface EventMap {
   // ── Canvas: Module Drag-Move ────────────────────────────────
   MODULE_MOVED: { type: string; moduleId: string; from: Vec2; to: Vec2 };
 
+  // ── Story 8.6: Module Resize ─────────────────────────────────
+  MODULE_RESIZED: { moduleId: string; width: number; height: number };
+
   // ── Canvas: Connections ────────────────────────────────────
   CONNECTION_CREATED: { connectionId: string; fromId: string; toId: string; rate: number };
 

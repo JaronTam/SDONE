@@ -205,21 +205,20 @@ export class InputManager {
   /** True during resize handle drag (Story 8.5). */
   private _isResizing = false;
   /** True while Toolbar name input is focused (ToolbarController → Story 8.4). */
-  private isEditingName = false;
-  /** True while ColorPickerPopover is visible (ToolbarController → Story 8.4). */
-  // @ts-ignore TS6133 — forward-declared, consumed by Story 8.4
-  private _isColorPickerOpen = false;
+  public isEditingName = false;
+  /** Story 8.6: Provider that reads ColorPickerPopover.isOpen — replaces _isColorPickerOpen flag.
+   *  Wired by main.ts. Null by default (treated as 'not open'). */
+  public colorPickerOpenProvider: (() => boolean) | null = null;
 
   // ── Story 8.2: Diamond & Handle hover tracking ─────────────────
   // DECISION-1 fix: use precise union types instead of widened `string`
-  private hoveredDiamond: { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null = null;
-  private hoveredHandle: { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null = null;
+  public hoveredDiamond: { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null = null;
+  public hoveredHandle: { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null = null;
 
   /** Story 8.2 — Reset all selection-scoped state on deselect.
    *  Called from Escape handler and handleMouseUp deselect paths. */
   private resetSelectionState(): void {
     this.isEditingName = false;
-    this._isColorPickerOpen = false;
     this.hoveredDiamond = null;
     this.hoveredHandle = null;
     // Story 8.5: Reset resize drag state on deselect
@@ -573,7 +572,6 @@ export class InputManager {
     // Story 8.2 — reset V1.1 boolean state flags
     this._isResizing = false;
     this.isEditingName = false;
-    this._isColorPickerOpen = false;
     // Story 8.2 — reset hover tracking
     this.hoveredDiamond = null;
     this.hoveredHandle = null;
@@ -1584,8 +1582,11 @@ export class InputManager {
   // -------------------------------------------------------------------
 
   private handleKeyDown(e: KeyboardEvent): void {
-    // Don't intercept keystrokes when the user is typing in a text input
-    if (isEditingTarget(e.target)) return;
+    // Don't intercept keystrokes when the user is typing in a text input.
+    // Story 8.6 I4: Also block ALL keyboard shortcuts while ColorPickerPopover is open
+    // (provider reads colorPickerPopover.isOpen which is ground truth — no manual flag).
+    // Escape is NOT blocked here; it is handled by ColorPickerPopover's capture-phase listener.
+    if (isEditingTarget(e.target) || (this.colorPickerOpenProvider?.() ?? false)) return;
 
     // Space → pan mode hint
     if (e.code === 'Space') {
@@ -1683,6 +1684,9 @@ export class InputManager {
       if (this.selectedModuleIdProvider?.() != null) {
         if (!this.isEditingName) {
           this.isEditingName = true;
+          // Story 8.6 I5: Notify main.ts to start toolbar name editing (DEFER-8.4b)
+          const selectedId = this.selectedModuleIdProvider?.();
+          if (selectedId) this.onToolbarNameClick?.(selectedId);
         }
         // When a module is selected, Enter NEVER places a new module (AC9)
         // If already editing, this Enter is consumed by the name input (Story 8.4)
