@@ -62,7 +62,13 @@ function makeConnection(overrides: Partial<Connection> & { id: string }): Connec
 // ============================================================================
 describe('StockNode', () => {
   it('has all ModuleNode properties plus stock-specific fields', () => {
-    const stock = makeStock({ id: 's1', label: 'My Stock', value: 42, capacity: 200, initialValue: 10 });
+    const stock = makeStock({
+      id: 's1',
+      label: 'My Stock',
+      value: 42,
+      capacity: 200,
+      initialValue: 10,
+    });
 
     // ModuleNode base properties
     expect(stock.id).toBe('s1');
@@ -130,7 +136,13 @@ describe('Connection', () => {
   });
 
   it('has all required fields', () => {
-    const conn = makeConnection({ id: 'c3', fromId: 'src', toId: 'snk', rate: 3.14, formulaStr: '3.14' });
+    const conn = makeConnection({
+      id: 'c3',
+      fromId: 'src',
+      toId: 'snk',
+      rate: 3.14,
+      formulaStr: '3.14',
+    });
     expect(conn.id).toBe('c3');
     expect(conn.fromId).toBe('src');
     expect(conn.toId).toBe('snk');
@@ -183,9 +195,21 @@ describe('GraphState', () => {
 describe('Serialization round-trip', () => {
   it('GraphState survives JSON.stringify + JSON.parse without data loss', () => {
     const source = makeSource({ id: 'src', label: 'Source A', color: '#90EE90' });
-    const stock = makeStock({ id: 'stk', label: 'Stock B', value: 50, capacity: 100, initialValue: 25 });
+    const stock = makeStock({
+      id: 'stk',
+      label: 'Stock B',
+      value: 50,
+      capacity: 100,
+      initialValue: 25,
+    });
     const sink = makeSink({ id: 'snk', label: 'Sink C', color: '#8B0000' });
-    const conn = makeConnection({ id: 'flow', fromId: 'src', toId: 'stk', rate: 5, formulaStr: '5' });
+    const conn = makeConnection({
+      id: 'flow',
+      fromId: 'src',
+      toId: 'stk',
+      rate: 5,
+      formulaStr: '5',
+    });
 
     const nodes: Record<string, ModuleNode> = {};
     nodes['src'] = source;

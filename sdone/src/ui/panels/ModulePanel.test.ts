@@ -112,9 +112,7 @@ describe('ModulePanel', () => {
 
     it('should have correct data-module-type attributes on icon items', () => {
       const iconItems = container.querySelectorAll('.module-icon');
-      const types = Array.from(iconItems).map(el =>
-        el.getAttribute('data-module-type'),
-      );
+      const types = Array.from(iconItems).map((el) => el.getAttribute('data-module-type'));
       expect(types).toEqual(['source', 'stock', 'sink']);
     });
 
@@ -134,9 +132,7 @@ describe('ModulePanel', () => {
     it('should set canvas buffer size based on devicePixelRatio (64×dpr)', () => {
       const dpr = window.devicePixelRatio || 1;
       const expectedBuffer = Math.ceil(64 * dpr);
-      const canvases = container.querySelectorAll<HTMLCanvasElement>(
-        '.module-icon canvas',
-      );
+      const canvases = container.querySelectorAll<HTMLCanvasElement>('.module-icon canvas');
       for (const canvas of canvases) {
         expect(canvas.width).toBe(expectedBuffer);
         expect(canvas.height).toBe(expectedBuffer);
@@ -144,9 +140,7 @@ describe('ModulePanel', () => {
     });
 
     it('should set canvas CSS display size to 64px×64px', () => {
-      const canvases = container.querySelectorAll<HTMLCanvasElement>(
-        '.module-icon canvas',
-      );
+      const canvases = container.querySelectorAll<HTMLCanvasElement>('.module-icon canvas');
       for (const canvas of canvases) {
         expect(canvas.style.width).toBe('64px');
         expect(canvas.style.height).toBe('64px');
@@ -319,9 +313,7 @@ describe('ModulePanel', () => {
     });
 
     it('click on source icon sets selectedType to source and updates aria-selected', () => {
-      const sourceIcon = container.querySelector(
-        '[data-module-type="source"]',
-      ) as HTMLElement;
+      const sourceIcon = container.querySelector('[data-module-type="source"]') as HTMLElement;
       sourceIcon.click();
 
       expect(panel.getSelectedType()).toBe('source');
@@ -329,24 +321,18 @@ describe('ModulePanel', () => {
       expect(sourceIcon.hasAttribute('data-highlighted')).toBe(true);
 
       // Other icons remain unselected
-      const stockIcon = container.querySelector(
-        '[data-module-type="stock"]',
-      ) as HTMLElement;
+      const stockIcon = container.querySelector('[data-module-type="stock"]') as HTMLElement;
       expect(stockIcon.getAttribute('aria-selected')).toBe('false');
       expect(stockIcon.hasAttribute('data-highlighted')).toBe(false);
     });
 
     it('click on stock icon sets selectedType to stock and clears previous selection', () => {
       // First select source
-      const sourceIcon = container.querySelector(
-        '[data-module-type="source"]',
-      ) as HTMLElement;
+      const sourceIcon = container.querySelector('[data-module-type="source"]') as HTMLElement;
       sourceIcon.click();
 
       // Then select stock
-      const stockIcon = container.querySelector(
-        '[data-module-type="stock"]',
-      ) as HTMLElement;
+      const stockIcon = container.querySelector('[data-module-type="stock"]') as HTMLElement;
       stockIcon.click();
 
       expect(panel.getSelectedType()).toBe('stock');
@@ -359,9 +345,7 @@ describe('ModulePanel', () => {
     });
 
     it('click on sink icon sets selectedType to sink', () => {
-      const sinkIcon = container.querySelector(
-        '[data-module-type="sink"]',
-      ) as HTMLElement;
+      const sinkIcon = container.querySelector('[data-module-type="sink"]') as HTMLElement;
       sinkIcon.click();
 
       expect(panel.getSelectedType()).toBe('sink');

@@ -36,7 +36,10 @@ function createStockAnalytics(overrides: Partial<StockAnalytics> = {}): StockAna
 // ---------------------------------------------------------------------------
 
 function createGraphState(
-  nodes: Record<string, { type: string; label?: string; value?: number; capacity?: number; initialValue?: number }> = {},
+  nodes: Record<
+    string,
+    { type: string; label?: string; value?: number; capacity?: number; initialValue?: number }
+  > = {},
   connections: Record<string, { fromId: string; toId: string; rate: number }> = {},
 ): GraphState {
   const graphNodes: Record<string, any> = {};
@@ -146,15 +149,17 @@ describe('AnalyticsPanel (Story 6.2)', () => {
     });
 
     it('populates all fields with correct text content', () => {
-      panel.setStock(createStockAnalytics({
-        stockId: 'stock-1',
-        label: 'MyStock',
-        inflow: 5.0,
-        outflow: 3.0,
-        netChange: 2.0,
-        currentValue: 10.0,
-        capacity: 100,
-      }));
+      panel.setStock(
+        createStockAnalytics({
+          stockId: 'stock-1',
+          label: 'MyStock',
+          inflow: 5.0,
+          outflow: 3.0,
+          netChange: 2.0,
+          currentValue: 10.0,
+          capacity: 100,
+        }),
+      );
 
       const label = container.querySelector('.analytics-panel__stock-label');
       const inflow = container.querySelector('.analytics-panel__field-value--inflow');
@@ -218,13 +223,17 @@ describe('AnalyticsPanel (Story 6.2)', () => {
   describe('capacity display', () => {
     it('capacity 100 → displays "100"', () => {
       panel.setStock(createStockAnalytics({ capacity: 100 }));
-      const capEl = container.querySelector('.analytics-panel__field-value--capacity') as HTMLInputElement;
+      const capEl = container.querySelector(
+        '.analytics-panel__field-value--capacity',
+      ) as HTMLInputElement;
       expect(capEl?.value).toBe('100');
     });
 
     it('capacity 500 → displays "500"', () => {
       panel.setStock(createStockAnalytics({ capacity: 500 }));
-      const capEl = container.querySelector('.analytics-panel__field-value--capacity') as HTMLInputElement;
+      const capEl = container.querySelector(
+        '.analytics-panel__field-value--capacity',
+      ) as HTMLInputElement;
       expect(capEl?.value).toBe('500');
     });
   });
@@ -336,17 +345,13 @@ describe('computeStockAnalytics (Story 6.2)', () => {
   });
 
   it('stockId pointing to source node → returns null', () => {
-    const state = createGraphState(
-      { 'source-1': { type: 'source' } },
-    );
+    const state = createGraphState({ 'source-1': { type: 'source' } });
     const result = computeStockAnalytics(state, 'source-1');
     expect(result).toBeNull();
   });
 
   it('empty connections → inflow=0, outflow=0, netChange=0', () => {
-    const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: 100 } },
-    );
+    const state = createGraphState({ 'stock-1': { type: 'stock', value: 0, capacity: 100 } });
     const result = computeStockAnalytics(state, 'stock-1');
     expect(result).not.toBeNull();
     expect(result!.inflow).toBe(0);
@@ -355,27 +360,23 @@ describe('computeStockAnalytics (Story 6.2)', () => {
   });
 
   it('stock with capacity 100 → capacity field === 100', () => {
-    const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: 100 } },
-    );
+    const state = createGraphState({ 'stock-1': { type: 'stock', value: 0, capacity: 100 } });
     const result = computeStockAnalytics(state, 'stock-1');
     expect(result).not.toBeNull();
     expect(result!.capacity).toBe(100);
   });
 
   it('stock with custom label → label field preserves custom label', () => {
-    const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: 100, label: 'Water' } },
-    );
+    const state = createGraphState({
+      'stock-1': { type: 'stock', value: 0, capacity: 100, label: 'Water' },
+    });
     const result = computeStockAnalytics(state, 'stock-1');
     expect(result).not.toBeNull();
     expect(result!.label).toBe('Water');
   });
 
   it('stock without label → label falls back to id prefix', () => {
-    const state = createGraphState(
-      { 'stock-abc-123': { type: 'stock', value: 0, capacity: 100 } },
-    );
+    const state = createGraphState({ 'stock-abc-123': { type: 'stock', value: 0, capacity: 100 } });
     const result = computeStockAnalytics(state, 'stock-abc-123');
     expect(result).not.toBeNull();
     expect(result!.label).toBe('stock-ab');
@@ -441,10 +442,14 @@ describe('Story 7.3 — Overflow section (RED PHASE)', () => {
 
     test('[P1] cumulativeOverflow transitions from 5 to 0 → section hides', () => {
       panel.setStock(createStockAnalytics(), 5.0);
-      expect((container.querySelector('.analytics-panel__overflow') as HTMLElement)!.style.display).not.toBe('none');
+      expect(
+        (container.querySelector('.analytics-panel__overflow') as HTMLElement)!.style.display,
+      ).not.toBe('none');
 
       panel.setStock(createStockAnalytics(), 0);
-      expect((container.querySelector('.analytics-panel__overflow') as HTMLElement)!.style.display).toBe('none');
+      expect(
+        (container.querySelector('.analytics-panel__overflow') as HTMLElement)!.style.display,
+      ).toBe('none');
     });
 
     test('[P1] overflow section renders BELOW the divider (after capacity field)', () => {
@@ -456,8 +461,12 @@ describe('Story 7.3 — Overflow section (RED PHASE)', () => {
       expect(overflowEl).not.toBeNull();
 
       // Overflow section should be after the divider in DOM order
-      const dividerIndex = Array.from(container.querySelector('.analytics-panel__data')!.children).indexOf(divider!);
-      const overflowIndex = Array.from(container.querySelector('.analytics-panel__data')!.children).indexOf(overflowEl!);
+      const dividerIndex = Array.from(
+        container.querySelector('.analytics-panel__data')!.children,
+      ).indexOf(divider!);
+      const overflowIndex = Array.from(
+        container.querySelector('.analytics-panel__data')!.children,
+      ).indexOf(overflowEl!);
       expect(overflowIndex).toBeGreaterThan(dividerIndex);
     });
   });
@@ -515,7 +524,9 @@ describe('Infinity Fix — Capacity input interaction', () => {
       panel.setStock(createStockAnalytics({ capacity: 100 }));
 
       let called = false;
-      panel.onCapacitySubmit = () => { called = true; };
+      panel.onCapacitySubmit = () => {
+        called = true;
+      };
 
       const input = getCapInput();
       // Set to empty string which parses to NaN
@@ -531,7 +542,9 @@ describe('Infinity Fix — Capacity input interaction', () => {
       panel.setStock(createStockAnalytics({ capacity: 100 }));
 
       let called = false;
-      panel.onCapacitySubmit = () => { called = true; };
+      panel.onCapacitySubmit = () => {
+        called = true;
+      };
 
       const input = getCapInput();
       input.value = '0';
@@ -545,7 +558,9 @@ describe('Infinity Fix — Capacity input interaction', () => {
       panel.setStock(createStockAnalytics({ capacity: 100 }));
 
       let called = false;
-      panel.onCapacitySubmit = () => { called = true; };
+      panel.onCapacitySubmit = () => {
+        called = true;
+      };
 
       const input = getCapInput();
       input.value = '-5';
@@ -559,7 +574,9 @@ describe('Infinity Fix — Capacity input interaction', () => {
       panel.setStock(createStockAnalytics({ capacity: 100 }));
 
       let called = false;
-      panel.onCapacitySubmit = () => { called = true; };
+      panel.onCapacitySubmit = () => {
+        called = true;
+      };
 
       const input = getCapInput();
       // Input already shows "100" — typing same value
@@ -578,7 +595,9 @@ describe('Infinity Fix — Capacity input interaction', () => {
       panel.setStock(createStockAnalytics({ capacity: 500 }));
 
       let submittedValue: number | null = null;
-      panel.onCapacitySubmit = (v) => { submittedValue = v; };
+      panel.onCapacitySubmit = (v) => {
+        submittedValue = v;
+      };
 
       const input = getCapInput();
       // Enter invalid value → should revert to 500 (not 100)
@@ -593,7 +612,9 @@ describe('Infinity Fix — Capacity input interaction', () => {
       panel.setStock(createStockAnalytics({ capacity: 100 }));
 
       const submittedValues: number[] = [];
-      panel.onCapacitySubmit = (v) => { submittedValues.push(v); };
+      panel.onCapacitySubmit = (v) => {
+        submittedValues.push(v);
+      };
 
       const input = getCapInput();
 
@@ -612,7 +633,9 @@ describe('Infinity Fix — Capacity input interaction', () => {
       panel.setStock(createStockAnalytics({ capacity: 100 }));
 
       const submittedValues: number[] = [];
-      panel.onCapacitySubmit = (v) => { submittedValues.push(v); };
+      panel.onCapacitySubmit = (v) => {
+        submittedValues.push(v);
+      };
 
       const input = getCapInput();
 

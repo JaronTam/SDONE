@@ -165,9 +165,7 @@ export class SimulationEngine {
           conn.rate = this.formulaEngine.evaluate(conn.formulaStr, this.t);
         } catch (e) {
           if (e instanceof FormulaParseError || e instanceof FormulaEvalError) {
-            console.warn(
-              `[FormulaEngine] ${e.name} for connection ${conn.id}: ${e.message}`,
-            );
+            console.warn(`[FormulaEngine] ${e.name} for connection ${conn.id}: ${e.message}`);
             conn.rate = 0; // AC5: graceful fallback
           } else {
             throw e;
@@ -206,10 +204,7 @@ export class SimulationEngine {
         // Find the source→stock inflow connection(s) that this feedback modulates
         for (const targetConn of Object.values(state.connections)) {
           if (targetConn.isFeedback) continue;
-          if (
-            targetConn.fromId === feedbackConn.toId &&
-            targetConn.toId === feedbackConn.fromId
-          ) {
+          if (targetConn.fromId === feedbackConn.toId && targetConn.toId === feedbackConn.fromId) {
             targetConn.rate *= multiplier;
           }
         }

@@ -100,7 +100,7 @@ describe('EmptyCanvasAffordance rendering logic', () => {
   });
 
   it('AC5 — shouldRenderAffordance returns false when nodes has ≥1 entry', () => {
-    const nodes = { 'a': { type: 'stock', position: { x: 0, y: 0 } } };
+    const nodes = { a: { type: 'stock', position: { x: 0, y: 0 } } };
     const shouldRender = Object.keys(nodes).length === 0;
     expect(shouldRender).toBe(false);
   });

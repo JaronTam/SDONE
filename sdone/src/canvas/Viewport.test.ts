@@ -247,7 +247,8 @@ describe('ViewportManager', () => {
   describe('applyTransform', () => {
     function mockContext(): CanvasRenderingContext2D {
       // Minimal mock — just capture setTransform args
-      let captured: { a: number; b: number; c: number; d: number; e: number; f: number } | null = null;
+      let captured: { a: number; b: number; c: number; d: number; e: number; f: number } | null =
+        null;
       const ctx = {
         _captured: null as typeof captured,
         setTransform(a: number, b: number, c: number, d: number, e: number, f: number) {

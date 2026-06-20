@@ -383,14 +383,8 @@ describe('HistoryManager', () => {
 
       // TypeScript would prevent assignment at compile time,
       // but verify at runtime that they behave as getters.
-      const descUndo = Object.getOwnPropertyDescriptor(
-        Object.getPrototypeOf(hm),
-        'undoDepth',
-      );
-      const descRedo = Object.getOwnPropertyDescriptor(
-        Object.getPrototypeOf(hm),
-        'redoDepth',
-      );
+      const descUndo = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(hm), 'undoDepth');
+      const descRedo = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(hm), 'redoDepth');
       expect(descUndo?.get).toBeDefined();
       expect(descUndo?.set).toBeUndefined();
       expect(descRedo?.get).toBeDefined();

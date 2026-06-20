@@ -53,7 +53,7 @@ export class AchievementToast {
 
   /** Dismiss a specific toast by ID. */
   dismiss(toastId: string): void {
-    const idx = this.activeToasts.findIndex(t => t.id === toastId);
+    const idx = this.activeToasts.findIndex((t) => t.id === toastId);
     if (idx === -1) return;
 
     const entry = this.activeToasts[idx];
@@ -69,7 +69,7 @@ export class AchievementToast {
       entry.el.removeEventListener('transitionend', onTransitionEnd);
       entry.el.remove();
       clearTimeout(safetyTimerId);
-      const currentIdx = this.activeToasts.findIndex(t => t.id === toastId);
+      const currentIdx = this.activeToasts.findIndex((t) => t.id === toastId);
       if (currentIdx !== -1) {
         this.activeToasts.splice(currentIdx, 1);
         this.repositionToasts();
@@ -82,7 +82,7 @@ export class AchievementToast {
       entry.el.removeEventListener('transitionend', onTransitionEnd);
       if (document.body.contains(entry.el)) {
         entry.el.remove();
-        const currentIdx = this.activeToasts.findIndex(t => t.id === toastId);
+        const currentIdx = this.activeToasts.findIndex((t) => t.id === toastId);
         if (currentIdx !== -1) {
           this.activeToasts.splice(currentIdx, 1);
           this.repositionToasts();

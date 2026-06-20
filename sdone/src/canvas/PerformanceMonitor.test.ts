@@ -17,13 +17,17 @@ function createModuleCountSignal(initialCount: number) {
   let count = initialCount;
   return {
     get: () => count,
-    set: (n: number) => { count = n; },
+    set: (n: number) => {
+      count = n;
+    },
   };
 }
 
 function mockPerformanceNow(startTime = 1000) {
   let time = startTime;
-  const advance = (ms: number) => { time += ms; };
+  const advance = (ms: number) => {
+    time += ms;
+  };
   const spy = vi.spyOn(performance, 'now').mockImplementation(() => time);
   return { advance, spy, getTime: () => time };
 }
@@ -330,7 +334,10 @@ describe('Story 7.5: PerformanceMonitor — edge cases', () => {
 
   it('moduleCountSignal called during recompute', () => {
     let callCount = 0;
-    const signal = () => { callCount++; return 10; };
+    const signal = () => {
+      callCount++;
+      return 10;
+    };
     const monitor = new PerformanceMonitor(signal);
     const perf = mockPerformanceNow();
 

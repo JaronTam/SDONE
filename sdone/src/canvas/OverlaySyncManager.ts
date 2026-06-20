@@ -32,10 +32,7 @@ export class OverlaySyncManager {
     moduleHeight: number,
     canvasCenter: Vec2,
   ): Vec2 {
-    const topCenterWorld = vec2(
-      moduleWorldCenter.x,
-      moduleWorldCenter.y - moduleHeight / 2,
-    );
+    const topCenterWorld = vec2(moduleWorldCenter.x, moduleWorldCenter.y - moduleHeight / 2);
     const screen = this.viewport.worldToScreen(topCenterWorld, canvasCenter);
     return vec2(screen.x, screen.y - 8);
   }

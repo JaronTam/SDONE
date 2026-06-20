@@ -122,9 +122,7 @@ export class PerformanceMonitor {
 
     // AC2: Console warning when P95 < 30fps at ≤15 modules (NFR-P1)
     if (count <= 15 && p95Fps < PerformanceMonitor.FPS_WARNING_THRESHOLD) {
-      console.warn(
-        `⚠️ P95 FPS below 30 — check render pipeline (P95: ${p95Fps.toFixed(1)} fps)`,
-      );
+      console.warn(`⚠️ P95 FPS below 30 — check render pipeline (P95: ${p95Fps.toFixed(1)} fps)`);
     }
 
     // Determine target degradation mode

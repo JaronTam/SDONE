@@ -69,11 +69,10 @@ export function addModule(
         value: 0,
         // Defensive: ?? only guards null/undefined; explicit check prevents
         // 0 (division-by-zero), NaN, Infinity, and negative values.
-        capacity: (initialCapacity !== undefined
-          && Number.isFinite(initialCapacity)
-          && initialCapacity > 0)
-          ? initialCapacity
-          : 100,
+        capacity:
+          initialCapacity !== undefined && Number.isFinite(initialCapacity) && initialCapacity > 0
+            ? initialCapacity
+            : 100,
         initialValue: 0,
       } as StockNode;
       break;
@@ -112,10 +111,7 @@ export function addModule(
  *   `version` incremented. If `id` is not found, returns a new state with
  *   unchanged `version` (no-op).
  */
-export function deleteModule(
-  state: GraphState,
-  id: string,
-): GraphState {
+export function deleteModule(state: GraphState, id: string): GraphState {
   if (!(id in state.nodes)) {
     return unchanged(state);
   }
@@ -157,20 +153,13 @@ export function deleteModule(
  *   If the position is unchanged OR the module `id` is not found, returns a
  *   new state with unchanged `version` (no-op).
  */
-export function moveModule(
-  state: GraphState,
-  id: string,
-  position: Vec2,
-): GraphState {
+export function moveModule(state: GraphState, id: string, position: Vec2): GraphState {
   const existing = state.nodes[id];
   if (!existing) {
     return unchanged(state);
   }
 
-  if (
-    existing.position.x === position.x &&
-    existing.position.y === position.y
-  ) {
+  if (existing.position.x === position.x && existing.position.y === position.y) {
     return unchanged(state);
   }
 
@@ -197,11 +186,7 @@ export function moveModule(
  *
  * **Defaults:** `rate: 0`, `formulaStr: '0'`
  */
-export function addConnection(
-  state: GraphState,
-  fromId: string,
-  toId: string,
-): GraphState {
+export function addConnection(state: GraphState, fromId: string, toId: string): GraphState {
   // Both endpoints must exist
   if (!(fromId in state.nodes) || !(toId in state.nodes)) {
     return unchanged(state);
@@ -240,10 +225,7 @@ export function addConnection(
  *   incremented. If `id` is not found, returns a new state with unchanged
  *   `version` (no-op).
  */
-export function deleteConnection(
-  state: GraphState,
-  id: string,
-): GraphState {
+export function deleteConnection(state: GraphState, id: string): GraphState {
   if (!(id in state.connections)) {
     return unchanged(state);
   }
@@ -268,10 +250,7 @@ export function deleteConnection(
     }
   }
 
-  if (
-    Object.keys(nextConnections).length ===
-    Object.keys(state.connections).length
-  ) {
+  if (Object.keys(nextConnections).length === Object.keys(state.connections).length) {
     return unchanged(state);
   }
 
@@ -298,11 +277,7 @@ export function deleteConnection(
  * done at the UI layer (ColorPickerPopover only offers 5 swatches). This keeps
  * the mutation pure and future-proof for free-form color input.
  */
-export function changeModuleColor(
-  state: GraphState,
-  moduleId: string,
-  color: string,
-): GraphState {
+export function changeModuleColor(state: GraphState, moduleId: string, color: string): GraphState {
   const existing = state.nodes[moduleId];
   if (!existing) return unchanged(state);
   // AC8: stock color is fixed white — no-op
@@ -330,11 +305,7 @@ export function changeModuleColor(
  *   - stockId is not found or the node is not a stock
  *   - capacity is not a finite positive number (0, negative, NaN, Infinity rejected)
  */
-export function updateCapacity(
-  state: GraphState,
-  stockId: string,
-  capacity: number,
-): GraphState {
+export function updateCapacity(state: GraphState, stockId: string, capacity: number): GraphState {
   const node = state.nodes[stockId];
   if (!node || node.type !== 'stock') return unchanged(state);
   // Defensive validation: capacity must be a finite positive number.
@@ -475,11 +446,7 @@ export function updateFormula(
  * validate rate sign. Semantics of negative rates are handled by the simulation
  * engine.
  */
-export function updateRate(
-  state: GraphState,
-  connectionId: string,
-  rate: number,
-): GraphState {
+export function updateRate(state: GraphState, connectionId: string, rate: number): GraphState {
   const existing = state.connections[connectionId];
   if (!existing) {
     return unchanged(state);

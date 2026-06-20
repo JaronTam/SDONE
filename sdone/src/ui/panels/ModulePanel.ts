@@ -33,7 +33,12 @@ const ICON_DEFINITIONS: Array<{
   label: string;
   fillColor: string;
   strokeColor: string;
-  drawFn: (ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, cx: number, cy: number, size: number) => void;
+  drawFn: (
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number,
+  ) => void;
 }> = [
   {
     type: 'source',
@@ -168,7 +173,7 @@ export class ModulePanel {
     reExpandTab.innerHTML = '<span class="module-panel__re-expand-arrow">▶</span>';
     this.boundReExpandClick = () => {
       this.setHidden(false);
-      this.setPinned(true);  // Story 6.6 AC1 — re-expand also pins the panel
+      this.setPinned(true); // Story 6.6 AC1 — re-expand also pins the panel
     };
     reExpandTab.addEventListener('click', this.boundReExpandClick);
     this.reExpandTab = reExpandTab;
@@ -247,9 +252,7 @@ export class ModulePanel {
   /**
    * Create a single icon item: <canvas> for shape + <span> for label.
    */
-  private createIconItem(
-    def: (typeof ICON_DEFINITIONS)[number],
-  ): HTMLElement {
+  private createIconItem(def: (typeof ICON_DEFINITIONS)[number]): HTMLElement {
     const iconItem = document.createElement('div');
     iconItem.className = 'module-icon';
     iconItem.setAttribute('data-module-type', def.type);
@@ -308,10 +311,7 @@ export class ModulePanel {
    * Uses the same draw functions as SceneRenderer (via ShapePaths)
    * to guarantee visual consistency across main canvas and sidebar.
    */
-  private renderIconShape(
-    canvas: HTMLCanvasElement,
-    def: (typeof ICON_DEFINITIONS)[number],
-  ): void {
+  private renderIconShape(canvas: HTMLCanvasElement, def: (typeof ICON_DEFINITIONS)[number]): void {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 

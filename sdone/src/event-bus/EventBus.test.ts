@@ -104,7 +104,10 @@ describe('EventBus', () => {
     let unsubB: () => void;
 
     const hA = () => calls.push('A');
-    const hB = () => { unsubB(); calls.push('B'); };
+    const hB = () => {
+      unsubB();
+      calls.push('B');
+    };
     const hC = () => calls.push('C');
 
     b.on('TEST_EVENT' as any, hA);

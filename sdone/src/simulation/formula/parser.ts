@@ -6,12 +6,7 @@ import { TokenType } from './tokenizer.js';
 // AST node types
 // ---------------------------------------------------------------------------
 
-export type ExprNode =
-  | NumberNode
-  | VariableNode
-  | BinaryOpNode
-  | UnaryOpNode
-  | FunctionCallNode;
+export type ExprNode = NumberNode | VariableNode | BinaryOpNode | UnaryOpNode | FunctionCallNode;
 
 export interface NumberNode {
   type: 'number';

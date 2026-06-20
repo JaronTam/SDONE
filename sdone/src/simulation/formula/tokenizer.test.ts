@@ -175,9 +175,9 @@ describe('tokenize', () => {
 
   it('tracks positions correctly', () => {
     const tokens = tokenize('1 + 20');
-    expect(tokens[0].position).toBe(0);   // '1'
-    expect(tokens[1].position).toBe(2);   // '+'
-    expect(tokens[2].position).toBe(4);   // '20'
+    expect(tokens[0].position).toBe(0); // '1'
+    expect(tokens[1].position).toBe(2); // '+'
+    expect(tokens[2].position).toBe(4); // '20'
   });
 
   // ---------------------------------------------------------------------------

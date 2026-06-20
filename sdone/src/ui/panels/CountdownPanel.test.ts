@@ -1,5 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { CountdownPanel, computeStockCountdown, computeAllStockCountdowns, sortCountdownsByUrgency } from './CountdownPanel.js';
+import {
+  CountdownPanel,
+  computeStockCountdown,
+  computeAllStockCountdowns,
+  sortCountdownsByUrgency,
+} from './CountdownPanel.js';
 import type { StockCountdown } from './CountdownPanel.js';
 import type { GraphState, Connection } from '../../state/GraphState.js';
 
@@ -37,7 +42,10 @@ function createStockCountdown(overrides: Partial<StockCountdown> = {}): StockCou
 // ---------------------------------------------------------------------------
 
 function createGraphState(
-  nodes: Record<string, { type: string; label?: string; value?: number; capacity?: number; initialValue?: number }> = {},
+  nodes: Record<
+    string,
+    { type: string; label?: string; value?: number; capacity?: number; initialValue?: number }
+  > = {},
   connections: Record<string, { fromId: string; toId: string; rate: number }> = {},
 ): GraphState {
   const graphNodes: Record<string, any> = {};
@@ -172,7 +180,13 @@ describe('CountdownPanel (Story 7.2)', () => {
     it('renders 3 rows in sorted order', () => {
       const data = [
         createStockCountdown({ stockId: 's1', label: 'Alpha', remainingSeconds: 20.0, netRate: 3 }),
-        createStockCountdown({ stockId: 's2', label: 'Beta', remainingSeconds: 5.0, netRate: -2, direction: 'to-zero' }),
+        createStockCountdown({
+          stockId: 's2',
+          label: 'Beta',
+          remainingSeconds: 5.0,
+          netRate: -2,
+          direction: 'to-zero',
+        }),
         createStockCountdown({ stockId: 's3', label: 'Gamma', remainingSeconds: 1.0, netRate: 8 }),
       ];
       const sorted = sortCountdownsByUrgency(data);
@@ -191,11 +205,13 @@ describe('CountdownPanel (Story 7.2)', () => {
 
   describe('direction: to-capacity (AC1)', () => {
     it('displays "↑ 到达上限:" with amber class', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
-        remainingSeconds: 10.0,
-        netRate: 7.0,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-capacity',
+          remainingSeconds: 10.0,
+          netRate: 7.0,
+        }),
+      ]);
 
       const dirEl = container.querySelector('.countdown-panel__row-direction') as HTMLElement;
       expect(dirEl.textContent).toBe('↑ 到达上限:');
@@ -203,10 +219,12 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('displays remaining time "10.0" with unit span visible', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
-        remainingSeconds: 10.0,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-capacity',
+          remainingSeconds: 10.0,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -219,11 +237,13 @@ describe('CountdownPanel (Story 7.2)', () => {
 
   describe('direction: to-zero (AC2)', () => {
     it('displays "↓ 归零:" with blue class', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-zero',
-        remainingSeconds: 8.0,
-        netRate: -5.0,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-zero',
+          remainingSeconds: 8.0,
+          netRate: -5.0,
+        }),
+      ]);
 
       const dirEl = container.querySelector('.countdown-panel__row-direction') as HTMLElement;
       expect(dirEl.textContent).toBe('↓ 归零:');
@@ -231,10 +251,12 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('displays remaining time "8.0" with unit span visible', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-zero',
-        remainingSeconds: 8.0,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-zero',
+          remainingSeconds: 8.0,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -247,12 +269,14 @@ describe('CountdownPanel (Story 7.2)', () => {
 
   describe('direction: stable (AC4)', () => {
     it('stable with no connections → time displays "—", unit hidden', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'stable',
-        remainingSeconds: null,
-        hasConnections: false,
-        netRate: 0,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'stable',
+          remainingSeconds: null,
+          hasConnections: false,
+          netRate: 0,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -261,12 +285,14 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('stable with connections → time displays "无变化", unit hidden', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'stable',
-        remainingSeconds: null,
-        hasConnections: true,
-        netRate: 0,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'stable',
+          remainingSeconds: null,
+          hasConnections: true,
+          netRate: 0,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -275,12 +301,14 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('stable direction → direction text is "—"', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'stable',
-        remainingSeconds: null,
-        hasConnections: false,
-        netRate: 0,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'stable',
+          remainingSeconds: null,
+          hasConnections: false,
+          netRate: 0,
+        }),
+      ]);
 
       const dirEl = container.querySelector('.countdown-panel__row-direction') as HTMLElement;
       expect(dirEl.textContent).toBe('—');
@@ -291,11 +319,13 @@ describe('CountdownPanel (Story 7.2)', () => {
 
   describe('AC4: terminal state', () => {
     it('to-capacity with remainingSeconds=0 → "已达上限" with reached class, unit hidden', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
-        remainingSeconds: 0,
-        netRate: 5,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-capacity',
+          remainingSeconds: 0,
+          netRate: 5,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -306,11 +336,13 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('to-zero with remainingSeconds=0 → "已归零" with reached class, unit hidden', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-zero',
-        remainingSeconds: 0,
-        netRate: -5,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-zero',
+          remainingSeconds: 0,
+          netRate: -5,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -321,11 +353,13 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('remainingSeconds < 0 (e.g. -0.1) → same as 0 (≤0 threshold)', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
-        remainingSeconds: -0.1,
-        netRate: 5,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-capacity',
+          remainingSeconds: -0.1,
+          netRate: 5,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       expect(timeEl.textContent).toBe('已达上限');
@@ -333,11 +367,13 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('P6: remainingSeconds=0.049 → terminal state "已达上限" (< 0.05 threshold)', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
-        remainingSeconds: 0.049,
-        netRate: 5,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-capacity',
+          remainingSeconds: 0.049,
+          netRate: 5,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -347,11 +383,13 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('P6: remainingSeconds=0.05 → active countdown "0.1" (>= 0.05 threshold)', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
-        remainingSeconds: 0.05,
-        netRate: 5,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-capacity',
+          remainingSeconds: 0.05,
+          netRate: 5,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -364,13 +402,15 @@ describe('CountdownPanel (Story 7.2)', () => {
 
   describe('stable state', () => {
     it('stable direction with no connections → "—", unit hidden', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'stable',
-        remainingSeconds: null,
-        capacity: 100,
-        netRate: 0,
-        hasConnections: false,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'stable',
+          remainingSeconds: null,
+          capacity: 100,
+          netRate: 0,
+          hasConnections: false,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -412,10 +452,12 @@ describe('CountdownPanel (Story 7.2)', () => {
 
   describe('NaN guard', () => {
     it('NaN remainingSeconds → time displays "0.0" with unit span visible', () => {
-      panel.setCountdowns([createStockCountdown({
-        direction: 'to-capacity',
-        remainingSeconds: NaN,
-      })]);
+      panel.setCountdowns([
+        createStockCountdown({
+          direction: 'to-capacity',
+          remainingSeconds: NaN,
+        }),
+      ]);
 
       const timeEl = container.querySelector('.countdown-panel__row-time') as HTMLElement;
       const unitEl = container.querySelector('.countdown-panel__row-unit') as HTMLElement;
@@ -456,7 +498,9 @@ describe('CountdownPanel (Story 7.2)', () => {
     });
 
     it('terminal state (remainingSeconds=0) gets --critical class', () => {
-      panel.setCountdowns([createStockCountdown({ remainingSeconds: 0, direction: 'to-capacity' })]);
+      panel.setCountdowns([
+        createStockCountdown({ remainingSeconds: 0, direction: 'to-capacity' }),
+      ]);
 
       const row = container.querySelector('.countdown-panel__row') as HTMLElement;
       expect(row.classList.contains('countdown-panel__row--critical')).toBe(true);
@@ -647,25 +691,19 @@ describe('computeStockCountdown (Story 6.3)', () => {
   });
 
   it('stockId pointing to source node → returns null', () => {
-    const state = createGraphState(
-      { 'source-1': { type: 'source' } },
-    );
+    const state = createGraphState({ 'source-1': { type: 'source' } });
     const result = computeStockCountdown(state, 'source-1');
     expect(result).toBeNull();
   });
 
   it('stockId pointing to sink node → returns null', () => {
-    const state = createGraphState(
-      { 'sink-1': { type: 'sink' } },
-    );
+    const state = createGraphState({ 'sink-1': { type: 'sink' } });
     const result = computeStockCountdown(state, 'sink-1');
     expect(result).toBeNull();
   });
 
   it('empty connections → netRate=0, direction=stable, hasConnections=false', () => {
-    const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: 100 } },
-    );
+    const state = createGraphState({ 'stock-1': { type: 'stock', value: 0, capacity: 100 } });
     const result = computeStockCountdown(state, 'stock-1');
     expect(result).not.toBeNull();
     expect(result!.netRate).toBe(0);
@@ -691,9 +729,9 @@ describe('computeStockCountdown (Story 6.3)', () => {
   });
 
   it('stock with custom label → label field preserves custom label', () => {
-    const state = createGraphState(
-      { 'stock-1': { type: 'stock', value: 0, capacity: 100, label: 'Water' } },
-    );
+    const state = createGraphState({
+      'stock-1': { type: 'stock', value: 0, capacity: 100, label: 'Water' },
+    });
     const result = computeStockCountdown(state, 'stock-1');
     expect(result).not.toBeNull();
     expect(result!.label).toBe('Water');
@@ -752,14 +790,12 @@ describe('computeAllStockCountdowns (Story 7.2)', () => {
     // Verify each matches computeStockCountdown output
     const cd1 = computeStockCountdown(state, 'stock-1');
     const cd2 = computeStockCountdown(state, 'stock-2');
-    expect(result.find(r => r.stockId === 'stock-1')).toEqual(cd1);
-    expect(result.find(r => r.stockId === 'stock-2')).toEqual(cd2);
+    expect(result.find((r) => r.stockId === 'stock-1')).toEqual(cd1);
+    expect(result.find((r) => r.stockId === 'stock-2')).toEqual(cd2);
   });
 
   it('state with no stocks (only sources/sinks) → returns []', () => {
-    const state = createGraphState(
-      { 'source-1': { type: 'source' }, 'sink-1': { type: 'sink' } },
-    );
+    const state = createGraphState({ 'source-1': { type: 'source' }, 'sink-1': { type: 'sink' } });
     const result = computeAllStockCountdowns(state);
     expect(result).toEqual([]);
   });
@@ -788,8 +824,18 @@ describe('computeAllStockCountdowns (Story 7.2)', () => {
 describe('sortCountdownsByUrgency (Story 7.2)', () => {
   it('terminal (0s) before active (5s)', () => {
     const data = [
-      createStockCountdown({ stockId: 's1', label: 'Active', remainingSeconds: 5.0, direction: 'to-capacity' }),
-      createStockCountdown({ stockId: 's2', label: 'Terminal', remainingSeconds: 0, direction: 'to-capacity' }),
+      createStockCountdown({
+        stockId: 's1',
+        label: 'Active',
+        remainingSeconds: 5.0,
+        direction: 'to-capacity',
+      }),
+      createStockCountdown({
+        stockId: 's2',
+        label: 'Terminal',
+        remainingSeconds: 0,
+        direction: 'to-capacity',
+      }),
     ];
     const sorted = sortCountdownsByUrgency(data);
     expect(sorted[0].label).toBe('Terminal');
@@ -798,8 +844,18 @@ describe('sortCountdownsByUrgency (Story 7.2)', () => {
 
   it('active (5s) before active (10s)', () => {
     const data = [
-      createStockCountdown({ stockId: 's1', label: 'Slow', remainingSeconds: 10.0, direction: 'to-capacity' }),
-      createStockCountdown({ stockId: 's2', label: 'Fast', remainingSeconds: 5.0, direction: 'to-capacity' }),
+      createStockCountdown({
+        stockId: 's1',
+        label: 'Slow',
+        remainingSeconds: 10.0,
+        direction: 'to-capacity',
+      }),
+      createStockCountdown({
+        stockId: 's2',
+        label: 'Fast',
+        remainingSeconds: 5.0,
+        direction: 'to-capacity',
+      }),
     ];
     const sorted = sortCountdownsByUrgency(data);
     expect(sorted[0].label).toBe('Fast');
@@ -808,8 +864,19 @@ describe('sortCountdownsByUrgency (Story 7.2)', () => {
 
   it('active (10s) before stable (null)', () => {
     const data = [
-      createStockCountdown({ stockId: 's1', label: 'Stable', remainingSeconds: null, direction: 'stable', netRate: 0 }),
-      createStockCountdown({ stockId: 's2', label: 'Active', remainingSeconds: 10.0, direction: 'to-capacity' }),
+      createStockCountdown({
+        stockId: 's1',
+        label: 'Stable',
+        remainingSeconds: null,
+        direction: 'stable',
+        netRate: 0,
+      }),
+      createStockCountdown({
+        stockId: 's2',
+        label: 'Active',
+        remainingSeconds: 10.0,
+        direction: 'to-capacity',
+      }),
     ];
     const sorted = sortCountdownsByUrgency(data);
     expect(sorted[0].label).toBe('Active');
@@ -818,8 +885,18 @@ describe('sortCountdownsByUrgency (Story 7.2)', () => {
 
   it('terminal states alphabetical by label', () => {
     const data = [
-      createStockCountdown({ stockId: 's1', label: 'Zeta', remainingSeconds: 0, direction: 'to-capacity' }),
-      createStockCountdown({ stockId: 's2', label: 'Alpha', remainingSeconds: 0, direction: 'to-zero' }),
+      createStockCountdown({
+        stockId: 's1',
+        label: 'Zeta',
+        remainingSeconds: 0,
+        direction: 'to-capacity',
+      }),
+      createStockCountdown({
+        stockId: 's2',
+        label: 'Alpha',
+        remainingSeconds: 0,
+        direction: 'to-zero',
+      }),
     ];
     const sorted = sortCountdownsByUrgency(data);
     expect(sorted[0].label).toBe('Alpha');
@@ -828,8 +905,18 @@ describe('sortCountdownsByUrgency (Story 7.2)', () => {
 
   it('active states alphabetical by label within same remaining time', () => {
     const data = [
-      createStockCountdown({ stockId: 's1', label: 'Zeta', remainingSeconds: 5.0, direction: 'to-capacity' }),
-      createStockCountdown({ stockId: 's2', label: 'Alpha', remainingSeconds: 5.0, direction: 'to-capacity' }),
+      createStockCountdown({
+        stockId: 's1',
+        label: 'Zeta',
+        remainingSeconds: 5.0,
+        direction: 'to-capacity',
+      }),
+      createStockCountdown({
+        stockId: 's2',
+        label: 'Alpha',
+        remainingSeconds: 5.0,
+        direction: 'to-capacity',
+      }),
     ];
     const sorted = sortCountdownsByUrgency(data);
     expect(sorted[0].label).toBe('Alpha');
@@ -838,8 +925,19 @@ describe('sortCountdownsByUrgency (Story 7.2)', () => {
 
   it('stable state sorts after active countdowns', () => {
     const data = [
-      createStockCountdown({ stockId: 's1', label: 'Stable', remainingSeconds: null, direction: 'stable', netRate: 0 }),
-      createStockCountdown({ stockId: 's2', label: 'Active', remainingSeconds: 10.0, direction: 'to-capacity' }),
+      createStockCountdown({
+        stockId: 's1',
+        label: 'Stable',
+        remainingSeconds: null,
+        direction: 'stable',
+        netRate: 0,
+      }),
+      createStockCountdown({
+        stockId: 's2',
+        label: 'Active',
+        remainingSeconds: 10.0,
+        direction: 'to-capacity',
+      }),
     ];
     const sorted = sortCountdownsByUrgency(data);
     expect(sorted[0].label).toBe('Active');
@@ -851,9 +949,9 @@ describe('sortCountdownsByUrgency (Story 7.2)', () => {
       createStockCountdown({ stockId: 's1', label: 'Slow', remainingSeconds: 10.0 }),
       createStockCountdown({ stockId: 's2', label: 'Fast', remainingSeconds: 5.0 }),
     ];
-    const originalOrder = data.map(d => d.stockId);
+    const originalOrder = data.map((d) => d.stockId);
     sortCountdownsByUrgency(data);
-    const afterOrder = data.map(d => d.stockId);
+    const afterOrder = data.map((d) => d.stockId);
     expect(afterOrder).toEqual(originalOrder);
   });
 });

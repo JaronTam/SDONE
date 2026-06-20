@@ -35,11 +35,11 @@ describe('ConfettiEngine', () => {
 
     // Find the same particle (by color + size match, since we can't track by ID)
     // Instead, just verify that at least some particles have moved
-    const anyMoved = afterUpdate!.some(p => p.x !== 0 || p.y !== 0);
+    const anyMoved = afterUpdate!.some((p) => p.x !== 0 || p.y !== 0);
     expect(anyMoved).toBe(true);
 
     // Life should have decreased
-    const anyLifeDecreased = afterUpdate!.some(p => p.life < initialLife);
+    const anyLifeDecreased = afterUpdate!.some((p) => p.life < initialLife);
     expect(anyLifeDecreased).toBe(true);
   });
 
@@ -77,7 +77,7 @@ describe('ConfettiEngine', () => {
     expect(state0).not.toBeNull();
 
     // Find a particle with upward initial velocity (vy < 0)
-    const upwardParticle = state0!.find(p => p.vy < 0);
+    const upwardParticle = state0!.find((p) => p.vy < 0);
     if (!upwardParticle) return; // skip if no upward particle (random)
 
     // Advance by 0.5s
@@ -88,7 +88,7 @@ describe('ConfettiEngine', () => {
     // After 0.5s: vy should be initialVy + 80 * 0.5 = initialVy + 40
     // But we can't track the same particle across updates easily,
     // so just verify that some particles have positive vy (falling)
-    const anyFalling = state1!.some(p => p.vy > 0);
+    const anyFalling = state1!.some((p) => p.vy > 0);
     expect(anyFalling).toBe(true);
   });
 

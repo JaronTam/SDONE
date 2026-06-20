@@ -20,9 +20,7 @@ function createToolbarData(overrides?: Partial<ToolbarData>): ToolbarData {
   };
 }
 
-function createOptions(
-  overrides?: Partial<ToolbarControllerOptions>,
-): ToolbarControllerOptions {
+function createOptions(overrides?: Partial<ToolbarControllerOptions>): ToolbarControllerOptions {
   return {
     onNameEditStart: vi.fn(),
     onNameCommit: vi.fn(),
@@ -401,9 +399,7 @@ describe('ToolbarController (Story 8.4)', () => {
     });
 
     it('TC-19: mousedown fires onColorDotClick, preventDefault + stopPropagation called (AC17, AC18)', () => {
-      controller.updateData(
-        createToolbarData({ moduleType: 'source', color: '#a855f7' }),
-      );
+      controller.updateData(createToolbarData({ moduleType: 'source', color: '#a855f7' }));
 
       const dot = document.querySelector('.toolbar__color-dot') as HTMLElement;
       const mousedownEvent = new MouseEvent('mousedown', {
@@ -421,9 +417,7 @@ describe('ToolbarController (Story 8.4)', () => {
     });
 
     it('TC-20: Stock toolbar — color dot hidden via BEM --hidden class (AC19)', () => {
-      controller.updateData(
-        createToolbarData({ moduleType: 'stock', color: undefined }),
-      );
+      controller.updateData(createToolbarData({ moduleType: 'stock', color: undefined }));
 
       const dot = document.querySelector('.toolbar__color-dot') as HTMLElement;
       expect(dot).not.toBeNull();

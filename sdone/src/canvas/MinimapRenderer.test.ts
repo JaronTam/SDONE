@@ -75,12 +75,7 @@ function createSceneCanvas(width = 800, height = 600): HTMLCanvasElement {
   return canvas;
 }
 
-function makeNode(
-  id: string,
-  type: ModuleNode['type'],
-  x: number,
-  y: number,
-): ModuleNode {
+function makeNode(id: string, type: ModuleNode['type'], x: number, y: number): ModuleNode {
   return {
     id,
     type,
@@ -153,9 +148,7 @@ describe('MinimapRenderer', () => {
     const badCanvas = document.createElement('canvas');
     badCanvas.width = 200;
     badCanvas.height = 150;
-    expect(() => new MinimapRenderer(badCanvas, vp, sceneCanvas)).toThrow(
-      /Cannot acquire 2D/,
-    );
+    expect(() => new MinimapRenderer(badCanvas, vp, sceneCanvas)).toThrow(/Cannot acquire 2D/);
   });
 
   // ── Lifecycle: start / stop / destroy ────────────────────────────
@@ -291,7 +284,10 @@ describe('MinimapRenderer', () => {
 
     const { advanceFrame, rafSpy } = setupRAFMocks();
 
-    expect(() => { renderer.start(); advanceFrame(); }).not.toThrow();
+    expect(() => {
+      renderer.start();
+      advanceFrame();
+    }).not.toThrow();
 
     rafSpy.mockRestore();
     renderer.stop();
@@ -305,7 +301,10 @@ describe('MinimapRenderer', () => {
 
     const { advanceFrame, rafSpy } = setupRAFMocks();
 
-    expect(() => { renderer.start(); advanceFrame(); }).not.toThrow();
+    expect(() => {
+      renderer.start();
+      advanceFrame();
+    }).not.toThrow();
     expect(mockCtx.arc).toHaveBeenCalled();
 
     rafSpy.mockRestore();
@@ -321,7 +320,10 @@ describe('MinimapRenderer', () => {
 
     const { advanceFrame, rafSpy } = setupRAFMocks();
 
-    expect(() => { renderer.start(); advanceFrame(); }).not.toThrow();
+    expect(() => {
+      renderer.start();
+      advanceFrame();
+    }).not.toThrow();
 
     const arcCalls = (mockCtx.arc as ReturnType<typeof vi.fn>).mock.calls.length;
     expect(arcCalls).toBeGreaterThanOrEqual(2);

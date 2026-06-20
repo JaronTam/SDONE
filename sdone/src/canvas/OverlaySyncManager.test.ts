@@ -46,7 +46,7 @@ describe('OverlaySyncManager', () => {
 
       const result = manager.getToolbarScreenPosition(
         vec2(100, 100), // module world center
-        80,             // default module height
+        80, // default module height
         DEFAULT_CANVAS_CENTER,
       );
 
@@ -63,11 +63,7 @@ describe('OverlaySyncManager', () => {
       const vm = new ViewportManager({ zoom: 2, offset: vec2(0, 0) });
       const manager = new OverlaySyncManager(vm);
 
-      const result = manager.getToolbarScreenPosition(
-        vec2(50, 50),
-        80,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(50, 50), 80, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + 50×2 = 500
       expect(result.x).toBe(500);
@@ -80,11 +76,7 @@ describe('OverlaySyncManager', () => {
       const vm = new ViewportManager({ zoom: 0.5, offset: vec2(0, 0) });
       const manager = new OverlaySyncManager(vm);
 
-      const result = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        80,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(100, 100), 80, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + 100×0.5 = 450
       expect(result.x).toBe(450);
@@ -99,11 +91,7 @@ describe('OverlaySyncManager', () => {
       const manager = new OverlaySyncManager(vm);
 
       // Module at (200, -100) — the viewport center point
-      const result = manager.getToolbarScreenPosition(
-        vec2(200, -100),
-        80,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(200, -100), 80, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + (200 - 200)×1 = 400
       expect(result.x).toBe(400);
@@ -120,11 +108,7 @@ describe('OverlaySyncManager', () => {
       const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
       const manager = new OverlaySyncManager(vm);
 
-      const result = manager.getToolbarScreenPosition(
-        vec2(-50, -50),
-        80,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(-50, -50), 80, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + (-50) = 350
       expect(result.x).toBe(350);
@@ -138,11 +122,7 @@ describe('OverlaySyncManager', () => {
       const vm = new ViewportManager({ zoom: 1, offset: vec2(0, 0) });
       const manager = new OverlaySyncManager(vm);
 
-      const result = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        120,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(100, 100), 120, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + 100 = 500
       expect(result.x).toBe(500);
@@ -157,11 +137,7 @@ describe('OverlaySyncManager', () => {
       const manager = new OverlaySyncManager(vm);
 
       // Must not throw — pure math on valid numbers
-      const result = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        0,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(100, 100), 0, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + 100 = 500
       expect(result.x).toBe(500);
@@ -176,11 +152,7 @@ describe('OverlaySyncManager', () => {
       const manager = new OverlaySyncManager(vm);
 
       const canvasCenter = vec2(512, 384);
-      const result = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        80,
-        canvasCenter,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(100, 100), 80, canvasCenter);
 
       // screenX = 512 + 100 = 612
       expect(result.x).toBe(612);
@@ -194,11 +166,7 @@ describe('OverlaySyncManager', () => {
       const vm = new ViewportManager({ zoom: MIN_ZOOM, offset: vec2(0, 0) });
       const manager = new OverlaySyncManager(vm);
 
-      const result = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        80,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(100, 100), 80, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + 100×0.1 = 410
       expect(closeTo(result.x, 410)).toBe(true);
@@ -210,11 +178,7 @@ describe('OverlaySyncManager', () => {
       const vm = new ViewportManager({ zoom: MAX_ZOOM, offset: vec2(0, 0) });
       const manager = new OverlaySyncManager(vm);
 
-      const result = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        80,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(100, 100), 80, DEFAULT_CANVAS_CENTER);
 
       // screenX = 400 + 100×5 = 900
       expect(closeTo(result.x, 900)).toBe(true);
@@ -228,11 +192,7 @@ describe('OverlaySyncManager', () => {
       const vm = new ViewportManager();
       const manager = new OverlaySyncManager(vm);
 
-      const result = manager.getToolbarScreenPosition(
-        vec2(0, 0),
-        80,
-        DEFAULT_CANVAS_CENTER,
-      );
+      const result = manager.getToolbarScreenPosition(vec2(0, 0), 80, DEFAULT_CANVAS_CENTER);
 
       expect(typeof result.x).toBe('number');
       expect(typeof result.y).toBe('number');
@@ -247,16 +207,8 @@ describe('OverlaySyncManager', () => {
       const manager = new OverlaySyncManager(vm);
 
       // Call with two different canvasCenters — both produce correct results
-      const r1 = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        80,
-        vec2(400, 300),
-      );
-      const r2 = manager.getToolbarScreenPosition(
-        vec2(100, 100),
-        80,
-        vec2(512, 384),
-      );
+      const r1 = manager.getToolbarScreenPosition(vec2(100, 100), 80, vec2(400, 300));
+      const r2 = manager.getToolbarScreenPosition(vec2(100, 100), 80, vec2(512, 384));
 
       // Different canvasCenters → different outputs → NOT cached state
       expect(r1.x).not.toBe(r2.x);

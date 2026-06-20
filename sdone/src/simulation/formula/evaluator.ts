@@ -1,5 +1,12 @@
 import { FormulaEvalError } from './errors.js';
-import type { ExprNode, BinaryOpNode, UnaryOpNode, FunctionCallNode, NumberNode, VariableNode } from './parser.js';
+import type {
+  ExprNode,
+  BinaryOpNode,
+  UnaryOpNode,
+  FunctionCallNode,
+  NumberNode,
+  VariableNode,
+} from './parser.js';
 
 /**
  * Supported single-argument Math functions.
@@ -72,9 +79,7 @@ export function evaluate(node: ExprNode, t: number, variables?: Record<string, n
       // Single-argument functions
       if (SINGLE_ARG_FNS.has(name)) {
         if (args.length !== 1) {
-          throw new FormulaEvalError(
-            `Function '${name}' expects 1 argument, got ${args.length}`,
-          );
+          throw new FormulaEvalError(`Function '${name}' expects 1 argument, got ${args.length}`);
         }
         switch (name) {
           case 'sin':
@@ -103,13 +108,9 @@ export function evaluate(node: ExprNode, t: number, variables?: Record<string, n
       // Two-argument functions
       if (name === 'min' || name === 'max') {
         if (args.length !== 2) {
-          throw new FormulaEvalError(
-            `Function '${name}' expects 2 arguments, got ${args.length}`,
-          );
+          throw new FormulaEvalError(`Function '${name}' expects 2 arguments, got ${args.length}`);
         }
-        return name === 'min'
-          ? Math.min(args[0], args[1])
-          : Math.max(args[0], args[1]);
+        return name === 'min' ? Math.min(args[0], args[1]) : Math.max(args[0], args[1]);
       }
 
       // Unknown function — name was not in SINGLE_ARG_FNS, not min/max

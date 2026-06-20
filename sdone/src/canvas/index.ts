@@ -1,5 +1,11 @@
 export { CanvasResizer } from './CanvasResizer.js';
-export { ViewportManager, type Viewport, MIN_ZOOM, MAX_ZOOM, DEFAULT_VIEWPORT } from './Viewport.js';
+export {
+  ViewportManager,
+  type Viewport,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  DEFAULT_VIEWPORT,
+} from './Viewport.js';
 export {
   SceneRenderer,
   getEdgePoint,

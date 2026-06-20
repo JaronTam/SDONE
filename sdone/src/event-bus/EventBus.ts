@@ -15,10 +15,7 @@ export class EventBus {
    * Register an event handler.
    * @returns Unsubscribe function — call to remove this handler.
    */
-  on<K extends keyof EventMap>(
-    event: K,
-    handler: Handler<EventMap[K]>,
-  ): () => void {
+  on<K extends keyof EventMap>(event: K, handler: Handler<EventMap[K]>): () => void {
     const list = this.handlers.get(event);
     if (list) {
       if (!list.includes(handler)) {
@@ -54,10 +51,7 @@ export class EventBus {
    * Remove a specific handler for an event.
    * Internal — consumers should use the unsubscribe function returned by on().
    */
-  private off<K extends keyof EventMap>(
-    event: K,
-    handler: Handler<EventMap[K]>,
-  ): void {
+  private off<K extends keyof EventMap>(event: K, handler: Handler<EventMap[K]>): void {
     const list = this.handlers.get(event);
     if (!list) return;
     const idx = list.indexOf(handler);

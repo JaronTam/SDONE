@@ -54,15 +54,11 @@ describe('getModuleBoundingRadius', () => {
 
   it('returns half-diagonal + SELECTION_RING_OFFSET for stock', () => {
     const halfDiagonal = Math.sqrt(STOCK_WIDTH ** 2 + STOCK_HEIGHT ** 2) / 2;
-    expect(getModuleBoundingRadius({ type: 'stock' })).toBe(
-      halfDiagonal + SELECTION_RING_OFFSET,
-    );
+    expect(getModuleBoundingRadius({ type: 'stock' })).toBe(halfDiagonal + SELECTION_RING_OFFSET);
   });
 
   it('returns SINK_RADIUS + SELECTION_RING_OFFSET for sink', () => {
-    expect(getModuleBoundingRadius({ type: 'sink' })).toBe(
-      SINK_RADIUS + SELECTION_RING_OFFSET,
-    );
+    expect(getModuleBoundingRadius({ type: 'sink' })).toBe(SINK_RADIUS + SELECTION_RING_OFFSET);
   });
 
   it('returns SINK_RADIUS + SELECTION_RING_OFFSET as fallback for unknown type', () => {
@@ -239,7 +235,10 @@ describe('getEdgePoint', () => {
 
 // ── Story 5.2: Fill Animation ──────────────────────────────────────
 
-function createMockCanvas(width = 800, height = 600): {
+function createMockCanvas(
+  width = 800,
+  height = 600,
+): {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
 } {
@@ -495,7 +494,10 @@ describe('Story 7.5 — Degradation mode rendering', () => {
 
   /** Create a mock PerformanceMonitor with a fixed degradation mode. */
   function createMockPerfMonitor(mode: 'full' | 'sparse' | 'off') {
-    return { getDegradationMode: () => mode, recordFrame: vi.fn() } as unknown as import('../PerformanceMonitor.js').PerformanceMonitor;
+    return {
+      getDegradationMode: () => mode,
+      recordFrame: vi.fn(),
+    } as unknown as import('../PerformanceMonitor.js').PerformanceMonitor;
   }
 
   /** Minimal graph state with one connection and two nodes. */
@@ -512,12 +514,15 @@ describe('Story 7.5 — Degradation mode rendering', () => {
   /** Particle state with 4 particles on conn1. */
   const particleState = {
     particlesByConnection: new Map([
-      ['conn1', [
-        { t: 0.2, alpha: 1 },
-        { t: 0.4, alpha: 1 },
-        { t: 0.6, alpha: 1 },
-        { t: 0.8, alpha: 1 },
-      ]],
+      [
+        'conn1',
+        [
+          { t: 0.2, alpha: 1 },
+          { t: 0.4, alpha: 1 },
+          { t: 0.6, alpha: 1 },
+          { t: 0.8, alpha: 1 },
+        ],
+      ],
     ]),
   };
 
@@ -604,12 +609,14 @@ describe('Story 8.5 — Selection Overlay Rendering (RED PHASE)', () => {
   } as unknown as ViewportManager;
 
   /** Create minimal GraphState with one selected stock module at (200, 200). */
-  function makeState(overrides: {
-    selectedIds?: string[];
-    w?: number;
-    h?: number;
-    type?: ModuleType;
-  } = {}) {
+  function makeState(
+    overrides: {
+      selectedIds?: string[];
+      w?: number;
+      h?: number;
+      type?: ModuleType;
+    } = {},
+  ) {
     return {
       version: 1,
       selectedModuleIds: overrides.selectedIds ?? ['mod1'],
@@ -619,7 +626,7 @@ describe('Story 8.5 — Selection Overlay Rendering (RED PHASE)', () => {
           id: 'mod1',
           type: (overrides.type ?? 'stock') as ModuleType,
           position: { x: 200, y: 200 },
-          width: overrides.w,   // undefined → fallback to default
+          width: overrides.w, // undefined → fallback to default
           height: overrides.h,
           label: 'Test',
           value: 100,
@@ -772,7 +779,9 @@ describe('Story 8.5 — Selection Overlay Rendering (RED PHASE)', () => {
     });
 
     test('[P1] Fail-Safe #6: provider throws → overlay skipped, rAF continues (AC30)', () => {
-      renderer.diamondHoverProvider = () => { throw new Error('provider failure'); };
+      renderer.diamondHoverProvider = () => {
+        throw new Error('provider failure');
+      };
       const state = makeState();
       // try-catch catches the provider throw, logs warn, returns cleanly.
       expect(() => (renderer as any).drawSelectionOverlay(state)).not.toThrow();

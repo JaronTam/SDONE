@@ -342,7 +342,14 @@ describe('RateEditorPanel', () => {
     const onRateSubmit = vi.fn();
     panel.onRateSubmit = onRateSubmit;
 
-    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 5, fromType: 'source', toType: 'stock' });
+    panel.setConnection({
+      id: 'c1',
+      fromId: 'a',
+      toId: 'b',
+      rate: 5,
+      fromType: 'source',
+      toType: 'stock',
+    });
     const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
     typeRateEnter(input, '-7');
 
@@ -351,7 +358,14 @@ describe('RateEditorPanel', () => {
     expect(warning.style.display).not.toBe('none');
 
     // Switch to another connection
-    panel.setConnection({ id: 'c2', fromId: 'c', toId: 'd', rate: 3, fromType: 'stock', toType: 'sink' });
+    panel.setConnection({
+      id: 'c2',
+      fromId: 'c',
+      toId: 'd',
+      rate: 3,
+      fromType: 'stock',
+      toType: 'sink',
+    });
 
     // Warning should be cleared
     warning = container.querySelector('.rate-editor__warning') as HTMLElement;
@@ -362,7 +376,14 @@ describe('RateEditorPanel', () => {
     const onRateSubmit = vi.fn();
     panel.onRateSubmit = onRateSubmit;
 
-    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 5, fromType: 'source', toType: 'stock' });
+    panel.setConnection({
+      id: 'c1',
+      fromId: 'a',
+      toId: 'b',
+      rate: 5,
+      fromType: 'source',
+      toType: 'stock',
+    });
     const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
     typeRateEnter(input, '-7');
 
@@ -381,7 +402,14 @@ describe('RateEditorPanel', () => {
     const onRateSubmit = vi.fn();
     panel.onRateSubmit = onRateSubmit;
 
-    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 0, fromType: 'source', toType: 'stock' });
+    panel.setConnection({
+      id: 'c1',
+      fromId: 'a',
+      toId: 'b',
+      rate: 0,
+      fromType: 'source',
+      toType: 'stock',
+    });
     const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
     typeRateEnter(input, '-5');
 
@@ -397,7 +425,14 @@ describe('RateEditorPanel', () => {
     const onRateSubmit = vi.fn();
     panel.onRateSubmit = onRateSubmit;
 
-    panel.setConnection({ id: 'c1', fromId: 'a', toId: 'b', rate: 5, fromType: 'source', toType: 'stock' });
+    panel.setConnection({
+      id: 'c1',
+      fromId: 'a',
+      toId: 'b',
+      rate: 5,
+      fromType: 'source',
+      toType: 'stock',
+    });
     const input = container.querySelector('.rate-editor__input') as HTMLInputElement;
     typeRateEnter(input, '-1');
 

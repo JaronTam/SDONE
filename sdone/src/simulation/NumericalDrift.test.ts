@@ -42,12 +42,7 @@ function makeSink(id: string): SinkNode {
   return { id, type: 'sink', position: { x: 0, y: 0 } };
 }
 
-function makeConnection(
-  id: string,
-  fromId: string,
-  toId: string,
-  rate: number,
-): Connection {
+function makeConnection(id: string, fromId: string, toId: string, rate: number): Connection {
   return { id, fromId, toId, rate, formulaStr: String(rate) };
 }
 

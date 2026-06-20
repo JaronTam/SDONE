@@ -84,7 +84,8 @@ export class ConfettiEngine {
       const speed = MIN_SPEED + Math.random() * (MAX_SPEED - MIN_SPEED);
       const life = MIN_LIFE + Math.random() * (MAX_LIFE - MIN_LIFE);
       const size = MIN_SIZE + Math.random() * (MAX_SIZE - MIN_SIZE);
-      const rotSpeed = MIN_ROTATION_SPEED + Math.random() * (MAX_ROTATION_SPEED - MIN_ROTATION_SPEED);
+      const rotSpeed =
+        MIN_ROTATION_SPEED + Math.random() * (MAX_ROTATION_SPEED - MIN_ROTATION_SPEED);
       // Randomly negate rotation speed for variety
       const rotationSign = Math.random() < 0.5 ? -1 : 1;
 
@@ -119,7 +120,7 @@ export class ConfettiEngine {
     }
 
     // Remove dead particles
-    this.particles = this.particles.filter(p => p.life > 0);
+    this.particles = this.particles.filter((p) => p.life > 0);
 
     return this.particles.length > 0 ? [...this.particles] : null;
   }

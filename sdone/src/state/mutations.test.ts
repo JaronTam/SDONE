@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type {
-  Connection,
-  GraphState,
-  SinkNode,
-  StockNode,
-  SourceNode,
-} from './GraphState.js';
+import type { Connection, GraphState, SinkNode, StockNode, SourceNode } from './GraphState.js';
 import {
   addModule,
   changeModuleColor,
@@ -501,9 +495,7 @@ describe('version monotonicity (AC20)', () => {
     // 2. addModule → version 2
     state = addModule(state, 'source', { x: 10, y: 10 });
     expect(state.version).toBe(2);
-    const actualSourceId = Object.keys(state.nodes).find(
-      (k) => state.nodes[k].type === 'source',
-    )!;
+    const actualSourceId = Object.keys(state.nodes).find((k) => state.nodes[k].type === 'source')!;
 
     // 3. moveModule no-op → version stays 2
     const afterNoopMove = moveModule(state, stockId, { x: 0, y: 0 });
@@ -703,7 +695,7 @@ describe('addModule with initialCapacity', () => {
     const source = Object.values(r1.nodes)[0];
     expect(source.type).toBe('source');
     const r2 = addModule(r1, 'sink', { x: 10, y: 10 });
-    const sink = Object.values(r2.nodes).find(n => n.type === 'sink');
+    const sink = Object.values(r2.nodes).find((n) => n.type === 'sink');
     expect(sink).toBeDefined();
   });
 
@@ -779,11 +771,9 @@ describe('updateModuleLabel', () => {
 
     // Set labels first so they differ from defaults
     const labeled = updateModuleLabel(
-      updateModuleLabel(
-        updateModuleLabel(state, 'src1', 'CustomSrc'),
-        'st1', 'CustomSt',
-      ),
-      'sink1', 'CustomSink',
+      updateModuleLabel(updateModuleLabel(state, 'src1', 'CustomSrc'), 'st1', 'CustomSt'),
+      'sink1',
+      'CustomSink',
     );
 
     // Clear labels → should revert to type defaults

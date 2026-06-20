@@ -259,7 +259,7 @@ describe('ModalDialog (Story 6.1)', () => {
 
       expect(document.querySelector('.modal-title')?.textContent).toBe('清除确认');
       expect(document.querySelector('.modal-body')?.textContent).toBe(
-        '此操作将清除画布上所有模块和连线，且不可撤销。'
+        '此操作将清除画布上所有模块和连线，且不可撤销。',
       );
       expect(document.querySelector('.modal-btn-confirm')?.textContent).toBe('确认清除');
       expect(document.querySelector('.modal-btn-cancel')?.textContent).toBe('取消');

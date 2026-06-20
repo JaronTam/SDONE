@@ -49,8 +49,8 @@ export interface StockCountdown {
 
 // ── Constants ────────────────────────────────────────────────────────────
 
-const CRITICAL_THRESHOLD_SECONDS = 3;   // red left border
-const WARNING_THRESHOLD_SECONDS = 10;   // amber left border
+const CRITICAL_THRESHOLD_SECONDS = 3; // red left border
+const WARNING_THRESHOLD_SECONDS = 10; // amber left border
 
 const EMPTY_STATE_TEXT = '画布上暂无存量模块';
 const TERMINAL_TO_CAPACITY_TEXT = '已达上限';
@@ -77,10 +77,7 @@ const RATE_NEGATIVE_CLASS = 'countdown-panel__field-value--rate-negative';
  * Returns null if the module doesn't exist or is not a stock.
  * Defined alongside CountdownPanel for co-located testability.
  */
-export function computeStockCountdown(
-  state: GraphState,
-  stockId: string,
-): StockCountdown | null {
+export function computeStockCountdown(state: GraphState, stockId: string): StockCountdown | null {
   const node = state.nodes[stockId];
   if (!node || node.type !== 'stock') return null;
 
@@ -90,8 +87,14 @@ export function computeStockCountdown(
 
   for (const conn of Object.values(state.connections)) {
     if (conn.isFeedback) continue; // Story 7.1: skip feedback — multiplier, not flow
-    if (conn.toId === stockId) { inflow += conn.rate; connectionCount++; }
-    if (conn.fromId === stockId) { outflow += conn.rate; connectionCount++; }
+    if (conn.toId === stockId) {
+      inflow += conn.rate;
+      connectionCount++;
+    }
+    if (conn.fromId === stockId) {
+      outflow += conn.rate;
+      connectionCount++;
+    }
   }
 
   const stock = node as StockNode;
@@ -261,12 +264,17 @@ export class CountdownPanel {
 
     // Dirty-check: skip rebuild if sorted order and display values unchanged
     const renderKey = data
-      .map(s =>
-        s.stockId + '|' +
-        (s.remainingSeconds?.toFixed(1) ?? 'null') + '|' +
-        s.direction + '|' +
-        (Number.isNaN(s.netRate) ? 'nan' : s.netRate.toFixed(1)) + '|' +
-        s.hasConnections,
+      .map(
+        (s) =>
+          s.stockId +
+          '|' +
+          (s.remainingSeconds?.toFixed(1) ?? 'null') +
+          '|' +
+          s.direction +
+          '|' +
+          (Number.isNaN(s.netRate) ? 'nan' : s.netRate.toFixed(1)) +
+          '|' +
+          s.hasConnections,
       )
       .join(';');
     if (renderKey === this._lastRenderKey) return;
@@ -289,7 +297,10 @@ export class CountdownPanel {
     let urgencyClass = ROW_NORMAL_CLASS;
     if (data.remainingSeconds !== null && data.remainingSeconds <= CRITICAL_THRESHOLD_SECONDS) {
       urgencyClass = ROW_CRITICAL_CLASS;
-    } else if (data.remainingSeconds !== null && data.remainingSeconds <= WARNING_THRESHOLD_SECONDS) {
+    } else if (
+      data.remainingSeconds !== null &&
+      data.remainingSeconds <= WARNING_THRESHOLD_SECONDS
+    ) {
       urgencyClass = ROW_WARNING_CLASS;
     }
     // Terminal states (remainingSeconds <= 0) also get critical styling

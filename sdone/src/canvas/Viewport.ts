@@ -125,11 +125,7 @@ export class ViewportManager {
    * @param originScreen — the screen position that should stay fixed (typically the mouse).
    * @param canvasCenter — center of the canvas in pixels.
    */
-  zoomAtScreenPoint(
-    factor: number,
-    originScreen: Vec2,
-    canvasCenter: Vec2,
-  ): void {
+  zoomAtScreenPoint(factor: number, originScreen: Vec2, canvasCenter: Vec2): void {
     const oldZoom = this.viewport.zoom;
     const newZoom = this.clampZoom(oldZoom * factor);
 
@@ -176,10 +172,10 @@ export class ViewportManager {
     // Translate to canvas center (origin for the viewport), then scale by zoom,
     // then translate by -offset to move the camera.
     ctx.setTransform(
-      zoom,  // a — horizontal scaling
-      0,     // b — horizontal skew
-      0,     // c — vertical skew
-      zoom,  // d — vertical scaling
+      zoom, // a — horizontal scaling
+      0, // b — horizontal skew
+      0, // c — vertical skew
+      zoom, // d — vertical scaling
       canvasCenter.x - offset.x * zoom, // e — horizontal translation
       canvasCenter.y - offset.y * zoom, // f — vertical translation
     );

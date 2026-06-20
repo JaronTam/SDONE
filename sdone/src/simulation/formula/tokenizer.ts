@@ -93,7 +93,13 @@ export function tokenize(input: string): Token[] {
       }
       // Reject malformed numbers with multiple decimal points
       // (e.g., "3.14.5" — the second dot with a trailing digit is caught here)
-      if (hasDot && i < input.length && input[i] === '.' && i + 1 < input.length && isDigit(input[i + 1])) {
+      if (
+        hasDot &&
+        i < input.length &&
+        input[i] === '.' &&
+        i + 1 < input.length &&
+        isDigit(input[i + 1])
+      ) {
         throw new FormulaParseError(
           `Malformed number at position ${start}: multiple decimal points in '${input.slice(start, i)}.'`,
           start,
@@ -139,10 +145,7 @@ export function tokenize(input: string): Token[] {
         i++;
         continue;
       default:
-        throw new FormulaParseError(
-          `Unrecognized character '${ch}' at position ${i}`,
-          i,
-        );
+        throw new FormulaParseError(`Unrecognized character '${ch}' at position ${i}`, i);
     }
   }
 

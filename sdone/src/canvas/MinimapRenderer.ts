@@ -51,7 +51,8 @@ export class MinimapRenderer {
   public connectionsProvider: (() => Connection[]) | null = null;
 
   /** Story 3.2 — Ghost preview provider for drag-and-drop preview. */
-  public ghostProvider: (() => { moduleType: ModuleType; worldPosition: Vec2 } | null) | null = null;
+  public ghostProvider: (() => { moduleType: ModuleType; worldPosition: Vec2 } | null) | null =
+    null;
 
   private rafId: number | null = null;
   private stopped = false;
@@ -61,7 +62,7 @@ export class MinimapRenderer {
 
   /** External consumers call this when modules change. */
   public markDirty(): void {
-    this.lastVpHash = '';   // force next loop to repaint
+    this.lastVpHash = ''; // force next loop to repaint
     this.lastNodesHash = '';
     this.lastGhostHash = '';
   }
@@ -77,9 +78,7 @@ export class MinimapRenderer {
 
     const ctx = minimapCanvas.getContext('2d');
     if (!ctx) {
-      throw new Error(
-        'MinimapRenderer: Cannot acquire 2D rendering context for minimap canvas.',
-      );
+      throw new Error('MinimapRenderer: Cannot acquire 2D rendering context for minimap canvas.');
     }
     this.ctx = ctx;
   }
@@ -124,9 +123,15 @@ export class MinimapRenderer {
     const nodesHash = this.computeNodesHash(nodes);
 
     const ghost = this.ghostProvider ? this.ghostProvider() : null;
-    const ghostHash = ghost ? `${ghost.moduleType}:${ghost.worldPosition.x}:${ghost.worldPosition.y}` : '';
+    const ghostHash = ghost
+      ? `${ghost.moduleType}:${ghost.worldPosition.x}:${ghost.worldPosition.y}`
+      : '';
 
-    if (vpHash !== this.lastVpHash || nodesHash !== this.lastNodesHash || ghostHash !== this.lastGhostHash) {
+    if (
+      vpHash !== this.lastVpHash ||
+      nodesHash !== this.lastNodesHash ||
+      ghostHash !== this.lastGhostHash
+    ) {
       this.lastVpHash = vpHash;
       this.lastNodesHash = nodesHash;
       this.lastGhostHash = ghostHash;
@@ -160,7 +165,10 @@ export class MinimapRenderer {
   // Paint — AC 1, 2, 5
   // --------------------------------------------------------------------
 
-  private paint(nodes: Record<string, ModuleNode>, ghost: { moduleType: string; worldPosition: Vec2 } | null): void {
+  private paint(
+    nodes: Record<string, ModuleNode>,
+    ghost: { moduleType: string; worldPosition: Vec2 } | null,
+  ): void {
     const { ctx } = this;
     const w = this.minimapCanvas.width;
     const h = this.minimapCanvas.height;
@@ -174,8 +182,10 @@ export class MinimapRenderer {
 
     // ── Compute world bounds ──
     const moduleList = Object.values(nodes);
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity;
+    let minY = Infinity,
+      maxY = -Infinity;
 
     // Include ghost in world bounds if present
     if (ghost) {
@@ -296,7 +306,10 @@ export class MinimapRenderer {
       const cy = sceneH / 2;
 
       const topLeft = this.viewportManager.screenToWorld({ x: 0, y: 0 }, { x: cx, y: cy });
-      const bottomRight = this.viewportManager.screenToWorld({ x: sceneW, y: sceneH }, { x: cx, y: cy });
+      const bottomRight = this.viewportManager.screenToWorld(
+        { x: sceneW, y: sceneH },
+        { x: cx, y: cy },
+      );
 
       const tl = worldToMinimap(topLeft.x, topLeft.y);
       const br = worldToMinimap(bottomRight.x, bottomRight.y);
@@ -326,7 +339,13 @@ export class MinimapRenderer {
     switch (node.type) {
       case 'source':
       case 'sink':
-        return (node as import('../state/GraphState.js').SourceNode | import('../state/GraphState.js').SinkNode).color ?? (node.type === 'source' ? SOURCE_COLOR : SINK_COLOR);
+        return (
+          (
+            node as
+              | import('../state/GraphState.js').SourceNode
+              | import('../state/GraphState.js').SinkNode
+          ).color ?? (node.type === 'source' ? SOURCE_COLOR : SINK_COLOR)
+        );
       case 'stock':
         return STOCK_COLOR;
       default:

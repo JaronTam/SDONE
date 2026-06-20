@@ -10,7 +10,13 @@ import {
   drawStock as drawStockShape,
   drawSink as drawSinkShape,
 } from '../shared/ShapePaths.js';
-import type { GraphState, StockNode, SourceNode, SinkNode, ModuleType } from '../state/GraphState.js';
+import type {
+  GraphState,
+  StockNode,
+  SourceNode,
+  SinkNode,
+  ModuleType,
+} from '../state/GraphState.js';
 import { DEFAULT_MODULE_WIDTH, DEFAULT_MODULE_HEIGHT } from '../state/GraphState.js';
 import type { ViewportManager } from './Viewport.js';
 import type { ConfettiParticle } from './ConfettiEngine.js';
@@ -268,13 +274,16 @@ export class SceneRenderer {
   private readonly pulseStartTime: number;
 
   public stateProvider: (() => GraphState) | null = null;
-  public ghostProvider: (() => { moduleType: ModuleType; worldPosition: Vec2 } | null) | null = null;
-  public connectionDragProvider: (() => {
-    sourceWorldPos: Vec2;
-    cursorWorldPos: Vec2;
-    snapTargetWorldPos?: { x: number; y: number };
-    snapTargetId?: string;
-  } | null) | null = null;
+  public ghostProvider: (() => { moduleType: ModuleType; worldPosition: Vec2 } | null) | null =
+    null;
+  public connectionDragProvider:
+    | (() => {
+        sourceWorldPos: Vec2;
+        cursorWorldPos: Vec2;
+        snapTargetWorldPos?: { x: number; y: number };
+        snapTargetId?: string;
+      } | null)
+    | null = null;
   public selectedConnectionProvider: (() => string | null) | null = null;
 
   // ── Story 5.4: Hovered connection provider ───────────────────────────
@@ -288,17 +297,19 @@ export class SceneRenderer {
   /** Returns the world-space position where the snap-target edge glow
    *  ring should be drawn (null = hidden).  Used during connection drag
    *  when cursor is within snap range of a module edge. */
-  public snapTargetEdgeGlowProvider: (() => { worldPos: { x: number; y: number }; moduleId: string } | null) | null = null;
+  public snapTargetEdgeGlowProvider:
+    | (() => { worldPos: { x: number; y: number }; moduleId: string } | null)
+    | null = null;
 
-  public stockWarningProvider: (() => Record<
-    string,
-    { inflowMissing: boolean; outflowMissing: boolean }
-  >) | null = null;
+  public stockWarningProvider:
+    | (() => Record<string, { inflowMissing: boolean; outflowMissing: boolean }>)
+    | null = null;
 
   // ── Story 5.1 — Particle providers ──────────────────────────────────
   /** Called before each frame render; receives dt in seconds since last frame. */
   public onPreFrame: ((dt: number) => void) | null = null;
-  public particleStateProvider: (() => import('./ParticleEngine.js').ParticleState | null) | null = null;
+  public particleStateProvider: (() => import('./ParticleEngine.js').ParticleState | null) | null =
+    null;
 
   // ── Story 5.5 — Confetti + border flash providers ────────────────────
   /** Story 5.5 AC1 — Confetti burst state for achievement celebrations.
@@ -308,7 +319,9 @@ export class SceneRenderer {
 
   /** Story 5.5 AC2 — Border flash around a group of module IDs.
    *  Returns the set of module IDs to flash and remaining lifetime. */
-  public borderFlashProvider: (() => { moduleIds: string[]; life: number; maxLife: number } | null) | null = null;
+  public borderFlashProvider:
+    | (() => { moduleIds: string[]; life: number; maxLife: number } | null)
+    | null = null;
 
   // ── Story 7.1 — Feedback handle/providers ────────────────────────────
   /** Story 7.1 — Returns the stock ID whose feedback handle is currently hovered (null = none). */
@@ -318,7 +331,8 @@ export class SceneRenderer {
   public simStateProvider: (() => string) | null = null;
 
   /** Story 7.1 — Feedback drag preview position in world space (null = hidden). */
-  public feedbackDragProvider: (() => { stockId: string; cursorWorldPos: Vec2 } | null) | null = null;
+  public feedbackDragProvider: (() => { stockId: string; cursorWorldPos: Vec2 } | null) | null =
+    null;
 
   // ── Story 7.3 — Breathing glow provider ──────────────────────────────
   /** Story 7.3 — Returns the set of stock IDs that should render breathing glow.
@@ -328,11 +342,15 @@ export class SceneRenderer {
   // ── Story 8.5 — Selection overlay hover providers ─────────────────────
   /** Story 8.5 — Provides current diamond hover state for overlay rendering.
    *  Returns null when no diamond is hovered or module is not selected. */
-  public diamondHoverProvider: (() => { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null) | null = null;
+  public diamondHoverProvider:
+    | (() => { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null)
+    | null = null;
 
   /** Story 8.5 — Provides current handle hover state for overlay rendering.
    *  Returns null when no handle is hovered or module is not selected. */
-  public handleHoverProvider: (() => { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null) | null = null;
+  public handleHoverProvider:
+    | (() => { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null)
+    | null = null;
 
   /** Story 7.3 — Animation start time for the breathing glow (continuous from page load). */
   private readonly breathingGlowStartTime: number = performance.now();
@@ -352,7 +370,8 @@ export class SceneRenderer {
   constructor(canvas: HTMLCanvasElement, viewportManager: ViewportManager) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('SceneRenderer: Cannot acquire 2D rendering context for scene canvas.');
+    if (!ctx)
+      throw new Error('SceneRenderer: Cannot acquire 2D rendering context for scene canvas.');
     this.ctx = ctx;
     this.viewportManager = viewportManager;
     this.pulseStartTime = performance.now();
@@ -406,15 +425,15 @@ export class SceneRenderer {
     this.drawGrid();
     if (this.graphState) {
       this.drawModules(this.graphState);
-      this.drawSelectionOverlay(this.graphState);   // Story 8.5 — diamonds + handles above modules
-      this.drawBorderFlash(this.graphState);  // Story 5.5 AC2: flash rings around achieved stack
-      this.drawSnapTargetEdgeGlow();  // Story 5.4 AC4 — between modules and connections
+      this.drawSelectionOverlay(this.graphState); // Story 8.5 — diamonds + handles above modules
+      this.drawBorderFlash(this.graphState); // Story 5.5 AC2: flash rings around achieved stack
+      this.drawSnapTargetEdgeGlow(); // Story 5.4 AC4 — between modules and connections
       this.drawConnections(this.graphState);
     }
     this.drawGhost();
     this.drawConnectionDragPreview();
     this.drawParticles();
-    this.drawConfetti();        // Story 5.5 AC1: confetti above particles, below tooltip
+    this.drawConfetti(); // Story 5.5 AC1: confetti above particles, below tooltip
     // Story 5.4 AC3: tooltip drawn last, on top of everything, in screen space
     this.drawHoverTooltip();
     // Story 7.5: Degradation mode indicator (bottom-left corner, screen space)
@@ -527,7 +546,11 @@ export class SceneRenderer {
     const { moduleType, worldPosition } = ghostData;
     const { ctx } = this;
     const elapsed = performance.now() - this.pulseStartTime;
-    const pulse = Math.sin(((elapsed % SceneRenderer.GHOST_PULSE_PERIOD_MS) / SceneRenderer.GHOST_PULSE_PERIOD_MS) * Math.PI * 2);
+    const pulse = Math.sin(
+      ((elapsed % SceneRenderer.GHOST_PULSE_PERIOD_MS) / SceneRenderer.GHOST_PULSE_PERIOD_MS) *
+        Math.PI *
+        2,
+    );
     const alpha = SceneRenderer.GHOST_ALPHA + pulse * 0.1;
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -614,8 +637,8 @@ export class SceneRenderer {
       // Round up to next power of 2 for clean grid alignment
       spacing = BASE_SPACING * Math.pow(2, Math.ceil(Math.log2(factor)));
     }
-    const halfW = (canvas.width / 2) / viewport.zoom;
-    const halfH = (canvas.height / 2) / viewport.zoom;
+    const halfW = canvas.width / 2 / viewport.zoom;
+    const halfH = canvas.height / 2 / viewport.zoom;
     const worldLeft = viewport.offset.x - halfW;
     const worldRight = viewport.offset.x + halfW;
     const worldTop = viewport.offset.y - halfH;
@@ -625,8 +648,14 @@ export class SceneRenderer {
     ctx.strokeStyle = '#2a2a3a';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    for (let x = startX; x <= worldRight; x += spacing) { ctx.moveTo(x, worldTop); ctx.lineTo(x, worldBottom); }
-    for (let y = startY; y <= worldBottom; y += spacing) { ctx.moveTo(worldLeft, y); ctx.lineTo(worldRight, y); }
+    for (let x = startX; x <= worldRight; x += spacing) {
+      ctx.moveTo(x, worldTop);
+      ctx.lineTo(x, worldBottom);
+    }
+    for (let y = startY; y <= worldBottom; y += spacing) {
+      ctx.moveTo(worldLeft, y);
+      ctx.lineTo(worldRight, y);
+    }
     ctx.stroke();
     ctx.strokeStyle = '#444466';
     ctx.lineWidth = 1.2;
@@ -659,17 +688,28 @@ export class SceneRenderer {
     }
     for (const [_id, node] of Object.entries(state.nodes)) {
       switch (node.type) {
-        case 'source': this.drawSource(node as SourceNode); break;
-        case 'stock': this.drawStock(node as StockNode); break;
-        case 'sink': this.drawSink(node as SinkNode); break;
-        default: this.drawFallback(node.position.x, node.position.y);
+        case 'source':
+          this.drawSource(node as SourceNode);
+          break;
+        case 'stock':
+          this.drawStock(node as StockNode);
+          break;
+        case 'sink':
+          this.drawSink(node as SinkNode);
+          break;
+        default:
+          this.drawFallback(node.position.x, node.position.y);
       }
       if (node.label) {
         ctx.fillStyle = node.type === 'stock' ? STOCK_LABEL_TEXT : MODULE_LABEL_COLOR;
         ctx.font = '12px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillText(node.label, node.position.x, node.position.y + getModuleBoundingRadius(node) + 4);
+        ctx.fillText(
+          node.label,
+          node.position.x,
+          node.position.y + getModuleBoundingRadius(node) + 4,
+        );
       }
     }
     this.drawWarningArcs(state);
@@ -681,11 +721,22 @@ export class SceneRenderer {
     const { x, y } = node.position;
     const fillColor = node.color ?? SOURCE_DEFAULT_FILL;
     const r = SOURCE_CLOUD_RADIUS;
-    const offsets: Vec2[] = [vec2(-r * 0.7, 0), vec2(r * 0.7, 0), vec2(0, -r * 0.5), vec2(-r * 0.5, -r * 0.5), vec2(r * 0.5, -r * 0.5)];
+    const offsets: Vec2[] = [
+      vec2(-r * 0.7, 0),
+      vec2(r * 0.7, 0),
+      vec2(0, -r * 0.5),
+      vec2(-r * 0.5, -r * 0.5),
+      vec2(r * 0.5, -r * 0.5),
+    ];
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = 'rgba(0,0,0,0.3)';
     ctx.lineWidth = 1.5;
-    for (const off of offsets) { ctx.beginPath(); ctx.arc(x + off.x, y + off.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    for (const off of offsets) {
+      ctx.beginPath();
+      ctx.arc(x + off.x, y + off.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     ctx.fillStyle = MODULE_LABEL_COLOR;
     ctx.font = '10px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -730,11 +781,7 @@ export class SceneRenderer {
     // ── Story 7.3: Breathing glow overlay for auto-paused stocks ──
     // Z-order: between fill and value text (value text remains readable on top).
     const breathingIds = this.breathingGlowStockIdsProvider?.();
-    if (
-      breathingIds &&
-      breathingIds.has(node.id) &&
-      this.simStateProvider?.() === 'paused'
-    ) {
+    if (breathingIds && breathingIds.has(node.id) && this.simStateProvider?.() === 'paused') {
       const elapsed = performance.now() - this.breathingGlowStartTime;
       const phase = (elapsed % BREATHING_GLOW_CYCLE_MS) / BREATHING_GLOW_CYCLE_MS;
       const sinVal = Math.sin(phase * Math.PI * 2);
@@ -756,7 +803,8 @@ export class SceneRenderer {
     ctx.font = 'bold 14px system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const valueStr = node.value === Math.floor(node.value) ? String(node.value) : node.value.toFixed(1);
+    const valueStr =
+      node.value === Math.floor(node.value) ? String(node.value) : node.value.toFixed(1);
     ctx.fillText(valueStr, x, y);
     ctx.fillStyle = STOCK_LABEL_TEXT;
     ctx.font = '10px system-ui, sans-serif';
@@ -768,7 +816,10 @@ export class SceneRenderer {
     // Only draw if stock has at least one incoming connection from a source
     if (this.graphState) {
       const hasSourceInflow = Object.values(this.graphState.connections).some(
-        c => c.toId === node.id && !c.isFeedback && this.graphState!.nodes[c.fromId]?.type === 'source',
+        (c) =>
+          c.toId === node.id &&
+          !c.isFeedback &&
+          this.graphState!.nodes[c.fromId]?.type === 'source',
       );
       if (hasSourceInflow) {
         const handleX = x + hw - FEEDBACK_HANDLE_RADIUS;
@@ -776,7 +827,9 @@ export class SceneRenderer {
         const hoveredStockId = this.feedbackHandleHoveredStockIdProvider?.() ?? null;
         const isHovered = hoveredStockId === node.id;
         ctx.save();
-        ctx.globalAlpha = isHovered ? FEEDBACK_HANDLE_OPACITY_HOVER : FEEDBACK_HANDLE_OPACITY_DEFAULT;
+        ctx.globalAlpha = isHovered
+          ? FEEDBACK_HANDLE_OPACITY_HOVER
+          : FEEDBACK_HANDLE_OPACITY_DEFAULT;
         ctx.fillStyle = FEEDBACK_LINE_COLOR;
         ctx.beginPath();
         ctx.arc(handleX, handleY, FEEDBACK_HANDLE_RADIUS, 0, Math.PI * 2);
@@ -830,7 +883,14 @@ export class SceneRenderer {
     ctx.stroke();
   }
 
-  private roundedRect(ctx: CanvasRenderingContext2D, left: number, top: number, w: number, h: number, r: number): void {
+  private roundedRect(
+    ctx: CanvasRenderingContext2D,
+    left: number,
+    top: number,
+    w: number,
+    h: number,
+    r: number,
+  ): void {
     if (w <= 0 || h <= 0) return;
     ctx.moveTo(left + r, top);
     ctx.lineTo(left + w - r, top);
@@ -937,17 +997,26 @@ export class SceneRenderer {
 
         const isSelected = conn.id === selectedId;
         const isHovered = conn.id === hoveredId;
-        const lineColor = isSelected ? SELECTION_COLOR : isHovered ? HOVER_HIGHLIGHT_COLOR : FEEDBACK_LINE_COLOR;
+        const lineColor = isSelected
+          ? SELECTION_COLOR
+          : isHovered
+            ? HOVER_HIGHLIGHT_COLOR
+            : FEEDBACK_LINE_COLOR;
 
         ctx.save();
         ctx.strokeStyle = lineColor;
-        ctx.lineWidth = isSelected ? FEEDBACK_LINE_WIDTH + 2 : isHovered ? FEEDBACK_LINE_WIDTH + 1 : FEEDBACK_LINE_WIDTH;
+        ctx.lineWidth = isSelected
+          ? FEEDBACK_LINE_WIDTH + 2
+          : isHovered
+            ? FEEDBACK_LINE_WIDTH + 1
+            : FEEDBACK_LINE_WIDTH;
         ctx.setLineDash([...FEEDBACK_DASH_SEGMENTS]);
 
         // Animate dash offset during simulation
         const simState = this.simStateProvider?.();
         if (simState === 'running') {
-          ctx.lineDashOffset = -(performance.now() / 50) % (FEEDBACK_DASH_SEGMENTS[0] + FEEDBACK_DASH_SEGMENTS[1]);
+          ctx.lineDashOffset =
+            -(performance.now() / 50) % (FEEDBACK_DASH_SEGMENTS[0] + FEEDBACK_DASH_SEGMENTS[1]);
         }
 
         ctx.beginPath();
@@ -978,7 +1047,11 @@ export class SceneRenderer {
       if (fromEdge.x === toEdge.x && fromEdge.y === toEdge.y) continue;
       const isSelected = conn.id === selectedId;
       const isHovered = conn.id === hoveredId;
-      const lineColor = isSelected ? SELECTION_COLOR : isHovered ? HOVER_HIGHLIGHT_COLOR : CONNECTION_LINE_COLOR;
+      const lineColor = isSelected
+        ? SELECTION_COLOR
+        : isHovered
+          ? HOVER_HIGHLIGHT_COLOR
+          : CONNECTION_LINE_COLOR;
       const lineWidth = isSelected
         ? CONNECTION_LINE_WIDTH + 2
         : isHovered
@@ -990,7 +1063,11 @@ export class SceneRenderer {
       ctx.moveTo(fromEdge.x, fromEdge.y);
       ctx.lineTo(toEdge.x, toEdge.y);
       ctx.stroke();
-      const arrowColor = isSelected ? SELECTION_COLOR : isHovered ? HOVER_HIGHLIGHT_COLOR : CONNECTION_ARROW_COLOR;
+      const arrowColor = isSelected
+        ? SELECTION_COLOR
+        : isHovered
+          ? HOVER_HIGHLIGHT_COLOR
+          : CONNECTION_ARROW_COLOR;
       this.drawArrowhead(ctx, fromEdge.x, fromEdge.y, toEdge.x, toEdge.y, arrowColor);
       const midX = (fromEdge.x + toEdge.x) / 2;
       const midY = (fromEdge.y + toEdge.y) / 2;
@@ -1150,7 +1227,7 @@ export class SceneRenderer {
     if (!flash || flash.life <= 0) return;
     const { ctx } = this;
     const alpha = flash.life / flash.maxLife;
-    const pulse = 1 + 0.15 * Math.sin(performance.now() / 1000 * 2 * Math.PI * 8); // 8 Hz shimmer
+    const pulse = 1 + 0.15 * Math.sin((performance.now() / 1000) * 2 * Math.PI * 8); // 8 Hz shimmer
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = '#ffd700';
@@ -1257,8 +1334,10 @@ export class SceneRenderer {
    */
   private drawDiamondArrowhead(
     ctx: CanvasRenderingContext2D,
-    cpX: number, cpY: number,
-    endX: number, endY: number,
+    cpX: number,
+    cpY: number,
+    endX: number,
+    endY: number,
     strokeColor: string,
   ): void {
     const dx = endX - cpX;
@@ -1273,8 +1352,8 @@ export class SceneRenderer {
     const tipY = endY;
     const backX = tipX - ux * DIAMOND_ARROW_LENGTH;
     const backY = tipY - uy * DIAMOND_ARROW_LENGTH;
-    const midX = tipX - ux * DIAMOND_ARROW_LENGTH / 2;
-    const midY = tipY - uy * DIAMOND_ARROW_LENGTH / 2;
+    const midX = tipX - (ux * DIAMOND_ARROW_LENGTH) / 2;
+    const midY = tipY - (uy * DIAMOND_ARROW_LENGTH) / 2;
     const leftX = midX + uy * DIAMOND_ARROW_HALF_WIDTH;
     const leftY = midY - ux * DIAMOND_ARROW_HALF_WIDTH;
     const rightX = midX - uy * DIAMOND_ARROW_HALF_WIDTH;
@@ -1356,10 +1435,10 @@ export class SceneRenderer {
           offsetX: number;
           offsetY: number;
         }> = [
-          { edge: 'top',    baseX: cx,       baseY: cy - hh, offsetX: 0,  offsetY: -2 },
-          { edge: 'bottom', baseX: cx,       baseY: cy + hh, offsetX: 0,  offsetY: +2 },
-          { edge: 'left',   baseX: cx - hw,  baseY: cy,      offsetX: -2, offsetY: 0  },
-          { edge: 'right',  baseX: cx + hw,  baseY: cy,      offsetX: +2, offsetY: 0  },
+          { edge: 'top', baseX: cx, baseY: cy - hh, offsetX: 0, offsetY: -2 },
+          { edge: 'bottom', baseX: cx, baseY: cy + hh, offsetX: 0, offsetY: +2 },
+          { edge: 'left', baseX: cx - hw, baseY: cy, offsetX: -2, offsetY: 0 },
+          { edge: 'right', baseX: cx + hw, baseY: cy, offsetX: +2, offsetY: 0 },
         ];
 
         for (const { edge, baseX, baseY, offsetX, offsetY } of edges) {
@@ -1371,13 +1450,7 @@ export class SceneRenderer {
 
           if (isHovered) {
             // AC3: Hover → outward shift + brighter fill
-            this.drawDiamond(
-              ctx,
-              baseX + offsetX,
-              baseY + offsetY,
-              4,
-              'rgba(255,255,255,0.85)',
-            );
+            this.drawDiamond(ctx, baseX + offsetX, baseY + offsetY, 4, 'rgba(255,255,255,0.85)');
           } else {
             // AC2: Idle → no offset, dim fill
             this.drawDiamond(ctx, baseX, baseY, 4, 'rgba(255,255,255,0.35)');
@@ -1403,8 +1476,8 @@ export class SceneRenderer {
             handleHover.moduleId === id &&
             handleHover.corner === corner;
 
-          ctx.fillStyle = isHovered ? '#f9e2af' : '#ffffff';  // AC13/AC14
-          ctx.fillRect(x - 3, y - 3, 6, 6);  // AC12: 6×6 axis-aligned squares
+          ctx.fillStyle = isHovered ? '#f9e2af' : '#ffffff'; // AC13/AC14
+          ctx.fillRect(x - 3, y - 3, 6, 6); // AC12: 6×6 axis-aligned squares
         }
       }
     } catch (e) {
@@ -1447,7 +1520,14 @@ export class SceneRenderer {
 
   // ── Arrowhead ───────────────────────────────────────────────────────
 
-  private drawArrowhead(ctx: CanvasRenderingContext2D, fromX: number, fromY: number, toX: number, toY: number, fillColor?: string): void {
+  private drawArrowhead(
+    ctx: CanvasRenderingContext2D,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    fillColor?: string,
+  ): void {
     const dx = toX - fromX;
     const dy = toY - fromY;
     const len = Math.sqrt(dx * dx + dy * dy);

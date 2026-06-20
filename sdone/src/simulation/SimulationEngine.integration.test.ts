@@ -1,12 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventBus } from '../event-bus/EventBus.js';
 import { SimulationEngine, FormulaEngine } from './index.js';
-import type {
-  GraphState,
-  StockNode,
-  SourceNode,
-  Connection,
-} from '../state/GraphState.js';
+import type { GraphState, StockNode, SourceNode, Connection } from '../state/GraphState.js';
 
 // ---------------------------------------------------------------------------
 // Test factories — match naming convention from SimulationEngine.test.ts
@@ -27,12 +22,7 @@ function makeSource(id: string): SourceNode {
   return { id, type: 'source', position: { x: 0, y: 0 } };
 }
 
-function makeConnection(
-  id: string,
-  fromId: string,
-  toId: string,
-  rate: number,
-): Connection {
+function makeConnection(id: string, fromId: string, toId: string, rate: number): Connection {
   return { id, fromId, toId, rate, formulaStr: String(rate) };
 }
 
@@ -56,9 +46,7 @@ function makeStateWithOneStockOneSource(rate: number): GraphState {
 }
 
 function getStock(state: GraphState): StockNode {
-  return Object.values(state.nodes).find(
-    (n) => n.type === 'stock',
-  ) as StockNode;
+  return Object.values(state.nodes).find((n) => n.type === 'stock') as StockNode;
 }
 
 // =============================================================================
@@ -72,13 +60,7 @@ describe('Story 7.6 — EventBus + SimulationEngine integration', () => {
 
   beforeEach(() => {
     vi.useFakeTimers({
-      toFake: [
-        'setTimeout',
-        'setInterval',
-        'Date',
-        'clearTimeout',
-        'clearInterval',
-      ],
+      toFake: ['setTimeout', 'setInterval', 'Date', 'clearTimeout', 'clearInterval'],
     });
     bus = new EventBus();
     engine = new SimulationEngine();
@@ -351,9 +333,7 @@ describe('Story 7.6 — EventBus + SimulationEngine integration', () => {
 
     it('EventBus unsubscribes work correctly with engine lifecycle', () => {
       const snapshots: GraphState[] = [];
-      const unsub = bus.on('SNAPSHOT_EMITTED', ({ state: s }) =>
-        snapshots.push(s),
-      );
+      const unsub = bus.on('SNAPSHOT_EMITTED', ({ state: s }) => snapshots.push(s));
 
       bus.emit('RUN', undefined);
       vi.advanceTimersByTime(100);

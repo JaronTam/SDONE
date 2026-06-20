@@ -97,7 +97,7 @@ describe('FormulaEngine', () => {
     // Second call: poison cache hit → returns 0 silently (no throw, no re-parse)
     expect(engine.evaluate('sin(t) + * 3', 0)).toBe(0);
     expect(tokenizeSpy).toHaveBeenCalledTimes(1); // still 1
-    expect(parseSpy).toHaveBeenCalledTimes(1);    // still 1
+    expect(parseSpy).toHaveBeenCalledTimes(1); // still 1
 
     // Third call: same — returns 0
     expect(engine.evaluate('sin(t) + * 3', 0)).toBe(0);

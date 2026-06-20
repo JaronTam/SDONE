@@ -42,10 +42,7 @@ export interface StockAnalytics {
  * Returns null if the module doesn't exist or is not a stock.
  * Defined alongside AnalyticsPanel for co-located testability.
  */
-export function computeStockAnalytics(
-  state: GraphState,
-  stockId: string,
-): StockAnalytics | null {
+export function computeStockAnalytics(state: GraphState, stockId: string): StockAnalytics | null {
   const node = state.nodes[stockId];
   if (!node || node.type !== 'stock') return null;
 
@@ -222,10 +219,13 @@ export class AnalyticsPanel {
       e.preventDefault();
       const parsed = Number(capacityValue.value.trim());
       if (!Number.isFinite(parsed) || parsed <= 0) {
-        capacityValue.value = this._lastValidCapacity !== null
-          ? String(this._lastValidCapacity) : '100';
+        capacityValue.value =
+          this._lastValidCapacity !== null ? String(this._lastValidCapacity) : '100';
         capacityValue.classList.add('analytics-panel__field-value--error');
-        setTimeout(() => capacityValue.classList.remove('analytics-panel__field-value--error'), 1000);
+        setTimeout(
+          () => capacityValue.classList.remove('analytics-panel__field-value--error'),
+          1000,
+        );
         return;
       }
       if (parsed === this._lastValidCapacity) return;
@@ -246,8 +246,7 @@ export class AnalyticsPanel {
     overflowField.className = 'analytics-panel__field analytics-panel__overflow';
     overflowField.style.display = 'none';
     const overflowLabel = document.createElement('span');
-    overflowLabel.className =
-      'analytics-panel__field-label analytics-panel__overflow-label';
+    overflowLabel.className = 'analytics-panel__field-label analytics-panel__overflow-label';
     overflowLabel.textContent = '流失值:';
     const overflowValue = document.createElement('span');
     overflowValue.className =
@@ -321,7 +320,9 @@ export class AnalyticsPanel {
     }
 
     // Current value
-    this._currentEl.textContent = Number.isNaN(data.currentValue) ? '0.0' : data.currentValue.toFixed(1);
+    this._currentEl.textContent = Number.isNaN(data.currentValue)
+      ? '0.0'
+      : data.currentValue.toFixed(1);
 
     // Capacity: always finite post-Infinity fix; editable via input
     this._lastValidCapacity = data.capacity;

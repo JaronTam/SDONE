@@ -63,7 +63,9 @@ export class ControlBar {
     // Story 6.7: Query Clear Canvas button
     const btnClearCanvas = container.querySelector('.btn-clear-canvas') as HTMLButtonElement | null;
     if (!btnClearCanvas) {
-      throw new Error('SDONE: Required element .btn-clear-canvas not found in control bar container.');
+      throw new Error(
+        'SDONE: Required element .btn-clear-canvas not found in control bar container.',
+      );
     }
     this.btnClearCanvas = btnClearCanvas;
 

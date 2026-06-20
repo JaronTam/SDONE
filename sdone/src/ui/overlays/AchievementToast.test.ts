@@ -13,7 +13,7 @@ describe('AchievementToast', () => {
     toast.destroy();
     vi.useRealTimers();
     // Clean up any remaining toast DOM elements
-    document.querySelectorAll('.achievement-toast').forEach(el => el.remove());
+    document.querySelectorAll('.achievement-toast').forEach((el) => el.remove());
   });
 
   it('show("test") creates a DOM element with correct text content', () => {
@@ -32,9 +32,9 @@ describe('AchievementToast', () => {
     expect(elements.length).toBe(2);
 
     // Both toasts should have a top position set (stacked, not overlapping)
-    const tops = Array.from(elements).map(el => parseInt((el as HTMLElement).style.top, 10));
+    const tops = Array.from(elements).map((el) => parseInt((el as HTMLElement).style.top, 10));
     // Both should have valid top positions
-    expect(tops.every(t => t > 0)).toBe(true);
+    expect(tops.every((t) => t > 0)).toBe(true);
     // The two toasts should be at different vertical positions (stacked)
     expect(tops[0]).not.toBe(tops[1]);
   });
@@ -53,7 +53,9 @@ describe('AchievementToast', () => {
     expect(elAfterDismiss!.classList.contains('achievement-toast--exiting')).toBe(true);
 
     // Simulate transitionend event for transform property
-    elAfterDismiss!.dispatchEvent(new TransitionEvent('transitionend', { propertyName: 'transform' }));
+    elAfterDismiss!.dispatchEvent(
+      new TransitionEvent('transitionend', { propertyName: 'transform' }),
+    );
 
     // Element should be removed
     const elAfterTransition = document.querySelector(`[data-toast-id="${id}"]`);

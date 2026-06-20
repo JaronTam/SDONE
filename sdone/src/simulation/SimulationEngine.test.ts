@@ -31,12 +31,7 @@ function makeSink(id: string): SinkNode {
   return { id, type: 'sink', position: { x: 0, y: 0 } };
 }
 
-function makeConnection(
-  id: string,
-  fromId: string,
-  toId: string,
-  rate: number,
-): Connection {
+function makeConnection(id: string, fromId: string, toId: string, rate: number): Connection {
   return { id, fromId, toId, rate, formulaStr: String(rate) };
 }
 
@@ -158,8 +153,8 @@ describe('Multi-stock: 2 stocks with different connections', () => {
     };
 
     state.connections = {
-      c1: makeConnection('c1', 'src1', 'sa', 10),  // A gets +10 flow
-      c2: makeConnection('c2', 'sb', 'snk1', 3),    // B loses -3 flow
+      c1: makeConnection('c1', 'src1', 'sa', 10), // A gets +10 flow
+      c2: makeConnection('c2', 'sb', 'snk1', 3), // B loses -3 flow
     };
 
     // 60 ticks
@@ -188,7 +183,7 @@ describe('Zero-rate connection', () => {
 
     state.nodes = { s0: stock, src1: src };
     state.connections = {
-      c0: makeConnection('c0', 'src1', 's0', 0),  // rate = 0
+      c0: makeConnection('c0', 'src1', 's0', 0), // rate = 0
     };
 
     for (let i = 0; i < 60; i++) {
@@ -214,8 +209,8 @@ describe('Negative net flow', () => {
 
     state.nodes = { s0: stock, src1: src, snk1: snk };
     state.connections = {
-      c_in: makeConnection('c_in', 'src1', 's0', 1),   // +1
-      c_out: makeConnection('c_out', 's0', 'snk1', 5),  // -5
+      c_in: makeConnection('c_in', 'src1', 's0', 1), // +1
+      c_out: makeConnection('c_out', 's0', 'snk1', 5), // -5
     };
 
     // net flow = 1 - 5 = -4
@@ -285,9 +280,9 @@ describe('dt = 0', () => {
       engine.tick(state, 0);
     }
 
-    expect(stock.value).toBe(50);  // no change
-    expect(state.version).toBe(versionBefore + 10);  // version incremented each tick
-    expect(engine.t).toBe(0);  // t unchanged
+    expect(stock.value).toBe(50); // no change
+    expect(state.version).toBe(versionBefore + 10); // version incremented each tick
+    expect(engine.t).toBe(0); // t unchanged
   });
 });
 
@@ -376,7 +371,7 @@ function makeStateWithOneStockOneSource(rate: number): GraphState {
 }
 
 function getStock(state: GraphState): StockNode {
-  return Object.values(state.nodes).find(n => n.type === 'stock') as StockNode;
+  return Object.values(state.nodes).find((n) => n.type === 'stock') as StockNode;
 }
 
 describe('Story 4.2 — State machine', () => {

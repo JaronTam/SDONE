@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { tokenize } from './tokenizer.js';
 import { parse } from './parser.js';
-import type { ExprNode, NumberNode, VariableNode, BinaryOpNode, UnaryOpNode, FunctionCallNode } from './parser.js';
+import type {
+  ExprNode,
+  NumberNode,
+  VariableNode,
+  BinaryOpNode,
+  UnaryOpNode,
+  FunctionCallNode,
+} from './parser.js';
 import { FormulaParseError } from './errors.js';
 
 // Shortcut: tokenize + parse

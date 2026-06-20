@@ -39,8 +39,8 @@ function createControlBarContainer(): HTMLElement {
 
   container.appendChild(btnRun);
   container.appendChild(btnResetSim);
-  container.appendChild(btnClearCanvas);  // Story 6.7
-  container.appendChild(btnSaveCheckpoint);   // Story 7.4
+  container.appendChild(btnClearCanvas); // Story 6.7
+  container.appendChild(btnSaveCheckpoint); // Story 7.4
   container.appendChild(btnRewindCheckpoint); // Story 7.4
   container.appendChild(btnResetViewport);
 
@@ -97,7 +97,8 @@ describe('ControlBar (Story 6.1)', () => {
 
     it('throws if .btn-clear-canvas is missing (Story 6.7)', () => {
       const div = document.createElement('div');
-      div.innerHTML = '<button class="btn-run">▶ Run</button><button class="btn-reset-sim">↺ Reset</button>';
+      div.innerHTML =
+        '<button class="btn-run">▶ Run</button><button class="btn-reset-sim">↺ Reset</button>';
       expect(() => new ControlBar(div)).toThrow('Required element .btn-clear-canvas not found');
     });
   });

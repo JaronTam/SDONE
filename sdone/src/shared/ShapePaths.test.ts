@@ -13,12 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  roundedRectPath,
-  drawCloud,
-  drawStock,
-  drawSink,
-} from './ShapePaths.js';
+import { roundedRectPath, drawCloud, drawStock, drawSink } from './ShapePaths.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -40,7 +35,9 @@ function createMockCtx() {
     save: () => calls.push('save'),
     restore: () => calls.push('restore'),
     getCalls: () => calls,
-    clearCalls: () => { calls.length = 0; },
+    clearCalls: () => {
+      calls.length = 0;
+    },
   };
 
   return mock as unknown as CanvasRenderingContext2D;
@@ -64,7 +61,7 @@ describe('roundedRectPath', () => {
     expect(calls[0]).toMatch(/^moveTo/);
 
     // Should contain arcTo calls
-    const arcToCalls = calls.filter(c => c.startsWith('arcTo'));
+    const arcToCalls = calls.filter((c) => c.startsWith('arcTo'));
     expect(arcToCalls).toHaveLength(4);
 
     // Should end with closePath
@@ -92,10 +89,10 @@ describe('drawCloud', () => {
 
     const calls = (ctx as unknown as { getCalls: () => string[] }).getCalls();
 
-    const beginPathCalls = calls.filter(c => c === 'beginPath');
-    const fillCalls = calls.filter(c => c === 'fill');
-    const strokeCalls = calls.filter(c => c === 'stroke');
-    const arcCalls = calls.filter(c => c.startsWith('arc('));
+    const beginPathCalls = calls.filter((c) => c === 'beginPath');
+    const fillCalls = calls.filter((c) => c === 'fill');
+    const strokeCalls = calls.filter((c) => c === 'stroke');
+    const arcCalls = calls.filter((c) => c.startsWith('arc('));
 
     // Single path: one beginPath, one fill, one stroke (F1 fix).
     expect(beginPathCalls).toHaveLength(1);
@@ -110,7 +107,7 @@ describe('drawCloud', () => {
     drawCloud(ctx, 50, 50, 96); // 2× larger
 
     const calls = (ctx as unknown as { getCalls: () => string[] }).getCalls();
-    const firstArc = calls.find(c => c.startsWith('arc('));
+    const firstArc = calls.find((c) => c.startsWith('arc('));
 
     // arc(x, y, radius, startAngle, endAngle)
     // Radius should be proportional to size
@@ -149,10 +146,10 @@ describe('drawStock', () => {
     // First moveTo should be at (left + r, top)
     // left = 50 - 48 = 2, r = 12 * (96/120) = 9.6
     // moveTo(11.6, 18) or similar
-    const moveTo = calls.find(c => c.startsWith('moveTo'));
+    const moveTo = calls.find((c) => c.startsWith('moveTo'));
     expect(moveTo).toBeDefined();
 
-    const arcToCalls = calls.filter(c => c.startsWith('arcTo'));
+    const arcToCalls = calls.filter((c) => c.startsWith('arcTo'));
     expect(arcToCalls).toHaveLength(4);
   });
 });
@@ -169,10 +166,10 @@ describe('drawSink', () => {
 
     const calls = (ctx as unknown as { getCalls: () => string[] }).getCalls();
 
-    const arcCalls = calls.filter(c => c.startsWith('arc('));
-    const fillCalls = calls.filter(c => c === 'fill');
-    const strokeCalls = calls.filter(c => c === 'stroke');
-    const moveToCalls = calls.filter(c => c.startsWith('moveTo'));
+    const arcCalls = calls.filter((c) => c.startsWith('arc('));
+    const fillCalls = calls.filter((c) => c === 'fill');
+    const strokeCalls = calls.filter((c) => c === 'stroke');
+    const moveToCalls = calls.filter((c) => c.startsWith('moveTo'));
 
     // 2 circles → 2 arc + 2 fill + 2 stroke
     expect(arcCalls).toHaveLength(2);

@@ -19,10 +19,10 @@ export function detectFirstCompleteStack(state: GraphState): boolean {
   for (const stockNode of Object.values(state.nodes)) {
     if (stockNode.type !== 'stock') continue;
     const hasInflow = Object.values(state.connections).some(
-      c => c.toId === stockNode.id && state.nodes[c.fromId]?.type === 'source'
+      (c) => c.toId === stockNode.id && state.nodes[c.fromId]?.type === 'source',
     );
     const hasOutflow = Object.values(state.connections).some(
-      c => c.fromId === stockNode.id && state.nodes[c.toId]?.type === 'sink'
+      (c) => c.fromId === stockNode.id && state.nodes[c.toId]?.type === 'sink',
     );
     if (hasInflow && hasOutflow) return true;
   }

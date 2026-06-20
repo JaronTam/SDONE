@@ -2,9 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { Connection, ModuleNode } from '../../state/GraphState.js';
 import { ParticleEngine } from '../ParticleEngine.js';
 
-function makeNode(
-  overrides: Partial<ModuleNode> = {},
-): ModuleNode {
+function makeNode(overrides: Partial<ModuleNode> = {}): ModuleNode {
   return {
     id: 'n1',
     type: 'stock',
@@ -14,9 +12,7 @@ function makeNode(
   } as ModuleNode;
 }
 
-function makeConn(
-  overrides: Partial<Connection> = {},
-): Connection {
+function makeConn(overrides: Partial<Connection> = {}): Connection {
   return {
     id: 'c1',
     fromId: 'n1',

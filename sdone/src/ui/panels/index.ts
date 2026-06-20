@@ -8,5 +8,10 @@ export { ControlBar } from './ControlBar.js';
 export { AnalyticsPanel, computeStockAnalytics } from './AnalyticsPanel.js';
 export type { StockAnalytics } from './AnalyticsPanel.js';
 // Story 6.3 → 7.2: Countdown timer display (multi-stock)
-export { CountdownPanel, computeStockCountdown, computeAllStockCountdowns, sortCountdownsByUrgency } from './CountdownPanel.js';
+export {
+  CountdownPanel,
+  computeStockCountdown,
+  computeAllStockCountdowns,
+  sortCountdownsByUrgency,
+} from './CountdownPanel.js';
 export type { StockCountdown } from './CountdownPanel.js';

@@ -57,9 +57,9 @@ const TYPE_DEFAULTS: Record<ToolbarData['moduleType'], string> = {
 
 // ── Main Class ───────────────────────────────────────────────────────────
 
-  export class ToolbarController {
-    private _options: ToolbarControllerOptions | null;
-    private _el: HTMLElement | null = null;
+export class ToolbarController {
+  private _options: ToolbarControllerOptions | null;
+  private _el: HTMLElement | null = null;
   private _isEditing = false;
   private _preEditName = '';
   private _isMounted = false;
@@ -304,9 +304,7 @@ const TYPE_DEFAULTS: Record<ToolbarData['moduleType'], string> = {
     if (!this._isEditing) return;
 
     // Remove input listeners
-    const input = this._el?.querySelector(
-      `.${NAME_EDITING_CLASS}`,
-    ) as HTMLInputElement | null;
+    const input = this._el?.querySelector(`.${NAME_EDITING_CLASS}`) as HTMLInputElement | null;
     if (input) {
       if (this._boundInputKeydown) {
         input.removeEventListener('keydown', this._boundInputKeydown);
@@ -323,9 +321,7 @@ const TYPE_DEFAULTS: Record<ToolbarData['moduleType'], string> = {
 
   /** Replace input with name span, keeping the displayed text. */
   private _restoreNameSpan(displayText: string): void {
-    const input = this._el?.querySelector(
-      `.${NAME_EDITING_CLASS}`,
-    ) as HTMLInputElement | null;
+    const input = this._el?.querySelector(`.${NAME_EDITING_CLASS}`) as HTMLInputElement | null;
     if (!input || !this._el) return;
 
     // Create new name span
