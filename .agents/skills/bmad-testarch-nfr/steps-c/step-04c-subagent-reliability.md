@@ -1,8 +1,8 @@
 ---
-name: 'step-04c-subagent-reliability'
-description: 'Subagent: Reliability NFR evidence audit'
+name: "step-04c-subagent-reliability"
+description: "Subagent: Reliability NFR evidence audit"
 subagent: true
-outputFile: '/tmp/tea-nfr-reliability-{{timestamp}}.json'
+outputFile: "/tmp/tea-nfr-reliability-{{timestamp}}.json"
 ---
 
 # Subagent 4C: Reliability NFR Evidence Audit
@@ -59,7 +59,10 @@ This is an **isolated subagent** running in parallel with other NFR domain evide
       "category": "Error Handling",
       "status": "PASS",
       "description": "Comprehensive error handling with circuit breakers",
-      "evidence": ["Circuit breaker pattern in src/services/", "Retry logic implemented"],
+      "evidence": [
+        "Circuit breaker pattern in src/services/",
+        "Retry logic implemented"
+      ],
       "recommendations": []
     },
     {
@@ -67,7 +70,10 @@ This is an **isolated subagent** running in parallel with other NFR domain evide
       "status": "CONCERN",
       "description": "No APM (Application Performance Monitoring) tool",
       "evidence": ["Logging present but no distributed tracing"],
-      "recommendations": ["Implement APM (Datadog/New Relic)", "Add distributed tracing"]
+      "recommendations": [
+        "Implement APM (Datadog/New Relic)",
+        "Add distributed tracing"
+      ]
     }
   ],
   "compliance": {

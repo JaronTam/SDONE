@@ -11,28 +11,28 @@
 
 审查发现已按标准 BMAD 分类法进行分类：
 
-| 分类 ID | 发现数 | 描述 |
-|------------|------------|-------------|
-| [CORRECT] | 6 | 实现正确 — 无需更改 |
-| [BUG] | 3 | 运行时缺陷 — 需要修复 |
-| [PERF] | 1 | 性能/内存 — 可能降低性能 |
-| [TEST] | 1 | 测试不足 — 缺少用例 |
-| [TYPE] | 2 | 类型安全性 — 编译时检查 |
-| [EDGE] | 2 | 边缘情况 — 不寻常的输入/状态 |
+| 分类 ID   | 发现数 | 描述                         |
+| --------- | ------ | ---------------------------- |
+| [CORRECT] | 6      | 实现正确 — 无需更改          |
+| [BUG]     | 3      | 运行时缺陷 — 需要修复        |
+| [PERF]    | 1      | 性能/内存 — 可能降低性能     |
+| [TEST]    | 1      | 测试不足 — 缺少用例          |
+| [TYPE]    | 2      | 类型安全性 — 编译时检查      |
+| [EDGE]    | 2      | 边缘情况 — 不寻常的输入/状态 |
 
 ### 严重程度快速概览
 
-| # | 分类 | 严重程度 | 发现内容 |
-|---|--------|----------|---------|
-| C1 | [BUG] | 🔴 HIGH | Firefox：`dragover` 内的 `getData()` 返回空字符串 — ghost 预览 + drop 静默失败 |
-| C2 | [BUG] | 🟠 MEDIUM | `ModulePanel.destroy()` 泄露 `dragstart` 事件监听器（内存泄漏） |
-| C3 | [BUG] | 🟡 LOW | Ghost 在 MinimapRenderer 中对 NaN/Infinity `worldPosition` 没有边界保护（损坏绘制） |
-| C4 | [TYPE] | 🟠 MEDIUM | `main.ts:192,198` — ghost provider 类型不匹配，`tsc --noEmit` 失败（2 个错误） |
-| C5 | [TYPE] | 🟡 LOW | `ghostModuleType: string` 应为 `ModuleType` — 因类型过宽导致跨模块类型缩减 |
-| C6 | [EDGE] | 🟡 LOW | 无效的 `moduleType`（例如 `''`，`'unknown'`）落在空的 switch 分支 — ghost 静默失败，无控制台输出 |
-| C7 | [EDGE] | 🟡 LOW | `onModuleDrop` 将 `moduleType as ModuleType` 强制转换 — 如果从损坏的 dataTransfer 传递 `string`，则无运行时防护 |
-| C8 | [TEST] | 🟡 LOW | 测试在缺少 `jsdom` 环境的文件中失败（`ModulePanel.test.ts`、`InputManager.test.ts` — 36 个预存测试失败） |
-| C9 | [PERF] | 🟢 INFO | `handleDragOver` 中的 canvasCenter 计算每帧重复，未使用闭包捕获 |
+| #   | 分类   | 严重程度  | 发现内容                                                                                                        |
+| --- | ------ | --------- | --------------------------------------------------------------------------------------------------------------- |
+| C1  | [BUG]  | 🔴 HIGH   | Firefox：`dragover` 内的 `getData()` 返回空字符串 — ghost 预览 + drop 静默失败                                  |
+| C2  | [BUG]  | 🟠 MEDIUM | `ModulePanel.destroy()` 泄露 `dragstart` 事件监听器（内存泄漏）                                                 |
+| C3  | [BUG]  | 🟡 LOW    | Ghost 在 MinimapRenderer 中对 NaN/Infinity `worldPosition` 没有边界保护（损坏绘制）                             |
+| C4  | [TYPE] | 🟠 MEDIUM | `main.ts:192,198` — ghost provider 类型不匹配，`tsc --noEmit` 失败（2 个错误）                                  |
+| C5  | [TYPE] | 🟡 LOW    | `ghostModuleType: string` 应为 `ModuleType` — 因类型过宽导致跨模块类型缩减                                      |
+| C6  | [EDGE] | 🟡 LOW    | 无效的 `moduleType`（例如 `''`，`'unknown'`）落在空的 switch 分支 — ghost 静默失败，无控制台输出                |
+| C7  | [EDGE] | 🟡 LOW    | `onModuleDrop` 将 `moduleType as ModuleType` 强制转换 — 如果从损坏的 dataTransfer 传递 `string`，则无运行时防护 |
+| C8  | [TEST] | 🟡 LOW    | 测试在缺少 `jsdom` 环境的文件中失败（`ModulePanel.test.ts`、`InputManager.test.ts` — 36 个预存测试失败）        |
+| C9  | [PERF] | 🟢 INFO   | `handleDragOver` 中的 canvasCenter 计算每帧重复，未使用闭包捕获                                                 |
 
 ---
 
@@ -48,7 +48,7 @@
 // InputManager.ts:178 — 当前代码
 private handleDragOver(e: DragEvent): void {
   const moduleType = e.dataTransfer!.getData('application/x-sdone-module');
-  if (!moduleType) {                     // ← Firefox 中始终为 '' 
+  if (!moduleType) {                     // ← Firefox 中始终为 ''
     this.ghostModuleType = null;         // ghost 从未显示
     this.ghostWorldPosition = null;
     return;
@@ -59,11 +59,13 @@ private handleDragOver(e: DragEvent): void {
 **Firefox 行为**：`getData()` 在 `dragover` 事件中返回 **空字符串** 用于自定义 MIME 类型。规范限制在 `dragenter`、`dragover` 或 `dragleave` 期间通过 `getData()` 读取数据（保护模式）。
 
 **影响**：
+
 - Ghost 预览在 Firefox 中**完全无法渲染**
 - Drops **无声失败** — `handleDrop()` 中的相同 `getData()` 调用正常工作（`drop` 允许读取数据），但 `dragOver` 的设置意味着 `ghostModuleType` 在某些事件流中可能为 null
 - **所有 Firefox 用户均受影响** — 功能完全损坏
 
 **修复**：
+
 ```typescript
 // 方案 1：从 dataTransfer.types 检查（dragenter 中设置，dragover 中读取）
 private handleDragEnter(e: DragEvent): void {
@@ -103,9 +105,10 @@ destroy(): void {
 **影响**：在 HMR（热模块替换）期间，`main.ts:180` 调用 `panel.destroy()` 并创建新实例。每个 HMR 周期会将 3 个事件监听器附加到已分离的 DOM 元素上，从而泄露内存。
 
 **修复**：在 `destroy()` 中添加：
+
 ```typescript
 for (const { el, handler } of this.dragDisposers) {
-  el.removeEventListener('dragstart', handler);
+  el.removeEventListener("dragstart", handler);
 }
 this.dragDisposers.length = 0;
 ```
@@ -121,14 +124,18 @@ this.dragDisposers.length = 0;
 
 ```typescript
 // MinimapRenderer.ts:184-186
-let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+let minX = Infinity,
+  minY = Infinity,
+  maxX = -Infinity,
+  maxY = -Infinity;
 // ...
 const minX2 = Math.min(nodePosition.x, ghost.worldPosition.x); // NaN < Infinity → false
 ```
 
 `minX` 保持为 `Infinity`，而 `maxX` 保持为 `-Infinity`，然后（第 189 行）：
+
 ```typescript
-const worldW = (maxX - minX) + BOUNDS_PADDING * 2; // (-Infinity - Infinity) + padding = -Infinity + padding = -Infinity
+const worldW = maxX - minX + BOUNDS_PADDING * 2; // (-Infinity - Infinity) + padding = -Infinity + padding = -Infinity
 ```
 
 这会导致 `ctx.scale(-Infinity, -Infinity)` — Canvas API 会**忽略**无效的缩放值而不抛出异常（静默损坏），导致小地图渲染一片空白或像素错误。
@@ -171,9 +178,15 @@ error TS2322: Type '() => { moduleType: string; worldPosition: Vec2; } | null'
 
 ```typescript
 switch (moduleType) {
-  case 'source': { /* ... */ break; }
-  case 'stock':  { /* ... */ break; }
-  case 'sink':   { /* ... */ break; }
+  case "source": {
+    /* ... */ break;
+  }
+  case "stock": {
+    /* ... */ break;
+  }
+  case "sink": {
+    /* ... */ break;
+  }
   // 无 default 分支 — 如果 moduleType 是 ''、'unknown' 等，则无操作
 }
 ```
@@ -217,7 +230,10 @@ inputManager.onModuleDrop = (moduleType: string, worldPos: Vec2) => {
 
 ```typescript
 const canvasRect = this.canvas.getBoundingClientRect();
-const canvasCenter = vec2(this.canvas.clientWidth / 2, this.canvas.clientHeight / 2);
+const canvasCenter = vec2(
+  this.canvas.clientWidth / 2,
+  this.canvas.clientHeight / 2,
+);
 ```
 
 在每次 `dragover` 事件（高频触发）中计算。如果画布大小不频繁变化，可以缓存。
@@ -230,26 +246,26 @@ const canvasCenter = vec2(this.canvas.clientWidth / 2, this.canvas.clientHeight 
 
 这些发现确认功能按预期工作：
 
-| # | 发现内容 | 验证方法 |
-|---|---------|-------------------|
-| CORRECT-1 | Ghost 渲染在 `drawFrame()` 中正确应用视口变换（`applyTransform` 在第 190 行 → `drawGhost` 在第 205 行） | 控制流追踪 |
+| #         | 发现内容                                                                                                      | 验证方法       |
+| --------- | ------------------------------------------------------------------------------------------------------------- | -------------- |
+| CORRECT-1 | Ghost 渲染在 `drawFrame()` 中正确应用视口变换（`applyTransform` 在第 190 行 → `drawGhost` 在第 205 行）       | 控制流追踪     |
 | CORRECT-2 | Ghost 生命周期 — 三条独立的清理路径：`dragleave`（第 198 行）、`drop`（第 215 行）、`windowBlur`（第 237 行） | 因果完备性分析 |
-| CORRECT-3 | `pulseStartTime` 在构造函数中正确初始化（`SceneRenderer` 第 139 行） | 明确赋值分析 |
-| CORRECT-4 | `ModulePanel` 正确创建 3 个带有 `draggable="true"` 和 `data-module-type` 属性的图标 | DOM 检查 |
-| CORRECT-5 | `addModule` 变异正确分配源/汇语义颜色（mutations.test.ts AC2/AC3 — 通过） | 测试验证 |
-| CORRECT-6 | `InputManager` 中的拖拽生命周期处理程序已正确注册到 `dragenter`、`dragover`、`drop`、`dragleave` | 事件监听器审计 |
+| CORRECT-3 | `pulseStartTime` 在构造函数中正确初始化（`SceneRenderer` 第 139 行）                                          | 明确赋值分析   |
+| CORRECT-4 | `ModulePanel` 正确创建 3 个带有 `draggable="true"` 和 `data-module-type` 属性的图标                           | DOM 检查       |
+| CORRECT-5 | `addModule` 变异正确分配源/汇语义颜色（mutations.test.ts AC2/AC3 — 通过）                                     | 测试验证       |
+| CORRECT-6 | `InputManager` 中的拖拽生命周期处理程序已正确注册到 `dragenter`、`dragover`、`drop`、`dragleave`              | 事件监听器审计 |
 
 ---
 
 ## 第四部分：修正后的风险评估
 
-| 风险 | 严重程度 | 阻塞合并？ |
-|-------|----------|--------------------|
-| Firefox 兼容性破坏（C1） | 🔴 HIGH | ✅ 是 — Firefox 用户受影响 |
-| TypeScript 编译错误（C4） | 🟠 MEDIUM | ✅ 是 — `tsc --noEmit` 失败 |
-| 内存泄漏（C2） | 🟠 MEDIUM | ⚠️ 否（低速率 HMR 泄漏，但应修复） |
-| NaN/Infinity 边界情况（C3） | 🟡 LOW | ❌ 否（极端情况） |
-| 类型安全性差距（C5、C7） | 🟡 LOW | ❌ 否 |
+| 风险                        | 严重程度  | 阻塞合并？                         |
+| --------------------------- | --------- | ---------------------------------- |
+| Firefox 兼容性破坏（C1）    | 🔴 HIGH   | ✅ 是 — Firefox 用户受影响         |
+| TypeScript 编译错误（C4）   | 🟠 MEDIUM | ✅ 是 — `tsc --noEmit` 失败        |
+| 内存泄漏（C2）              | 🟠 MEDIUM | ⚠️ 否（低速率 HMR 泄漏，但应修复） |
+| NaN/Infinity 边界情况（C3） | 🟡 LOW    | ❌ 否（极端情况）                  |
+| 类型安全性差距（C5、C7）    | 🟡 LOW    | ❌ 否                              |
 
 ---
 
@@ -275,20 +291,20 @@ const canvasCenter = vec2(this.canvas.clientWidth / 2, this.canvas.clientHeight 
 
 ## 第六部分：与原始审查报告的交叉比对
 
-| 原始审查发现 | 本次审查结论 | 性质 |
-|---------------------|------------------|--------|
-| P1: `pulseStartTime` 未初始化 | **错误** — 在构造函数第 139 行已初始化 | 误报 |
-| P1: Ghost 未应用视口变换 | **错误** — 在 `applyTransform()` 后执行 | 误报 |
-| P1: 缺少 `dragend` → ghost 残留 | **错误** — 三条清理路径完备 | 误报 |
-| P2: `ghostModuleType` 类型过宽 | **已验证**（C4、C5 — 实际缺陷来源） | ✅ 已确认，严重程度升级为 MEDIUM |
-| P2: `onDragStart` 未使用 | **已验证**（PI 级别 — 预留代码） | ✅ 已确认 |
-| P3: `effectAllowed` 检查不精确 | **已验证**（PI 级别） | ✅ 已确认 |
-| 未发现 | **C1: Firefox `getData()` 破坏** — HIGH | ☠️ 遗漏（关键） |
-| 未发现 | **C2: 内存泄漏** — MEDIUM | ☠️ 遗漏 |
-| 未发现 | **C3: NaN/Infinity 边界情况** — LOW | ☠️ 遗漏 |
-| 未发现 | **C6: DrawGhost 中的 switch 无默认分支** | ☠️ 遗漏 |
-| 未发现 | **C7: main.ts 中的不安全类型断言** | ☠️ 遗漏 |
-| 声称"0 个编译错误" | **C4: 2 个 tsc 错误** — 实际存在 | ☠️ 遗漏（阻塞） |
+| 原始审查发现                    | 本次审查结论                             | 性质                             |
+| ------------------------------- | ---------------------------------------- | -------------------------------- |
+| P1: `pulseStartTime` 未初始化   | **错误** — 在构造函数第 139 行已初始化   | 误报                             |
+| P1: Ghost 未应用视口变换        | **错误** — 在 `applyTransform()` 后执行  | 误报                             |
+| P1: 缺少 `dragend` → ghost 残留 | **错误** — 三条清理路径完备              | 误报                             |
+| P2: `ghostModuleType` 类型过宽  | **已验证**（C4、C5 — 实际缺陷来源）      | ✅ 已确认，严重程度升级为 MEDIUM |
+| P2: `onDragStart` 未使用        | **已验证**（PI 级别 — 预留代码）         | ✅ 已确认                        |
+| P3: `effectAllowed` 检查不精确  | **已验证**（PI 级别）                    | ✅ 已确认                        |
+| 未发现                          | **C1: Firefox `getData()` 破坏** — HIGH  | ☠️ 遗漏（关键）                  |
+| 未发现                          | **C2: 内存泄漏** — MEDIUM                | ☠️ 遗漏                          |
+| 未发现                          | **C3: NaN/Infinity 边界情况** — LOW      | ☠️ 遗漏                          |
+| 未发现                          | **C6: DrawGhost 中的 switch 无默认分支** | ☠️ 遗漏                          |
+| 未发现                          | **C7: main.ts 中的不安全类型断言**       | ☠️ 遗漏                          |
+| 声称"0 个编译错误"              | **C4: 2 个 tsc 错误** — 实际存在         | ☠️ 遗漏（阻塞）                  |
 
 **最终裁决**：原始审查报告将**三个非问题标记为 CRITICAL**，同时**遗漏了实际的 HIGH 严重程度缺陷**（Firefox 兼容性）、**MEDIUM 内存泄漏**和 **2 个编译错误**。报告应**驳回**并替换为本合并报告。
 

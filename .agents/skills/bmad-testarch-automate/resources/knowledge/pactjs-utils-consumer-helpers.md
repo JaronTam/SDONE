@@ -26,35 +26,35 @@ Use `createProviderState`, `toJsonMap`, `setJsonContent`, and `setJsonBody` from
 ### Example 1: Basic Provider State Creation
 
 ```typescript
-import { PactV3, MatchersV3 } from '@pact-foundation/pact';
-import { createProviderState } from '@seontechnologies/pactjs-utils';
+import { PactV3, MatchersV3 } from "@pact-foundation/pact";
+import { createProviderState } from "@seontechnologies/pactjs-utils";
 
 const provider = new PactV3({
-  consumer: 'movie-web',
-  provider: 'SampleMoviesAPI',
-  dir: './pacts',
+  consumer: "movie-web",
+  provider: "SampleMoviesAPI",
+  dir: "./pacts",
 });
 
-describe('Movie API Contract', () => {
-  it('should return movie by id', async () => {
+describe("Movie API Contract", () => {
+  it("should return movie by id", async () => {
     // createProviderState returns [stateName, JsonMap] tuple
     const providerState = createProviderState({
-      name: 'movie with id 1 exists',
-      params: { id: 1, name: 'Inception', year: 2010 },
+      name: "movie with id 1 exists",
+      params: { id: 1, name: "Inception", year: 2010 },
     });
 
     await provider
       .given(...providerState) // Spread tuple into .given(name, params)
-      .uponReceiving('a request for movie 1')
-      .withRequest({ method: 'GET', path: '/movies/1' })
+      .uponReceiving("a request for movie 1")
+      .withRequest({ method: "GET", path: "/movies/1" })
       .willRespondWith({
         status: 200,
-        body: MatchersV3.like({ id: 1, name: 'Inception', year: 2010 }),
+        body: MatchersV3.like({ id: 1, name: "Inception", year: 2010 }),
       })
       .executeTest(async (mockServer) => {
         const res = await fetch(`${mockServer.url}/movies/1`);
         const movie = await res.json();
-        expect(movie.name).toBe('Inception');
+        expect(movie.name).toBe("Inception");
       });
   });
 });
@@ -71,7 +71,7 @@ describe('Movie API Contract', () => {
 ### Example 2: Complex Parameters with toJsonMap
 
 ```typescript
-import { toJsonMap } from '@seontechnologies/pactjs-utils';
+import { toJsonMap } from "@seontechnologies/pactjs-utils";
 
 // toJsonMap conversion rules:
 // - string, number, boolean → passed through
@@ -83,11 +83,11 @@ import { toJsonMap } from '@seontechnologies/pactjs-utils';
 
 const params = toJsonMap({
   id: 42,
-  name: 'John Doe',
+  name: "John Doe",
   active: true,
   score: null,
-  createdAt: new Date('2025-01-15T10:00:00Z'),
-  metadata: { role: 'admin', permissions: ['read', 'write'] },
+  createdAt: new Date("2025-01-15T10:00:00Z"),
+  metadata: { role: "admin", permissions: ["read", "write"] },
 });
 
 // Result:
@@ -110,16 +110,16 @@ const params = toJsonMap({
 ### Example 3: Provider State Without Parameters
 
 ```typescript
-import { createProviderState } from '@seontechnologies/pactjs-utils';
+import { createProviderState } from "@seontechnologies/pactjs-utils";
 
 // State without params — second tuple element is empty object
-const emptyState = createProviderState({ name: 'no movies exist', params: {} });
+const emptyState = createProviderState({ name: "no movies exist", params: {} });
 // Returns: ['no movies exist', {}]
 
 await provider
   .given(...emptyState)
-  .uponReceiving('a request when no movies exist')
-  .withRequest({ method: 'GET', path: '/movies' })
+  .uponReceiving("a request when no movies exist")
+  .withRequest({ method: "GET", path: "/movies" })
   .willRespondWith({ status: 200, body: [] })
   .executeTest(async (mockServer) => {
     const res = await fetch(`${mockServer.url}/movies`);
@@ -131,18 +131,28 @@ await provider
 ### Example 4: Multiple Provider States
 
 ```typescript
-import { createProviderState } from '@seontechnologies/pactjs-utils';
+import { createProviderState } from "@seontechnologies/pactjs-utils";
 
 // Some interactions require multiple provider states
 // Call .given() multiple times with different states
 await provider
-  .given(...createProviderState({ name: 'user is authenticated', params: { userId: 1 } }))
-  .given(...createProviderState({ name: 'movie with id 5 exists', params: { id: 5 } }))
-  .uponReceiving('an authenticated request for movie 5')
+  .given(
+    ...createProviderState({
+      name: "user is authenticated",
+      params: { userId: 1 },
+    }),
+  )
+  .given(
+    ...createProviderState({
+      name: "movie with id 5 exists",
+      params: { id: 5 },
+    }),
+  )
+  .uponReceiving("an authenticated request for movie 5")
   .withRequest({
-    method: 'GET',
-    path: '/movies/5',
-    headers: { Authorization: MatchersV3.like('Bearer token') },
+    method: "GET",
+    path: "/movies/5",
+    headers: { Authorization: MatchersV3.like("Bearer token") },
   })
   .willRespondWith({ status: 200, body: MatchersV3.like({ id: 5 }) })
   .executeTest(async (mockServer) => {
@@ -153,28 +163,28 @@ await provider
 ### Example 5: When to Use setJsonBody vs setJsonContent
 
 ```typescript
-import { MatchersV3 } from '@pact-foundation/pact';
-import { setJsonBody, setJsonContent } from '@seontechnologies/pactjs-utils';
+import { MatchersV3 } from "@pact-foundation/pact";
+import { setJsonBody, setJsonContent } from "@seontechnologies/pactjs-utils";
 
 const { integer, string } = MatchersV3;
 
 await pact
   .addInteraction()
-  .given('movie exists')
-  .uponReceiving('a request to get movie by name')
+  .given("movie exists")
+  .uponReceiving("a request to get movie by name")
   .withRequest(
-    'GET',
-    '/movies',
+    "GET",
+    "/movies",
     setJsonContent({
-      query: { name: 'Inception' },
-      headers: { Accept: 'application/json' },
+      query: { name: "Inception" },
+      headers: { Accept: "application/json" },
     }),
   )
   .willRespondWith(
     200,
     setJsonBody({
       status: 200,
-      data: { id: integer(1), name: string('Inception') },
+      data: { id: integer(1), name: string("Inception") },
     }),
   );
 ```
@@ -193,13 +203,16 @@ await pact
 
 ```typescript
 // ❌ WRONG — two addInteraction() inside one it() — FFI non-deterministically drops one
-it('handles movie lookup scenarios', async () => {
+it("handles movie lookup scenarios", async () => {
   await pact
     .addInteraction()
-    .given('movie exists')
-    .uponReceiving('a request to get movie by id')
-    .withRequest('GET', '/movies/1')
-    .willRespondWith(200, setJsonBody({ id: integer(1), name: string('The Matrix') }))
+    .given("movie exists")
+    .uponReceiving("a request to get movie by id")
+    .withRequest("GET", "/movies/1")
+    .willRespondWith(
+      200,
+      setJsonBody({ id: integer(1), name: string("The Matrix") }),
+    )
     .executeTest(async (mockServer) => {
       /* ... */
     });
@@ -207,9 +220,9 @@ it('handles movie lookup scenarios', async () => {
   // Sometimes this second interaction never makes it to the pact JSON:
   await pact
     .addInteraction()
-    .given('no movies exist')
-    .uponReceiving('a request for an empty list')
-    .withRequest('GET', '/movies')
+    .given("no movies exist")
+    .uponReceiving("a request for an empty list")
+    .withRequest("GET", "/movies")
     .willRespondWith(200, setJsonBody([]))
     .executeTest(async (mockServer) => {
       /* ... */
@@ -217,24 +230,27 @@ it('handles movie lookup scenarios', async () => {
 });
 
 // ✅ RIGHT — one addInteraction() per it()
-it('gets a movie by id', async () => {
+it("gets a movie by id", async () => {
   await pact
     .addInteraction()
-    .given('movie exists')
-    .uponReceiving('a request to get movie by id')
-    .withRequest('GET', '/movies/1')
-    .willRespondWith(200, setJsonBody({ id: integer(1), name: string('The Matrix') }))
+    .given("movie exists")
+    .uponReceiving("a request to get movie by id")
+    .withRequest("GET", "/movies/1")
+    .willRespondWith(
+      200,
+      setJsonBody({ id: integer(1), name: string("The Matrix") }),
+    )
     .executeTest(async (mockServer) => {
       /* ... */
     });
 });
 
-it('returns empty list when no movies exist', async () => {
+it("returns empty list when no movies exist", async () => {
   await pact
     .addInteraction()
-    .given('no movies exist')
-    .uponReceiving('a request for an empty list')
-    .withRequest('GET', '/movies')
+    .given("no movies exist")
+    .uponReceiving("a request for an empty list")
+    .withRequest("GET", "/movies")
     .willRespondWith(200, setJsonBody([]))
     .executeTest(async (mockServer) => {
       /* ... */
@@ -243,14 +259,14 @@ it('returns empty list when no movies exist', async () => {
 
 // ✅ RIGHT — parameterized via it.each for data-driven coverage
 it.each([
-  { id: 1, name: 'The Matrix' },
-  { id: 2, name: 'Inception' },
-])('gets movie $id', async ({ id, name }) => {
+  { id: 1, name: "The Matrix" },
+  { id: 2, name: "Inception" },
+])("gets movie $id", async ({ id, name }) => {
   await pact
     .addInteraction()
-    .given('movie exists', { id, name })
+    .given("movie exists", { id, name })
     .uponReceiving(`a request to get movie ${id}`)
-    .withRequest('GET', `/movies/${id}`)
+    .withRequest("GET", `/movies/${id}`)
     .willRespondWith(200, setJsonBody({ id: integer(id), name: string(name) }))
     .executeTest(async (mockServer) => {
       /* ... */
@@ -293,10 +309,10 @@ it.each([
 
 ```typescript
 // ❌ Manual casting — verbose, error-prone, no type safety
-provider.given('user exists', {
+provider.given("user exists", {
   id: 1 as unknown as string,
   createdAt: new Date().toISOString(),
-  metadata: JSON.stringify({ role: 'admin' }),
+  metadata: JSON.stringify({ role: "admin" }),
 } as JsonMap);
 ```
 
@@ -306,8 +322,8 @@ provider.given('user exists', {
 // ✅ Automatic conversion with type safety
 provider.given(
   ...createProviderState({
-    name: 'user exists',
-    params: { id: 1, createdAt: new Date(), metadata: { role: 'admin' } },
+    name: "user exists",
+    params: { id: 1, createdAt: new Date(), metadata: { role: "admin" } },
   }),
 );
 ```
@@ -316,7 +332,7 @@ provider.given(
 
 ```typescript
 // ❌ Duplicated state names between consumer and provider — easy to mismatch
-provider.given('a user with id 1 exists', { id: '1' });
+provider.given("a user with id 1 exists", { id: "1" });
 // Later in provider: 'user with id 1 exists' — different string!
 ```
 
@@ -325,11 +341,13 @@ provider.given('a user with id 1 exists', { id: '1' });
 ```typescript
 // ✅ Define state names as constants shared between consumer and provider
 const STATES = {
-  USER_EXISTS: 'user with id exists',
-  NO_USERS: 'no users exist',
+  USER_EXISTS: "user with id exists",
+  NO_USERS: "no users exist",
 } as const;
 
-provider.given(...createProviderState({ name: STATES.USER_EXISTS, params: { id: 1 } }));
+provider.given(
+  ...createProviderState({ name: STATES.USER_EXISTS, params: { id: 1 } }),
+);
 ```
 
 ### Wrong: Repeating inline builder lambdas everywhere
@@ -353,9 +371,17 @@ provider.given(...createProviderState({ name: STATES.USER_EXISTS, params: { id: 
 
 ```typescript
 // ❌ PactV4 FFI non-deterministically drops one of these interactions ~1/N runs
-it('handles both success and empty list', async () => {
-  await pact.addInteraction().uponReceiving('get movie').withRequest(/* ... */).executeTest(/* ... */);
-  await pact.addInteraction().uponReceiving('empty list').withRequest(/* ... */).executeTest(/* ... */);
+it("handles both success and empty list", async () => {
+  await pact
+    .addInteraction()
+    .uponReceiving("get movie")
+    .withRequest(/* ... */)
+    .executeTest(/* ... */);
+  await pact
+    .addInteraction()
+    .uponReceiving("empty list")
+    .withRequest(/* ... */)
+    .executeTest(/* ... */);
 });
 ```
 
@@ -363,12 +389,12 @@ it('handles both success and empty list', async () => {
 
 ```typescript
 // ✅ Deterministic pact JSON — FFI receives one interaction per test
-it('gets a movie', async () => {
+it("gets a movie", async () => {
   await pact
     .addInteraction() /* ... */
     .executeTest(/* ... */);
 });
-it('returns empty list', async () => {
+it("returns empty list", async () => {
   await pact
     .addInteraction() /* ... */
     .executeTest(/* ... */);

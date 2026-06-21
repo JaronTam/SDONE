@@ -1,7 +1,7 @@
 ---
-name: 'step-04-validate-and-summarize'
-description: 'Validate outputs and produce automation summary'
-outputFile: '{test_artifacts}/automation-summary.md'
+name: "step-04-validate-and-summarize"
+description: "Validate outputs and produce automation summary"
+outputFile: "{test_artifacts}/automation-summary.md"
 ---
 
 # Step 4: Validate & Summarize
@@ -80,9 +80,9 @@ Write `{outputFile}` including:
 
   ```yaml
   ---
-  stepsCompleted: ['step-04-validate-and-summarize']
-  lastStep: 'step-04-validate-and-summarize'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-04-validate-and-summarize"]
+  lastStep: "step-04-validate-and-summarize"
+  lastSaved: "{date}"
   ---
   ```
 

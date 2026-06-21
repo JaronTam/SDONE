@@ -6,7 +6,13 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/state/**', 'src/simulation/**', 'src/event-bus/**', 'src/input/**', 'src/shared/**'],
+      include: [
+        'src/state/**',
+        'src/simulation/**',
+        'src/event-bus/**',
+        'src/input/**',
+        'src/shared/**',
+      ],
     },
   },
 });

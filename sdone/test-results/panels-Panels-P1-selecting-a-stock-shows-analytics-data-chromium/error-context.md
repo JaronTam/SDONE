@@ -46,15 +46,15 @@ Call log:
   22  |  *   - Stock (rounded-rect): 120×80px
   23  |  *   - Sink (funnel):    radius 24px, hit-radius 24px
   24  |  */
-  25  | 
+  25  |
   26  | import { expect, type Page, type Locator } from '@playwright/test';
-  27  | 
+  27  |
   28  | // ── Layout Constants ──────────────────────────────────────────────────────
-  29  | 
+  29  |
   30  | /** Fixed viewport size matching playwright.config.ts. */
   31  | export const VIEWPORT = { width: 1280, height: 720 } as const;
   32  | export const CANVAS_CENTER = { x: VIEWPORT.width / 2, y: VIEWPORT.height / 2 }; // (640, 360)
-  33  | 
+  33  |
   34  | /** Left sidebar: 240px wide; icon canvases are centered horizontally (~x=120). */
   35  | export const SIDEBAR_LEFT_X = 120;
   36  | /**
@@ -73,9 +73,9 @@ Call log:
   49  |   stock: 252,    // 138 + 102(icon height) + 12(gap)
   50  |   sink: 366,     // 252 + 102 + 12
   51  | } as const;
-  52  | 
+  52  |
   53  | // ── CSS Selectors ─────────────────────────────────────────────────────────
-  54  | 
+  54  |
   55  | export const SELECTORS = {
   56  |   sceneCanvas: 'canvas#scene',
   57  |   minimapCanvas: 'canvas#minimap',
@@ -100,9 +100,9 @@ Call log:
   76  |   colorPickerSwatch: '.color-picker-popover__swatch',
   77  |   achievementToast: '.achievement-toast',
   78  | } as const;
-  79  | 
+  79  |
   80  | // ── Page Setup ────────────────────────────────────────────────────────────
-  81  | 
+  81  |
   82  | /**
   83  |  * Navigate to the app and wait for both canvases to be visible.
   84  |  * Returns after the app has fully initialized.
@@ -116,14 +116,14 @@ Call log:
   91  |   // Allow a frame for the render loop to start
   92  |   await page.waitForTimeout(300);
   93  | }
-  94  | 
+  94  |
   95  | /**
   96  |  * Get the scene canvas locator.
   97  |  */
   98  | export function getSceneCanvas(page: Page): Locator {
   99  |   return page.locator(SELECTORS.sceneCanvas);
   100 | }
-  101 | 
+  101 |
   102 | /**
   103 |  * Convert world coordinates to screen coordinates for canvas interaction.
   104 |  * With default viewport (offset=0,0 zoom=1): screen = world + canvasCenter.
@@ -134,7 +134,7 @@ Call log:
   109 |     y: worldY + CANVAS_CENTER.y,
   110 |   };
   111 | }
-  112 | 
+  112 |
   113 | /**
   114 |  * Convert screen coordinates to world coordinates.
   115 |  * With default viewport: world = screen - canvasCenter.
@@ -145,9 +145,9 @@ Call log:
   120 |     y: screenY - CANVAS_CENTER.y,
   121 |   };
   122 | }
-  123 | 
+  123 |
   124 | // ── Module Creation ───────────────────────────────────────────────────────
-  125 | 
+  125 |
   126 | /**
   127 |  * Click an icon in the module panel to highlight it for click-to-place.
   128 |  * @param type - 'source', 'stock', or 'sink'
@@ -155,15 +155,15 @@ Call log:
   130 | export async function highlightModuleType(page: Page, type: 'source' | 'stock' | 'sink'): Promise<void> {
   131 |   const y = ICON_Y[type];
   132 |   await page.mouse.click(SIDEBAR_LEFT_X, y);
-  133 | 
+  133 |
   134 |   // Verify the icon got highlighted — use data-module-type selector
   135 |   const iconSelector = `.module-panel__icon-list .module-icon[data-module-type="${type}"][data-highlighted="true"]`;
   136 |   await page.waitForSelector(iconSelector, { timeout: 2000 });
   137 | }
-  138 | 
+  138 |
   139 | /** 1-based index of each icon in the icon list. */
   140 | const ICON_ROW = { source: 1, stock: 2, sink: 3 } as const;
-  141 | 
+  141 |
   142 | /**
   143 |  * Click an empty area of the canvas to place a module of the currently
   144 |  * highlighted type at the given world position.
@@ -175,7 +175,7 @@ Call log:
   150 |   const screen = worldToScreen(worldX, worldY);
   151 |   await page.mouse.click(screen.x, screen.y);
   152 | }
-  153 | 
+  153 |
   154 | /**
   155 |  * Combined: highlight a module type, then place it on the canvas.
   156 |  * This is the primary module creation flow (click-to-place via AC2, Story 6.5).
@@ -189,9 +189,9 @@ Call log:
   164 |   await highlightModuleType(page, type);
   165 |   await placeModuleAt(page, worldX, worldY);
   166 | }
-  167 | 
+  167 |
   168 | // ── Module Selection ──────────────────────────────────────────────────────
-  169 | 
+  169 |
   170 | /**
   171 |  * Click on a module at its world position (inner zone — selects, doesn't start connection drag).
   172 |  *
@@ -202,7 +202,7 @@ Call log:
   177 |   const screen = worldToScreen(worldX, worldY);
   178 |   await page.mouse.click(screen.x, screen.y);
   179 | }
-  180 | 
+  180 |
   181 | /**
   182 |  * Click on empty canvas to deselect all.
   183 |  */
@@ -210,7 +210,7 @@ Call log:
   185 |   // Click far from any modules — use a corner of the canvas
   186 |   await page.mouse.click(100, 500);
   187 | }
-  188 | 
+  188 |
   189 | // ── Module Movement ───────────────────────────────────────────────────────
-  190 | 
+  190 |
 ```

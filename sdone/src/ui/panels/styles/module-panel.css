@@ -65,7 +65,7 @@
 
 /* Story 6.6 AC2 — Active/pinned state */
 .module-panel__pin-btn--active {
-  color: #f9e2af;  /* Catppuccin Mocha Yellow — "pinned" warmth */
+  color: #f9e2af; /* Catppuccin Mocha Yellow — "pinned" warmth */
   text-shadow: 0 0 8px rgba(249, 226, 175, 0.4);
 }
 
@@ -90,7 +90,9 @@
   padding: 10px 8px;
   border-radius: 8px;
   cursor: grab;
-  transition: transform 150ms ease, background-color 150ms ease;
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease;
 
   /* AC6 — Must override layer-panel-left's pointer-events: none
      so hover effects and future drag-start events register. */
@@ -124,12 +126,12 @@
 }
 
 /* Story 6.5 AC2 — Selected/highlighted icon state (click-to-place) */
-.module-icon[data-highlighted="true"] {
+.module-icon[data-highlighted='true'] {
   background-color: #45475a;
   box-shadow: 0 0 0 2px #89b4fa;
 }
 
-.module-icon[data-highlighted="true"] .module-icon__label {
+.module-icon[data-highlighted='true'] .module-icon__label {
   color: #cdd6f4;
 }
 

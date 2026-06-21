@@ -28,15 +28,15 @@
 
 ## 发现项汇总
 
-| 发现 ID | 严重等级 | 类别 | 文件 | 描述 |
-|---------|---------|------|------|------|
-| AGR-1 | **FAIL** | 类型安全 | `src/main.ts:192,198` | `ghostProvider` 赋值中 `ModuleType` 与 `string` 类型不匹配 |
-| AGR-2 | **PI** | 类型安全 | `src/main.ts:74` | `onDragStart` 回调声明但未赋值 |
-| AGR-3 | **PA** | 功能 | `src/input/InputManager.ts` | Ghost 生命周期管理 — 三条清理路径完备 |
-| AGR-4 | **PA** | 功能 | `src/canvas/SceneRenderer.ts` | Ghost 渲染正确应用视口变换 |
-| AGR-5 | **PA** | 功能 | `src/canvas/SceneRenderer.ts:139` | `pulseStartTime` 在构造函数中正确初始化 |
-| AGR-6 | **PA** | 工作区 | 全部测试 | 12/12 文件通过，210/210 测试通过 |
-| AGR-7 | **PI** | 代码 | `src/input/InputManager.ts` | `handleDragOver` 中 `effectAllowed` 缺少 `move` 屏蔽 |
+| 发现 ID | 严重等级 | 类别     | 文件                              | 描述                                                       |
+| ------- | -------- | -------- | --------------------------------- | ---------------------------------------------------------- |
+| AGR-1   | **FAIL** | 类型安全 | `src/main.ts:192,198`             | `ghostProvider` 赋值中 `ModuleType` 与 `string` 类型不匹配 |
+| AGR-2   | **PI**   | 类型安全 | `src/main.ts:74`                  | `onDragStart` 回调声明但未赋值                             |
+| AGR-3   | **PA**   | 功能     | `src/input/InputManager.ts`       | Ghost 生命周期管理 — 三条清理路径完备                      |
+| AGR-4   | **PA**   | 功能     | `src/canvas/SceneRenderer.ts`     | Ghost 渲染正确应用视口变换                                 |
+| AGR-5   | **PA**   | 功能     | `src/canvas/SceneRenderer.ts:139` | `pulseStartTime` 在构造函数中正确初始化                    |
+| AGR-6   | **PA**   | 工作区   | 全部测试                          | 12/12 文件通过，210/210 测试通过                           |
+| AGR-7   | **PI**   | 代码     | `src/input/InputManager.ts`       | `handleDragOver` 中 `effectAllowed` 缺少 `move` 屏蔽       |
 
 ---
 
@@ -57,6 +57,7 @@ src/main.ts:192:1 - error TS2322: Type '() => { moduleType: string; worldPositio
 **原因**：`main.ts` 中的箭头函数通过 `handleDragOver` → `ghostModuleType` 推断 `moduleType` 为 `string` 类型（因为 `ghostModuleType` 声明为 `string | null`）。`SceneRenderer.ghostProvider` 和 `MinimapRenderer.ghostProvider` 均要求 `{ moduleType: ModuleType; worldPosition: Vec2 }`（其中 `ModuleType = 'source' | 'stock' | 'sink'`）。`string` 无法赋值给窄化的字面量联合类型 `ModuleType`。
 
 **修复**：有两种选择：
+
 - **方案 A（推荐）**：将 `InputManager.ghostModuleType` 的类型从 `string | null` 改为 `ModuleType | null`，因为只有这三个有效值会被写入
 - **方案 B**：在 `main.ts` 的 provider 函数中添加类型断言 `as ModuleType`
 
@@ -85,6 +86,7 @@ public onDragStart: ((moduleType: ModuleType) => void) | null = null;
 **文件**：`src/input/InputManager.ts`
 
 三条独立的 ghost 清理路径：
+
 1.  `handleDragLeave`（第 198 行）—— 拖拽离开 canvas 时清除
 2.  `handleDrop`（第 215-216 行）—— 在 canvas 上释放时清除
 3.  `handleWindowBlur`（第 237-238 行）—— Alt+Tab 安全清除
@@ -102,6 +104,7 @@ public onDragStart: ((moduleType: ModuleType) => void) | null = null;
 **文件**：`src/canvas/SceneRenderer.ts`，第 184-206 行
 
 渲染管线的执行顺序：
+
 ```typescript
 // line 190: 视口变换在 ghost 渲染之前应用
 this.viewportManager.applyTransform(ctx, canvasCenter);
@@ -109,7 +112,7 @@ this.viewportManager.applyTransform(ctx, canvasCenter);
 this.drawEmptyCanvasAffordance();
 this.drawGrid();
 // ...
-this.drawGhost();  // line 205: world-space 坐标通过当前变换矩阵映射到 screen-space
+this.drawGhost(); // line 205: world-space 坐标通过当前变换矩阵映射到 screen-space
 ```
 
 `drawGhost()` 内部以世界坐标 `(x, y)` 调用绘制原语。Canvas 2D 变换矩阵是命令式的全局状态——`applyTransform` 之后的所有绘制操作都受其影响。Ghost 正确受视口变换作用。
@@ -155,6 +158,7 @@ TypeScript 的 Definite Assignment Analysis 允许 `readonly` 属性在构造函
 ```
 
 覆盖范围包括：
+
 - `SceneRenderer.test.ts`（17 个测试）
 - `EmptyCanvasAffordance.test.ts`（14 个测试）
 - `Viewport.test.ts`（31 个测试）
@@ -186,35 +190,35 @@ TypeScript 的 Definite Assignment Analysis 允许 `readonly` 属性在构造函
 
 ## 与原始审查报告（Story 3.2 Code Review）的交叉比对
 
-| 原始发现项 | 独立审计结论 | 说明 |
-|------------|-------------|------|
-| P1: `pulseStartTime` 未初始化 | **误报** | 构造器第 139 行已初始化 |
-| P1: Ghost 未应用视口变换 | **误报** | `drawGhost()` 在 `applyTransform()` 之后调用 |
-| P1: 缺少 `dragend` 导致 ghost 残留 | **误报** | `dragleave`/`drop`/`windowBlur` 三条清理路径完备 |
-| P2: `ghostModuleType` 类型过宽 | **已确认**（非 P2） | 是当前 AGR-1 FAIL 级别的编译错误源头 |
-| P2: `onDragStart` 未赋值 | **已确认**（AGR-2 PI 级别） | 不影响功能 |
-| P3: `effectAllowed` 检查不精确 | **已确认**（AGR-7 PI 级别） | 无功能影响 |
-| **遗漏** | **AGR-1 FAIL** | `main.ts` 中 2 个编译错误未被原始审查发现 |
+| 原始发现项                         | 独立审计结论                | 说明                                             |
+| ---------------------------------- | --------------------------- | ------------------------------------------------ |
+| P1: `pulseStartTime` 未初始化      | **误报**                    | 构造器第 139 行已初始化                          |
+| P1: Ghost 未应用视口变换           | **误报**                    | `drawGhost()` 在 `applyTransform()` 之后调用     |
+| P1: 缺少 `dragend` 导致 ghost 残留 | **误报**                    | `dragleave`/`drop`/`windowBlur` 三条清理路径完备 |
+| P2: `ghostModuleType` 类型过宽     | **已确认**（非 P2）         | 是当前 AGR-1 FAIL 级别的编译错误源头             |
+| P2: `onDragStart` 未赋值           | **已确认**（AGR-2 PI 级别） | 不影响功能                                       |
+| P3: `effectAllowed` 检查不精确     | **已确认**（AGR-7 PI 级别） | 无功能影响                                       |
+| **遗漏**                           | **AGR-1 FAIL**              | `main.ts` 中 2 个编译错误未被原始审查发现        |
 
 ### 原始审查严重失真评分
 
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 召回率 | **0%** | 3 个 P1 发现全部为误报 |
-| 精确率 | **43%**（3/7） | 7 个发现中仅 3 个为有效观察（均非 FAIL 级别） |
-| 遗漏率 | **100%**（实际不通过） | `npx tsc --noEmit` 不通过，但报告声称"0 个编译错误" |
-| 严重级别准确性 | **严重偏误** | 所有 FAIL 级别问题均未被识别；所有 P1 均为误报 |
+| 维度           | 评分                   | 说明                                                |
+| -------------- | ---------------------- | --------------------------------------------------- |
+| 召回率         | **0%**                 | 3 个 P1 发现全部为误报                              |
+| 精确率         | **43%**（3/7）         | 7 个发现中仅 3 个为有效观察（均非 FAIL 级别）       |
+| 遗漏率         | **100%**（实际不通过） | `npx tsc --noEmit` 不通过，但报告声称"0 个编译错误" |
+| 严重级别准确性 | **严重偏误**           | 所有 FAIL 级别问题均未被识别；所有 P1 均为误报      |
 
 ---
 
 ## 最终风险评估
 
-| 风险类别 | 等级 | 可合并？ |
-|---------|------|---------|
-| 类型安全（编译错误） | 🔴 阻塞 | ❌ `tsc --noEmit` 不通过 |
-| Ghost 渲染正确性 | 🟢 安全 | ✅ 视口变换、清理路径等功能完备 |
-| 测试覆盖 | 🟢 安全 | ✅ 210/210 测试通过 |
-| 原始审查可信度 | 🔴 不可用 | ❌ 3 个 P1 误报 + 遗漏编译错误 |
+| 风险类别             | 等级      | 可合并？                        |
+| -------------------- | --------- | ------------------------------- |
+| 类型安全（编译错误） | 🔴 阻塞   | ❌ `tsc --noEmit` 不通过        |
+| Ghost 渲染正确性     | 🟢 安全   | ✅ 视口变换、清理路径等功能完备 |
+| 测试覆盖             | 🟢 安全   | ✅ 210/210 测试通过             |
+| 原始审查可信度       | 🔴 不可用 | ❌ 3 个 P1 误报 + 遗漏编译错误  |
 
 ---
 

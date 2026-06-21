@@ -59,48 +59,48 @@ Call log:
   15  |   pressDelete,
   16  |   worldToScreen,
   17  | } from './helpers.js';
-  18  | 
+  18  |
   19  | test.describe('History (Undo/Redo)', () => {
   20  |   test.beforeEach(async ({ page }) => {
   21  |     await setupPage(page);
   22  |   });
-  23  | 
+  23  |
   24  |   test('[P1] create module → undo removes it → redo restores it', async ({ page }) => {
   25  |     // Create
   26  |     await createModule(page, 'stock', 0, 0);
   27  |     await expect(page.locator('.countdown-panel__list')).toBeVisible({ timeout: 2000 });
-  28  | 
+  28  |
   29  |     // Undo → stock removed
   30  |     await pressKey(page, 'z', true, false);
   31  |     await page.waitForTimeout(300);
   32  |     await expect(page.locator('.countdown-panel__empty')).toBeVisible({ timeout: 2000 });
-  33  | 
+  33  |
   34  |     // Redo → stock restored
   35  |     await pressKey(page, 'z', true, true);
   36  |     await page.waitForTimeout(300);
   37  |     await expect(page.locator('.countdown-panel__list')).toBeVisible({ timeout: 2000 });
   38  |   });
-  39  | 
+  39  |
   40  |   test('[P1] create connection → undo removes it → redo restores it', async ({ page }) => {
   41  |     await createModule(page, 'source', -200, -100);
   42  |     await createModule(page, 'stock', 0, 0);
   43  |     await createConnection(page, -200, -100, 0, 0);
-  44  | 
+  44  |
   45  |     // Verify connection exists
   46  |     const midX = (-200 + 0) / 2;
   47  |     const midY = (-100 + 0) / 2;
   48  |     await page.mouse.click(worldToScreen(midX, midY).x, worldToScreen(midX, midY).y);
   49  |     await expect(page.locator('.rate-editor__form')).toBeVisible({ timeout: 2000 });
-  50  | 
+  50  |
   51  |     // Undo → connection removed
   52  |     await pressKey(page, 'z', true, false);
   53  |     await page.waitForTimeout(300);
-  54  | 
+  54  |
   55  |     // Click at midpoint again — rate editor should stay empty
   56  |     await page.mouse.click(worldToScreen(midX, midY).x, worldToScreen(midX, midY).y);
   57  |     await page.waitForTimeout(300);
   58  |     await expect(page.locator('.rate-editor__empty')).toBeVisible({ timeout: 2000 });
-  59  | 
+  59  |
   60  |     // Redo → connection restored
   61  |     await pressKey(page, 'z', true, true);
   62  |     await page.waitForTimeout(300);
@@ -108,60 +108,60 @@ Call log:
   64  |     await page.waitForTimeout(300);
   65  |     await expect(page.locator('.rate-editor__form')).toBeVisible({ timeout: 2000 });
   66  |   });
-  67  | 
+  67  |
   68  |   test('[P2] delete module → Ctrl+Z restores it', async ({ page }) => {
   69  |     await createModule(page, 'stock', 0, 0);
   70  |     await selectModule(page, 0, 0);
   71  |     await expect(page.locator('.analytics-panel__data')).toBeVisible({ timeout: 2000 });
-  72  | 
+  72  |
   73  |     // Delete
   74  |     await pressDelete(page);
   75  |     await expect(page.locator('.analytics-panel__empty')).toBeVisible({ timeout: 2000 });
-  76  | 
+  76  |
   77  |     // Undo → stock restored
   78  |     await pressKey(page, 'z', true, false);
   79  |     await page.waitForTimeout(300);
-  80  | 
+  80  |
   81  |     // Stock should be back on canvas
   82  |     await expect(page.locator('.countdown-panel__list')).toBeVisible({ timeout: 2000 });
   83  |   });
-  84  | 
+  84  |
   85  |   test('[P2] multiple undos revert operations in reverse order', async ({ page }) => {
   86  |     // Create 2 modules (2 operations)
   87  |     await createModule(page, 'stock', 0, 0);
   88  |     await createModule(page, 'stock', 100, 50);
-  89  | 
+  89  |
   90  |     // Undo twice → both removed
   91  |     await pressKey(page, 'z', true, false);
   92  |     await page.waitForTimeout(300);
   93  |     await pressKey(page, 'z', true, false);
   94  |     await page.waitForTimeout(300);
-  95  | 
+  95  |
   96  |     // No stocks should remain
   97  |     await expect(page.locator('.countdown-panel__empty')).toBeVisible({ timeout: 2000 });
   98  |   });
-  99  | 
+  99  |
   100 |   test('[P2] undo stack survives multiple operations', async ({ page }) => {
   101 |     // Complex sequence: create stock, create stock, create source, connect
   102 |     await createModule(page, 'stock', 0, 0);
   103 |     await createModule(page, 'stock', 100, 50);
   104 |     await createModule(page, 'source', -200, -100);
   105 |     await createConnection(page, -200, -100, 0, 0);
-  106 | 
+  106 |
   107 |     // Verify everything exists
   108 |     await selectModule(page, 0, 0);
 > 109 |     await expect(page.locator('.analytics-panel__data')).toBeVisible({ timeout: 2000 });
       |                                                          ^ Error: expect(locator).toBeVisible() failed
-  110 | 
+  110 |
   111 |     // Undo 4 times → should go back to empty canvas
   112 |     for (let i = 0; i < 4; i++) {
   113 |       await pressKey(page, 'z', true, false);
   114 |       await page.waitForTimeout(150);
   115 |     }
-  116 | 
+  116 |
   117 |     // Canvas should be empty
   118 |     await expect(page.locator('.countdown-panel__empty')).toBeVisible({ timeout: 2000 });
   119 |   });
   120 | });
-  121 | 
+  121 |
 ```

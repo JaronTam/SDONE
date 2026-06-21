@@ -1,7 +1,7 @@
 ---
-name: 'step-04-validate-and-summary'
-description: 'Validate pipeline and summarize'
-outputFile: '{test_artifacts}/ci-pipeline-progress.md'
+name: "step-04-validate-and-summary"
+description: "Validate pipeline and summarize"
+outputFile: "{test_artifacts}/ci-pipeline-progress.md"
 ---
 
 # Step 4: Validate & Summarize
@@ -66,9 +66,9 @@ Report:
 
   ```yaml
   ---
-  stepsCompleted: ['step-04-validate-and-summary']
-  lastStep: 'step-04-validate-and-summary'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-04-validate-and-summary"]
+  lastStep: "step-04-validate-and-summary"
+  lastSaved: "{date}"
   ---
   ```
 

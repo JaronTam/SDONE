@@ -1,7 +1,7 @@
 ---
-name: 'step-05-validate-and-complete'
-description: 'Validate ATDD outputs and summarize'
-outputFile: '{test_artifacts}/atdd-checklist-{story_key}.md'
+name: "step-05-validate-and-complete"
+description: "Validate ATDD outputs and summarize"
+outputFile: "{test_artifacts}/atdd-checklist-{story_key}.md"
 ---
 
 # Step 5: Validate & Complete
@@ -82,13 +82,13 @@ Report:
 
   ```yaml
   ---
-  stepsCompleted: ['step-05-validate-and-complete']
-  lastStep: 'step-05-validate-and-complete'
-  lastSaved: '{date}'
-  storyId: '{story_id}'
-  storyKey: '{story_key}'
-  storyFile: '{story_file}'
-  atddChecklistPath: '{outputFile}'
+  stepsCompleted: ["step-05-validate-and-complete"]
+  lastStep: "step-05-validate-and-complete"
+  lastSaved: "{date}"
+  storyId: "{story_id}"
+  storyKey: "{story_key}"
+  storyFile: "{story_file}"
+  atddChecklistPath: "{outputFile}"
   generatedTestFiles: []
   ---
   ```

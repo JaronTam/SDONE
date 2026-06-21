@@ -51,9 +51,11 @@ test.describe('Overlays', () => {
     await page.waitForTimeout(4000);
 
     // Toast should be gone
-    await expect(toast).toBeHidden({ timeout: 2000 }).catch(() => {
-      // If still visible, check it's in exiting state
-    });
+    await expect(toast)
+      .toBeHidden({ timeout: 2000 })
+      .catch(() => {
+        // If still visible, check it's in exiting state
+      });
   });
 
   // ── Color Picker Popover ──────────────────────────────────────────

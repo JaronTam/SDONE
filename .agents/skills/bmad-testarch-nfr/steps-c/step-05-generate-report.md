@@ -1,7 +1,7 @@
 ---
-name: 'step-05-generate-report'
-description: 'Create NFR report and validation summary'
-outputFile: '{test_artifacts}/nfr-assessment.md'
+name: "step-05-generate-report"
+description: "Create NFR report and validation summary"
+outputFile: "{test_artifacts}/nfr-assessment.md"
 ---
 
 # Step 5: Generate Report & Validate
@@ -72,9 +72,9 @@ Validate against `checklist.md` and fix gaps.
 
   ```yaml
   ---
-  stepsCompleted: ['step-05-generate-report']
-  lastStep: 'step-05-generate-report'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-05-generate-report"]
+  lastStep: "step-05-generate-report"
+  lastSaved: "{date}"
   ---
   ```
 

@@ -42,10 +42,10 @@ metadata:
 
 对整个 `sdone/src/` 目录的交叉搜索证实：
 
-| 搜索模式 | 匹配数 | 位置 |
-|---------|--------|------|
-| `node.width` / `node.height` | **0** | 无 |
-| `\.width` / `\.height` (canvas/DOM 属性) | 60+ | Canvas API, DOM 元素 |
+| 搜索模式                                 | 匹配数 | 位置                 |
+| ---------------------------------------- | ------ | -------------------- |
+| `node.width` / `node.height`             | **0**  | 无                   |
+| `\.width` / `\.height` (canvas/DOM 属性) | 60+    | Canvas API, DOM 元素 |
 
 **SceneRenderer 使用硬编码常量，不读取 `node.width`/`node.height`：**
 
@@ -82,11 +82,11 @@ case 'stock': {
 **此前审查声明:**
 
 > NaN/Infinity 可穿透 `Math.max()` 钳位存入状态
-> 
-> | 输入 | `Math.max(60, x)` 结果 | 存入状态 | 后果 |
-> |------|------------------------|---------|------|
-> | `NaN` | `NaN` | `width: NaN` | 渲染层 `NaN` 坐标导致模块消失 |
-> | `Infinity` | `Infinity` | `width: Infinity` | 渲染层无限尺寸导致 canvas 溢出/OOM |
+>
+> | 输入       | `Math.max(60, x)` 结果 | 存入状态          | 后果                               |
+> | ---------- | ---------------------- | ----------------- | ---------------------------------- |
+> | `NaN`      | `NaN`                  | `width: NaN`      | 渲染层 `NaN` 坐标导致模块消失      |
+> | `Infinity` | `Infinity`             | `width: Infinity` | 渲染层无限尺寸导致 canvas 溢出/OOM |
 
 **事实:**
 
@@ -107,11 +107,11 @@ case 'stock': {
 
 PATCH-1 的修复方向仍然正确（mutation 层应防御性验证输入），但严重度应从 P2 降级为 P3：
 
-| 维度 | 此前评估 | 修正评估 | 理由 |
-|------|---------|---------|------|
-| 当前影响 | P2 (渲染崩溃) | **P3 (死写入污染)** | 无消费者读取 |
-| 未来影响 | 未评估 | **P2 (消费者集成时崩溃)** | 当渲染层开始读取时，NaN/Infinity 将导致崩溃 |
-| 修复必要性 | 必须 | 仍然推荐 | 防御性编程原则不变 |
+| 维度       | 此前评估      | 修正评估                  | 理由                                        |
+| ---------- | ------------- | ------------------------- | ------------------------------------------- |
+| 当前影响   | P2 (渲染崩溃) | **P3 (死写入污染)**       | 无消费者读取                                |
+| 未来影响   | 未评估        | **P2 (消费者集成时崩溃)** | 当渲染层开始读取时，NaN/Infinity 将导致崩溃 |
+| 修复必要性 | 必须          | 仍然推荐                  | 防御性编程原则不变                          |
 
 ---
 
@@ -125,14 +125,14 @@ PATCH-1 的修复方向仍然正确（mutation 层应防御性验证输入），
 // updateCapacity — 有类型守卫
 export function updateCapacity(state, stockId, capacity) {
   const node = state.nodes[stockId];
-  if (!node || node.type !== 'stock') return unchanged(state);  // ← 类型守卫
+  if (!node || node.type !== "stock") return unchanged(state); // ← 类型守卫
   // ...
 }
 
 // updateModuleSize — 无类型守卫
 export function updateModuleSize(state, moduleId, width, height) {
   const existing = state.nodes[moduleId];
-  if (!existing) return unchanged(state);  // ← 仅存在性检查，无类型检查
+  if (!existing) return unchanged(state); // ← 仅存在性检查，无类型检查
   // ...
 }
 ```
@@ -178,19 +178,21 @@ export function updateModuleSize(state, moduleId, width, height) {
 在审查报告中添加集成风险章节：
 
 > **INTEGRATION-1 (P1): `node.width`/`node.height` 死写入**
-> 
+>
 > Story 8.1 扩展了 `ModuleNode` schema 添加 `width?`/`height?`，并提供了 `updateModuleSize` mutation 写入这些值。但整个代码库中**零消费者**读取 `node.width`/`node.height`：
+>
 > - SceneRenderer 使用硬编码常量 `STOCK_WIDTH`/`STOCK_HEIGHT`
 > - InputManager 使用硬编码常量
 > - MinimapRenderer 使用硬编码常量
-> 
+>
 > 这意味着 `updateModuleSize` 当前是**死写入**——值存入状态但无任何效果。
-> 
+>
 > **风险:** 当未来 story 集成 `node.width`/`node.height` 到渲染层时：
+>
 > 1. 需要修改 SceneRenderer 的 `drawStock`/`getModuleBoundingRadius`/`getEdgePoint`/`getHitRadius`/`getVisualEdgeDistance` 等函数
 > 2. 需要决定 source/sink 的 width/height 语义（云朵/漏斗形状如何映射？）
 > 3. 需要处理 `undefined`（旧状态无此字段）的回退逻辑
-> 
+>
 > **建议:** 在 Story 8.1 的 story 文件或架构文档中明确标注"渲染集成待后续 story 完成"，避免未来集成时遗漏。
 
 ### 修正-2: PATCH-1 严重度降级
@@ -199,11 +201,11 @@ export function updateModuleSize(state, moduleId, width, height) {
 
 **修正:**
 
-| 项目 | 此前 | 修正 |
-|------|------|------|
-| PATCH-1 严重度 | P2 | **P3** (当前无消费者) |
+| 项目             | 此前                          | 修正                                                     |
+| ---------------- | ----------------------------- | -------------------------------------------------------- |
+| PATCH-1 严重度   | P2                            | **P3** (当前无消费者)                                    |
 | PATCH-1 影响描述 | "渲染层 NaN 坐标导致模块消失" | "死写入污染——当前无渲染影响，未来消费者集成时将导致崩溃" |
-| 修复必要性 | 必须 | 推荐（防御性编程） |
+| 修复必要性       | 必须                          | 推荐（防御性编程）                                       |
 
 ### 修正-3: 添加类型守卫缺失发现
 
@@ -214,9 +216,9 @@ export function updateModuleSize(state, moduleId, width, height) {
 添加新发现：
 
 > **GUARD-1 (P3): `updateModuleSize` 缺少类型守卫**
-> 
+>
 > `updateCapacity` 限制只有 stock 节点可以更新容量，但 `updateModuleSize` 接受任何模块类型。Source（云朵形状）和 Sink（漏斗形状）的 width/height 语义不清晰，未来集成时可能需要类型守卫或特殊映射逻辑。
-> 
+>
 > **建议:** 当前可保持现状（ModuleNode 基类定义了 width/height，所有子类型继承），但在渲染集成 story 中必须解决此设计问题。
 
 ---
@@ -257,25 +259,25 @@ export function updateModuleSize(state, moduleId, width, height) {
 
 ## 📊 修正后评分
 
-| 维度 | 原评分 | 修正评分 | 理由 |
-|------|--------|---------|------|
-| 功能正确性 | 18/20 | 16/20 | 死写入降低功能价值 |
-| 防御性验证 | 14/20 | 14/20 | 不变（PATCH-1 方向正确） |
-| 测试覆盖 | 17/20 | 15/20 | 缺少消费者集成测试（虽然当前无消费者可测） |
-| 架构对齐 | 19/20 | 15/20 | schema 扩展半成品，读取端未集成 |
-| 代码质量 | 19/20 | 19/20 | 不变 |
-| **总分** | **87/100** | **79/100** | **B+ 级** |
+| 维度       | 原评分     | 修正评分   | 理由                                       |
+| ---------- | ---------- | ---------- | ------------------------------------------ |
+| 功能正确性 | 18/20      | 16/20      | 死写入降低功能价值                         |
+| 防御性验证 | 14/20      | 14/20      | 不变（PATCH-1 方向正确）                   |
+| 测试覆盖   | 17/20      | 15/20      | 缺少消费者集成测试（虽然当前无消费者可测） |
+| 架构对齐   | 19/20      | 15/20      | schema 扩展半成品，读取端未集成            |
+| 代码质量   | 19/20      | 19/20      | 不变                                       |
+| **总分**   | **87/100** | **79/100** | **B+ 级**                                  |
 
 ---
 
 ## 📝 修正后修复清单
 
-| # | 优先级 | 修复项 | 文件 | 状态 |
-|---|--------|-------|------|------|
-| PATCH-1 | P3↓ | 添加 `Number.isFinite()` 验证 | `mutations.ts` | ✅ 已修复 |
-| PATCH-2 | P3 | 添加 NaN/Infinity 测试用例 | `mutations.test.ts` | ✅ 已修复 |
-| INTEGRATION-1 | P1↑ | 标注死写入风险，明确渲染集成待后续 story | 架构文档/story 文件 | ❌ 待处理 |
-| GUARD-1 | P3 | 评估 `updateModuleSize` 类型守卫需求 | `mutations.ts` | ❌ 待评估 |
+| #             | 优先级 | 修复项                                   | 文件                | 状态      |
+| ------------- | ------ | ---------------------------------------- | ------------------- | --------- |
+| PATCH-1       | P3↓    | 添加 `Number.isFinite()` 验证            | `mutations.ts`      | ✅ 已修复 |
+| PATCH-2       | P3     | 添加 NaN/Infinity 测试用例               | `mutations.test.ts` | ✅ 已修复 |
+| INTEGRATION-1 | P1↑    | 标注死写入风险，明确渲染集成待后续 story | 架构文档/story 文件 | ❌ 待处理 |
+| GUARD-1       | P3     | 评估 `updateModuleSize` 类型守卫需求     | `mutations.ts`      | ❌ 待评估 |
 
 ---
 

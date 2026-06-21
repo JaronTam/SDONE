@@ -20,6 +20,7 @@ metadata:
 核心问题：**3 条 patch 发现为误报，1 条被两个独立审查层一致标记的关键发现（🟠 High）被错误驳回**。
 
 统计变化：
+
 - 5 个 patch → 仅 2 个真实有效（P2 降级、P3 保留）
 - 3 个 dismiss 决定 → 1 个撤销（SNAPSHOT_EMITTED 陈旧状态读取）
 - 净效应：有效发现从 5→2 减少，但新增 1 个本应保留的 🟠 High 发现
@@ -33,6 +34,7 @@ metadata:
 **此前结论**: 🟡 Medium patch — `toFixed(1)` 对 ≥ 1e21 的值抛出 RangeError
 
 **审计验证**: **FALSE**. ECMAScript 2024 规范 §21.1.3.26 `Number.prototype.toFixed`:
+
 - Step 6: If `x ≥ 10^21`, return `Number::toString(x, 10)`
 - 即返回指数表示法（如 `"1e+21"`），不抛异常
 - V8/SpiderMonkey/JavaScriptCore 均遵循此行为
@@ -51,6 +53,7 @@ metadata:
 **此前结论**: 🟡 Medium patch — `refreshAnalyticsPanel()` 在连接提交至 state 前调用
 
 **审计验证**: **FALSE**. 实际代码流程 (main.ts:708-747):
+
 ```typescript
 currentState = nextState;           // line 730 ← STATE 先更新
 historyManager.push(currentState);  // line 733
@@ -80,13 +83,15 @@ eventBus.emit('CONNECTION_CREATED', ...); // line 742 ← 事件在最后
 **此前结论**: DISMISS — "快照桥在 emit 前已同步 currentState，误报"
 
 **审计验证**: **我的驳回是错的**. 快照桥实际代码 (main.ts:52-54):
+
 ```typescript
 simEngine.onTick = (state) => {
-  eventBus.emit('SNAPSHOT_EMITTED', { state: structuredClone(state) });
+  eventBus.emit("SNAPSHOT_EMITTED", { state: structuredClone(state) });
 };
 ```
 
 **关键事实链**:
+
 1. `simEngine.onTick` 收到仿真引擎的计算结果 `state`（包含最新的 stock.value）
 2. 创建 `structuredClone(state)` 作为 `payload.state`
 3. **未将 `currentState` 更新为此新状态**
@@ -95,6 +100,7 @@ simEngine.onTick = (state) => {
    - `refreshAnalyticsPanel()` 读取 `currentState` ✗（错误，读取仿真前状态）
 
 **实际影响**:
+
 - `computeStockAnalytics` 读取 `stock.value` → 仿真期间显示冻结的 `currentValue`
 - 流入/流出/净变化值不受影响（连接的 rate 在仿真期间不变）
 - **AC2 部分违反**: "analytics panel values update at 10Hz" — `currentValue` 在仿真期间不更新
@@ -109,7 +115,8 @@ simEngine.onTick = (state) => {
 
 **此前结论**: 🟡 Medium — capacity NaN 时显示 "∞" 而非 "0.0"
 
-**审计验证**: **有效但非崩溃**. 
+**审计验证**: **有效但非崩溃**.
+
 - `Number.isFinite(NaN)` → `false` → 进入 `if` 分支 → 显示 "∞"
 - 无崩溃风险，仅与 spec 要求的 NaN→"0.0" 规范不一致
 - 严重度应从 🟡 Medium → 🔵 Low
@@ -123,6 +130,7 @@ simEngine.onTick = (state) => {
 **此前结论**: 🔵 Low — DRY 违规，无运行时影响
 
 **审计验证**: **正确**.
+
 - `NaN < 0` 为 `false`，NaN 无法到达负值分支
 - 负值分支中 `Math.abs(negativeNumber).toFixed(1)` 始终安全
 - 纯代码质量问题
@@ -137,10 +145,10 @@ simEngine.onTick = (state) => {
 
 **正确结论 — 仅 2 条真实 PATCH:**
 
-| # | 标题 | 严重度 | 位置 |
-|---|------|--------|------|
-| P1' | SNAPSHOT_EMITTED 中 `refreshAnalyticsPanel()` 读 `currentState` 而非 `payload.state` — 仿真期间 `currentValue` 冻结 | 🟠 High | `main.ts:545` |
-| P2' | 负净变化分支重新计算 `.toFixed()` 绕过 `netText` NaN 守卫 — DRY 违规 | 🔵 Low | `AnalyticsPanel.ts:255` |
+| #   | 标题                                                                                                                | 严重度  | 位置                    |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------- |
+| P1' | SNAPSHOT_EMITTED 中 `refreshAnalyticsPanel()` 读 `currentState` 而非 `payload.state` — 仿真期间 `currentValue` 冻结 | 🟠 High | `main.ts:545`           |
+| P2' | 负净变化分支重新计算 `.toFixed()` 绕过 `netText` NaN 守卫 — DRY 违规                                                | 🔵 Low  | `AnalyticsPanel.ts:255` |
 
 ### 修正 2: P1' 的第一性原理溯源
 
@@ -149,11 +157,15 @@ simEngine.onTick = (state) => {
 **此前偏离原因**: 我默认假设了「事件系统自动同步状态」的模式（如 React state/Redux），但这是一个简单的可变变量 + 事件总线架构。在此架构中，`currentState` 不会因事件发射而自动更新——只有显式的 `currentState =` 赋值才会改变它。
 
 **修复溯源**:
+
 ```typescript
 // 方案 A: 传递快照状态给 refreshAnalyticsPanel
 function refreshAnalyticsPanel(snapshotState?: GraphState): void {
   const selectedId = currentState.selectedModuleIds[0];
-  if (!selectedId) { analyticsPanel.setStock(null); return; }
+  if (!selectedId) {
+    analyticsPanel.setStock(null);
+    return;
+  }
   const stateToUse = snapshotState ?? currentState;
   analyticsPanel.setStock(computeStockAnalytics(stateToUse, selectedId));
 }
@@ -194,10 +206,12 @@ function refreshAnalyticsPanel(snapshotState?: GraphState): void {
 ## [最终正确发现清单]
 
 ### PATCH (2 条)
+
 - 🟠 [PATCH] SNAPSHOT_EMITTED handler 中 `refreshAnalyticsPanel()` 读取陈旧 `currentState` — 仿真期间 currentValue 冻结 [main.ts:545]
 - 🔵 [PATCH] 负净变化分支重新计算 `.toFixed()` 绕过 `netText` NaN 守卫 — DRY 违规 [AnalyticsPanel.ts:255]
 
 ### DEFER (4 条)
+
 - 🔵 Capacity NaN 显示 "∞" 而非 "0.0" — 与 spec NaN 守卫规范不一致，但语义合理 [AnalyticsPanel.ts:267]
 - 🔵 右侧边栏缺少 overflow-y — 预先存在，非本 Story 引入 [layout.css]
 - 🔵 `destroy()` 未将元素引用置空 — HMR 场景微内存问题 [AnalyticsPanel.ts:278]
@@ -212,5 +226,6 @@ function refreshAnalyticsPanel(snapshotState?: GraphState): void {
 本审计报告针对的是 **代码审查过程本身的准确性**，而非 Story 6.2 实现代码。Story 6.2 实现代码的审计已在 [[story-6-2-audit-2026-06-03]] 中完成。
 
 两层审计的关系:
+
 - **实现审计** (story-6-2-audit): 审查代码是否按 spec 实现 → 结论: 3 处架构偏差已修正
 - **审查审计** (本报告): 审查代码审查过程是否准确 → 结论: 5 条 patch 中 3 条误报，1 条关键发现被错误驳回

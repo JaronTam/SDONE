@@ -30,10 +30,12 @@ Triage 阶段未能有效过滤这些噪音，将 7 个 🟢 Low 级别的防御
 #### A1. ECH Finding #11: "reset() leaves stock values at current position" — 🟡 Medium
 
 **ECH 原文:**
+
 > After reset(), engine.t is 0 but all stock values remain at their last-ticked values, not their initialValue. This means calling tick() after reset() resumes from arbitrary values with the clock at zero -- an inconsistent model state.
 
 **事实:**
 规格明确声明（Dev Notes Anti-pattern #4, 代码第 86-91 行 JSDoc）:
+
 > Does NOT modify GraphState — state reset (restoring initialValue on stocks) is handled by the RESET event handler in Story 4.2.
 
 这不是一个缺陷——这是**架构级别的有意识设计决策**。`SimulationEngine.reset()` 只重置引擎内部时钟。状态重置由 Story 4.2 的 RESET 事件处理器负责，它会调用 mutation 函数恢复 `initialValue`。将职责分离到不同故事中是有意为之。
@@ -45,10 +47,12 @@ Triage 阶段未能有效过滤这些噪音，将 7 个 🟢 Low 级别的防御
 #### A2. ECH Finding #16: "dt = 0 causes version drift without value change" — 🟢 Low
 
 **ECH 原文:**
+
 > When dt = 0, no stock values change but state.version and this.t still advance. This can cause unnecessary re-renders... it is wasteful. Recommendation: Early-return from tick when dt === 0.
 
 **事实:**
 规格 Anti-pattern #2 明确声明（原文大写强调）:
+
 > **[P0] Do NOT skip version increment on no-op ticks.** Even if no stocks exist, state.version++ should still fire — it signals "a tick happened" to any polling renderer.
 
 `dt=0` 被设计为 Story 4.2 的暂停状态，**必须递增 version** 以告知所有消费者"tick 发生了"。
@@ -60,6 +64,7 @@ Triage 阶段未能有效过滤这些噪音，将 7 个 🟢 Low 级别的防御
 #### A3. Blind Hunter Finding #9: Test description "no-op" contradiction — 🟢 Low
 
 **BH 原文:**
+
 > Test is titled "tick on empty GraphState is a no-op (version still increments)". A no-op by definition produces no side effects... the description would mislead someone skimming failures.
 
 **事实:**
@@ -74,6 +79,7 @@ Triage 阶段未能有效过滤这些噪音，将 7 个 🟢 Low 级别的防御
 #### B1. ECH Finding #7: "this.t loses precision over very long simulations" — 🟡 Medium
 
 **ECH 原文:**
+
 > This happens after roughly 1e12 / 0.0167 ≈ 6e13 ticks (about 110,000 years of simulation at 60 FPS).
 
 **事实:**
@@ -86,6 +92,7 @@ ECH 自身计算表明需要 **110,000 年**的连续模拟才会触发。这是
 #### B2. ECH Finding #6: "Catastrophic cancellation from very large opposite-sign net flows" — 🟡 Medium
 
 **ECH 原文:**
+
 > If a stock has thousands of inbound connections summing to ~1e308 and thousands of outbound connections also summing to ~1e308, both inflow and outflow round to Infinity individually...
 
 **事实:**
@@ -98,6 +105,7 @@ ECH 自身计算表明需要 **110,000 年**的连续模拟才会触发。这是
 #### B3. ECH Finding #10: "Stock value overflow to Infinity" — 🟡 Medium
 
 **ECH 原文:**
+
 > If stock.value is within ~1e308 of Number.MAX_VALUE, adding a positive net flow can overflow to Infinity.
 
 **事实:**
@@ -110,6 +118,7 @@ ECH 自身计算表明需要 **110,000 年**的连续模拟才会触发。这是
 #### B4. ECH Finding #12: "Floating-point underflow with very small dt" — 🟢 Low
 
 **ECH 原文:**
+
 > If dt is very small (e.g., 1e-200) and netFlow is moderate (e.g., 5), the product 5e-200 is below Number.MIN_VALUE...
 
 **事实:**
@@ -122,18 +131,21 @@ dt 设计值是 1/60（~0.0167）。1e-200 的 dt 值在实际使用中不可能
 #### C1. ECH Finding #1 + Blind Hunter #4: "Unsafe as StockNode cast" — 🔴 Critical (ECH) / 🟡 Medium (BH)
 
 **ECH 原文:**
+
 > This is especially dangerous if GraphState is loaded from JSON (user data or persistence) where no runtime type guarantees exist.
 
 **事实核查 — TypeScript 类型系统:**
 `GraphState.nodes` 的类型为 `Record<string, ModuleNode>`，其中 `ModuleNode` 是一个 **interface**，而非 discriminated union type。TypeScript 对 interface 层级结构**不会**基于 discriminant property 进行控制流窄化（control-flow narrowing）。`if (node.type !== 'stock') continue` 会窄化 `node.type` 到 `'stock'`，但**不会**窄化 `node` 到 `StockNode`。因此 `as StockNode` 强制转换是**类型系统必需的**，而非"绕过类型安全"。
 
 **ECH Finding #13 的事实性错误:**
+
 > The `as StockNode` cast should be unnecessary. If state.nodes were typed as a union... TypeScript's narrow-on-discriminant would work automatically.
 
 这**乍看合理但实际错误**。将 `GraphState.nodes` 改为 union type (`Record<string, StockNode | SourceNode | SinkNode>`) 将影响整个 `GraphState.ts` 中所有消费 `state.nodes` 的代码路径——包括 `mutations.ts`、所有 canvas 渲染器、InputManager、main.ts 等数十个文件。这不是一个简单的类型修改，而是一个**架构级重构**。ECH 将其描述为一个小改动是对代码库耦合度的误判。
 
 **运行时安全:**
 ECH 关于 JSON 反序列化风险的担忧在理论上成立，但在此项目中不适用：
+
 - 此项目是客户端单页应用，无服务端数据注入
 - 所有 state 通过 `makeStock()` 等受控工厂函数创建
 - 无持久化/反持久化机制
@@ -189,6 +201,7 @@ dt 参数由 Story 4.2 的 setInterval 循环传入。在正常操作中，dt �
 #### D1. ECH Finding #13: "as StockNode cast is redundant (code smell) and masks type-narrowing failure"
 
 **错误陈述:**
+
 > The `as StockNode` cast should be unnecessary.
 
 **事实:**
@@ -202,15 +215,15 @@ dt 参数由 Story 4.2 的 setInterval 循环传入。在正常操作中，dt �
 
 此前 triage 将 7 个发现标记为 PATCH（可修复缺陷），但逐项审计后：
 
-| Patch # | 原标题 | 正确分类 | 理由 |
-|---------|--------|----------|------|
-| P1 | Guard NaN/Infinity in computeNetFlow | 🟢 Defer | 防御深度，当前调用方不会传入非法值 |
-| P2 | Negative dt guard | 🟢 Defer | dt 由受控调用方传入，负值不会出现 |
-| P3 | Null state guard | 🟢 Defer | state 由受控工厂创建，不会为 null |
-| P4 | Make t readonly/private | 🟢 Defer | 有效封装改进，但无安全影响 |
-| P5 | StockNode runtime value guard | 🟢 Defer | 超防御性，无实际攻击面 |
-| P6 | Consistent drift test pattern | 🟢 Defer | 纯 cosmetic，无功能影响 |
-| P7 | Integer-safe version increment | 🟢 Defer | version 由受控路径递增，不会损坏 |
+| Patch # | 原标题                               | 正确分类 | 理由                               |
+| ------- | ------------------------------------ | -------- | ---------------------------------- |
+| P1      | Guard NaN/Infinity in computeNetFlow | 🟢 Defer | 防御深度，当前调用方不会传入非法值 |
+| P2      | Negative dt guard                    | 🟢 Defer | dt 由受控调用方传入，负值不会出现  |
+| P3      | Null state guard                     | 🟢 Defer | state 由受控工厂创建，不会为 null  |
+| P4      | Make t readonly/private              | 🟢 Defer | 有效封装改进，但无安全影响         |
+| P5      | StockNode runtime value guard        | 🟢 Defer | 超防御性，无实际攻击面             |
+| P6      | Consistent drift test pattern        | 🟢 Defer | 纯 cosmetic，无功能影响            |
+| P7      | Integer-safe version increment       | 🟢 Defer | version 由受控路径递增，不会损坏   |
 
 **结论:** 7 个"patch"全部应为 Defer 或 Dismiss。零个是实际需要修复的缺陷。
 
@@ -269,30 +282,31 @@ Triage 阶段接收到的输入已经是"严重度膨胀"的发现列表。在�
 
 ## [修正后的完整发现矩阵]
 
-| # | 来源 | 标题 | 原严重度 | 修正严重度 | 修正分类 |
-|---|------|------|----------|------------|----------|
-| 1 | BH+ECH | NaN/Infinity 速率无防护 | 🔴 Critical | 🟢 Low | Defer |
-| 2 | BH+ECH | 负 dt 无防护 | 🔴 Critical | 🟢 Low | Defer |
-| 3 | ECH | state.version 类型安全 | 🔴 Critical | 🟢 Low | Defer |
-| 4 | ECH | as StockNode 运行时安全 | 🔴 Critical | 🟢 Low | Defer |
-| 5 | ECH | Infinity 速率级联失效 | 🔴 Critical | 🟢 Low | Defer (合并到 #1) |
-| 6 | ECH | reset() 未恢复 stock 值 | 🟡 Medium | — | **Dismiss** (违背规格) |
-| 7 | ECH | this.t 长期精度损失 | 🟡 Medium | — | **Dismiss** (不可能触发) |
-| 8 | ECH | 灾难性抵消 | 🟡 Medium | — | **Dismiss** (不可能触发) |
-| 9 | ECH | state 空值抛出异常 | 🟡 Medium | 🟢 Low | Defer |
-| 10 | ECH | Stock 值溢出 | 🟡 Medium | — | **Dismiss** (不可能触发) |
-| 11 | BH | computeNetFlow O(S*C) 文档 | 🟢 Low | 🟢 Low | Defer |
-| 12 | ECH | as StockNode 强制转换"冗余" | 🟢 Low | — | **Dismiss** (事实性错误) |
-| 13 | ECH | t 公开可写 | 🟢 Low | 🟢 Low | Defer |
-| 14 | ECH | dt=0 版本漂移 | 🟢 Low | — | **Dismiss** (违背规格) |
-| 15 | ECH | 缺少对抗性测试 | 🟢 Low | — | Defer (原分类正确) |
-| 16 | ECH | 双引擎共享状态 | 🟢 Low | — | Dismiss (API 设计) |
-| 17 | ECH | SimulationConfig 未使用 | 🟢 Low | — | Defer (Story 4.2 脚手架) |
-| 18 | BH+Auditor | 测试漂移模式不一致 | 🟢 Low | 🟢 Low | Defer (cosmetic) |
-| 19 | BH | Capacity 字段忽略 | 🟡 Medium | 🟢 Low | Defer |
-| 20 | BH | 浮点下溢 | 🟢 Low | — | Dismiss (不可能触发) |
+| #   | 来源       | 标题                        | 原严重度    | 修正严重度 | 修正分类                 |
+| --- | ---------- | --------------------------- | ----------- | ---------- | ------------------------ |
+| 1   | BH+ECH     | NaN/Infinity 速率无防护     | 🔴 Critical | 🟢 Low     | Defer                    |
+| 2   | BH+ECH     | 负 dt 无防护                | 🔴 Critical | 🟢 Low     | Defer                    |
+| 3   | ECH        | state.version 类型安全      | 🔴 Critical | 🟢 Low     | Defer                    |
+| 4   | ECH        | as StockNode 运行时安全     | 🔴 Critical | 🟢 Low     | Defer                    |
+| 5   | ECH        | Infinity 速率级联失效       | 🔴 Critical | 🟢 Low     | Defer (合并到 #1)        |
+| 6   | ECH        | reset() 未恢复 stock 值     | 🟡 Medium   | —          | **Dismiss** (违背规格)   |
+| 7   | ECH        | this.t 长期精度损失         | 🟡 Medium   | —          | **Dismiss** (不可能触发) |
+| 8   | ECH        | 灾难性抵消                  | 🟡 Medium   | —          | **Dismiss** (不可能触发) |
+| 9   | ECH        | state 空值抛出异常          | 🟡 Medium   | 🟢 Low     | Defer                    |
+| 10  | ECH        | Stock 值溢出                | 🟡 Medium   | —          | **Dismiss** (不可能触发) |
+| 11  | BH         | computeNetFlow O(S\*C) 文档 | 🟢 Low      | 🟢 Low     | Defer                    |
+| 12  | ECH        | as StockNode 强制转换"冗余" | 🟢 Low      | —          | **Dismiss** (事实性错误) |
+| 13  | ECH        | t 公开可写                  | 🟢 Low      | 🟢 Low     | Defer                    |
+| 14  | ECH        | dt=0 版本漂移               | 🟢 Low      | —          | **Dismiss** (违背规格)   |
+| 15  | ECH        | 缺少对抗性测试              | 🟢 Low      | —          | Defer (原分类正确)       |
+| 16  | ECH        | 双引擎共享状态              | 🟢 Low      | —          | Dismiss (API 设计)       |
+| 17  | ECH        | SimulationConfig 未使用     | 🟢 Low      | —          | Defer (Story 4.2 脚手架) |
+| 18  | BH+Auditor | 测试漂移模式不一致          | 🟢 Low      | 🟢 Low     | Defer (cosmetic)         |
+| 19  | BH         | Capacity 字段忽略           | 🟡 Medium   | 🟢 Low     | Defer                    |
+| 20  | BH         | 浮点下溢                    | 🟢 Low      | —          | Dismiss (不可能触发)     |
 
 **修正后统计:**
+
 - 🔴 Critical: **0**
 - 🟡 Medium: **0**
 - 🟢 Low (Defer): **10**（均为防御深度/cosmetic/脚手架项）
@@ -308,4 +322,4 @@ Triage 阶段接收到的输入已经是"严重度膨胀"的发现列表。在�
 
 ---
 
-*审计完成。本报告可被独立验证——所有引用代码行号和规格文本均可回溯确认。*
+_审计完成。本报告可被独立验证——所有引用代码行号和规格文本均可回溯确认。_

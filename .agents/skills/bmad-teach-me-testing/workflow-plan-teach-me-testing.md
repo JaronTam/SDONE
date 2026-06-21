@@ -1,13 +1,13 @@
 ---
 stepsCompleted:
   [
-    'step-01-discovery',
-    'step-02-classification',
-    'step-03-requirements',
-    'step-04-tools',
-    'step-05-plan-review',
-    'step-06-design',
-    'step-07-foundation',
+    "step-01-discovery",
+    "step-02-classification",
+    "step-03-requirements",
+    "step-04-tools",
+    "step-05-plan-review",
+    "step-06-design",
+    "step-07-foundation",
   ]
 created: 2026-01-27
 status: FOUNDATION_COMPLETE
@@ -294,7 +294,7 @@ sessions:
     status: completed
     completed_date: 2026-01-27
     score: 90
-    notes_artifact: '{test_artifacts}/tea-academy/{user_name}/session-01-notes.md'
+    notes_artifact: "{test_artifacts}/tea-academy/{user_name}/session-01-notes.md"
   - id: session-02-concepts
     status: in-progress
     started_date: 2026-01-27
@@ -305,9 +305,9 @@ total_sessions: 7
 completion_percentage: 14
 next_recommended: session-02-concepts
 
-stepsCompleted: ['step-01-init', 'step-02-assess', 'step-04-session-01']
-lastStep: 'step-04-session-01'
-lastContinued: '2026-01-27'
+stepsCompleted: ["step-01-init", "step-02-assess", "step-04-session-01"]
+lastStep: "step-04-session-01"
+lastContinued: "2026-01-27"
 ```
 
 **Data Flow Per Step:**

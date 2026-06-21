@@ -14,11 +14,13 @@ metadata:
 **合并目标:** **Story 6.6 — Panel Pinning & Two-State Layout**
 
 **选择理由:**
+
 - 6-6 是 Epic 6 中唯一以面板布局为故事主题的 Story（AC 含 `<1024px` 窄视口约束）
 - 修复是 1 行 CSS，不适合独立 Story
 - 到达 6-6 时 6-3（倒计时面板）已追加，overflow 问题更具体可感
 
 **不合并到:**
+
 - 6-3（倒计时）：内容 Story，非布局 Story。但如果 6-3 实施者发现 overflow-y 影响倒计时面板设计，可作为跨 Story 提醒。
 - 6-4（速率编辑）：不新增面板，不影响 overflow
 

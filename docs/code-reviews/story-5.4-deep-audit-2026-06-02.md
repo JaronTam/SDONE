@@ -11,15 +11,15 @@
 
 **此前审查严重偏差等级：🟢 轻微** — 三层审查的核心判断正确，但 P2 的严重度被高估（HIGH → LOW），且遗漏了一项 DRY 结构性问题。
 
-| 发现 | 此前评级 | 审计校准 | 处理 |
-|------|----------|----------|------|
-| P1: 3行 tooltip `indexOf('\n')` bug | 🟡 MEDIUM | 🟡 MEDIUM（确认） | ✅ 已修复 |
-| P2: tooltip 位置无左/上最小值钳制 | 🔴 HIGH | 🟢 LOW（画布 <228px 才触发） | ✅ 已修复 |
-| rate vs formulaStr 显示偏差 | Dismiss | Dismiss（确认：MVP 等效） | — |
-| 测试缺口 `onConnectionHover(null)` | Defer | Defer（确认：实现正确） | — |
-| window blur 悬停残留 | Defer | Defer（确认：低概率 + 自愈） | — |
-| 脉冲频率 `sin(t*4)` ≈ 0.64 Hz | Dismiss | Dismiss（确认：代码照 spec 公式） | — |
-| **新增：** `isConnectionRenderable` DRY | 未发现 | 🟢 LOW 维护隐患 | Deferred |
+| 发现                                    | 此前评级  | 审计校准                          | 处理      |
+| --------------------------------------- | --------- | --------------------------------- | --------- |
+| P1: 3行 tooltip `indexOf('\n')` bug     | 🟡 MEDIUM | 🟡 MEDIUM（确认）                 | ✅ 已修复 |
+| P2: tooltip 位置无左/上最小值钳制       | 🔴 HIGH   | 🟢 LOW（画布 <228px 才触发）      | ✅ 已修复 |
+| rate vs formulaStr 显示偏差             | Dismiss   | Dismiss（确认：MVP 等效）         | —         |
+| 测试缺口 `onConnectionHover(null)`      | Defer     | Defer（确认：实现正确）           | —         |
+| window blur 悬停残留                    | Defer     | Defer（确认：低概率 + 自愈）      | —         |
+| 脉冲频率 `sin(t*4)` ≈ 0.64 Hz           | Dismiss   | Dismiss（确认：代码照 spec 公式） | —         |
+| **新增：** `isConnectionRenderable` DRY | 未发现    | 🟢 LOW 维护隐患                   | Deferred  |
 
 ---
 
@@ -30,6 +30,7 @@
 **根本原因：** `String.prototype.indexOf('\n')` 返回第一个匹配位置；`slice(nlIdx+1)` 将第一个 `\n` 之后的所有内容（含后续 `\n`）放入 `line2`。Canvas 2D `fillText()` 规范（WHATWG HTML §4.12.5.1.16）明确规定 `\n` 不产生换行——必须通过独立的 `fillText()` 调用实现多行。
 
 **修复（-3行 +1行）：**
+
 ```diff
 -    const nlIdx = this.tooltipText.indexOf('\n');
 -    const line1 = nlIdx >= 0 ? this.tooltipText.slice(0, nlIdx) : this.tooltipText;
@@ -49,6 +50,7 @@
 **触发条件（数学推导）：** 溢出到负值需同时满足 `x+14+tw+pad*2 > canvas.width`（触发右翻转）且 `x-tw-pad*2-14 < 0`。联立得 `canvas.width < 2*(tw+28)`。代入典型 tooltip 宽度 ~200px：需画布 < 456px 才可能触发。对于 1200px 桌面画布，此代码路径从不进入。
 
 **修复（4处 `Math.max(0, ...)`）：**
+
 ```diff
 -    let bx = x + 14;
 -    let by = y + 14;
@@ -68,18 +70,18 @@
 
 ### Dismiss 项逐条确认
 
-| # | 此前判断 | 审计确认 | 依据 |
-|---|----------|----------|------|
-| D1: rate vs formulaStr | Dismiss | ✅ 正确 | Spec DD7 原文："For MVP (constant rates), this distinction is invisible — rate and formulaStr are equivalent." 当前所有连接速率为常数，`String(rate) === formulaStr`。无行为差异 |
-| D2: 脉冲频率 0.637 Hz vs ~2 Hz | Dismiss | ✅ 正确 | Spec 同时给出公式 `sin(t*4)` 和文字 "~2 Hz"。f = 4/(2π) = 0.637 Hz。代码忠实实现了 spec 的公式；spec 的文字描述与公式矛盾。bug 在 spec |
+| #                              | 此前判断 | 审计确认 | 依据                                                                                                                                                                             |
+| ------------------------------ | -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1: rate vs formulaStr         | Dismiss  | ✅ 正确  | Spec DD7 原文："For MVP (constant rates), this distinction is invisible — rate and formulaStr are equivalent." 当前所有连接速率为常数，`String(rate) === formulaStr`。无行为差异 |
+| D2: 脉冲频率 0.637 Hz vs ~2 Hz | Dismiss  | ✅ 正确  | Spec 同时给出公式 `sin(t*4)` 和文字 "~2 Hz"。f = 4/(2π) = 0.637 Hz。代码忠实实现了 spec 的公式；spec 的文字描述与公式矛盾。bug 在 spec                                           |
 
 ### Defer 项逐条确认
 
-| # | 此前判断 | 审计确认 | 依据 |
-|---|----------|----------|------|
-| W1: 测试缺口 onConnectionHover(null) | Defer | ✅ 正确 | `clearHoveredConnection()` 确实调用 `onConnectionHover?.(null, this.lastScreenPos)`。测试验证了 net effect (`hoveredConnectionId === null`) 但缺少显式回调签名断言。实现逻辑正确 |
-| W2: window blur 悬停残留 | Defer | ✅ 正确 | `handleWindowBlur` 清除了 9 个交互状态但遗漏 `clearHoveredConnection()`。复现路径：hover → Alt+Tab → 回页 → tooltip/高亮残留至下次 mousemove（自动恢复）。极低概率 |
-| W3: isConnectionRenderable DRY | **新增** | Defer | InputManager.ts:526-538 与 SceneRenderer.ts:736 独立实现相同判据。未来任一修改不同步 → 幽灵 tooltip。应提取为 shared/ 纯函数 |
+| #                                    | 此前判断 | 审计确认 | 依据                                                                                                                                                                             |
+| ------------------------------------ | -------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| W1: 测试缺口 onConnectionHover(null) | Defer    | ✅ 正确  | `clearHoveredConnection()` 确实调用 `onConnectionHover?.(null, this.lastScreenPos)`。测试验证了 net effect (`hoveredConnectionId === null`) 但缺少显式回调签名断言。实现逻辑正确 |
+| W2: window blur 悬停残留             | Defer    | ✅ 正确  | `handleWindowBlur` 清除了 9 个交互状态但遗漏 `clearHoveredConnection()`。复现路径：hover → Alt+Tab → 回页 → tooltip/高亮残留至下次 mousemove（自动恢复）。极低概率               |
+| W3: isConnectionRenderable DRY       | **新增** | Defer    | InputManager.ts:526-538 与 SceneRenderer.ts:736 独立实现相同判据。未来任一修改不同步 → 幽灵 tooltip。应提取为 shared/ 纯函数                                                     |
 
 ---
 
@@ -108,15 +110,15 @@
 
 ## 最终状态
 
-| 检查项 | 状态 |
-|--------|------|
-| TypeScript | ✅ 零错误 |
-| 测试套件 | ✅ 493/493 通过 |
-| P1 修复 | ✅ 已合并（1行替换） |
-| P2 修复 | ✅ 已合并（4处 Math.max） |
-| 新增回归 | ✅ 零 |
-| Deferred (3项) | 📋 已记录 |
-| Story 文件 | ✅ 已更新 |
+| 检查项         | 状态                      |
+| -------------- | ------------------------- |
+| TypeScript     | ✅ 零错误                 |
+| 测试套件       | ✅ 493/493 通过           |
+| P1 修复        | ✅ 已合并（1行替换）      |
+| P2 修复        | ✅ 已合并（4处 Math.max） |
+| 新增回归       | ✅ 零                     |
+| Deferred (3项) | 📋 已记录                 |
+| Story 文件     | ✅ 已更新                 |
 
 ---
 

@@ -1,8 +1,8 @@
 ---
-name: 'step-03-map-criteria'
-description: 'Map coverage oracle items to tests and build traceability matrix'
-nextStepFile: '{skill-root}/steps-c/step-04-analyze-gaps.md'
-outputFile: '{test_artifacts}/traceability-matrix.md'
+name: "step-03-map-criteria"
+description: "Map coverage oracle items to tests and build traceability matrix"
+nextStepFile: "{skill-root}/steps-c/step-04-analyze-gaps.md"
+outputFile: "{test_artifacts}/traceability-matrix.md"
 ---
 
 # Step 3: Map Coverage Oracle to Tests
@@ -73,9 +73,9 @@ Ensure:
 
   ```yaml
   ---
-  stepsCompleted: ['step-03-map-criteria']
-  lastStep: 'step-03-map-criteria'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-03-map-criteria"]
+  lastStep: "step-03-map-criteria"
+  lastSaved: "{date}"
   ---
   ```
 

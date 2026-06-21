@@ -355,6 +355,134 @@ describe('Story 7.5: PerformanceMonitor — edge cases', () => {
 });
 
 // =============================================================================
+// Hidden-tab guard: document.hidden pauses sampling + recompute
+// (Audit fix 2026-06-21 — root-cause of spurious "P95 FPS below 30" warning)
+// =============================================================================
+
+describe('PerformanceMonitor — hidden-tab guard', () => {
+  let setHidden: (v: boolean) => void;
+
+  beforeEach(() => {
+    let hidden = false;
+    setHidden = (v: boolean) => {
+      hidden = v;
+    };
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+  });
+
+  afterEach(() => {
+    // Remove the own property so document.hidden reads from the prototype again
+    // (jsdom default: false). Restores the hidden ↔ visibilityState coupling.
+    delete (document as { hidden?: boolean }).hidden;
+  });
+
+  it('does not warn while hidden, even with throttled ~1Hz callbacks', () => {
+    const signal = createModuleCountSignal(10); // ≤15 modules — within AC2 scope
+    const perf = mockPerformanceNow();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const monitor = new PerformanceMonitor(signal.get);
+
+    setHidden(true);
+    // Simulate ~1Hz throttled rAF for 6 seconds (would normally fire recompute 3x)
+    for (let i = 0; i < 6; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(1000);
+    }
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+    perf.spy.mockRestore();
+  });
+
+  it('hidden pseudo-frames do not pollute the P95 window after returning to foreground', () => {
+    const signal = createModuleCountSignal(10);
+    const perf = mockPerformanceNow();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const monitor = new PerformanceMonitor(signal.get);
+
+    // Foreground: record healthy ~60fps frames to establish a good window
+    for (let i = 0; i < 60; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(16);
+    }
+
+    // Go hidden: browser throttles rAF to ~1Hz; guard must skip these entirely
+    setHidden(true);
+    for (let i = 0; i < 30; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(1000); // 30s of hidden ~1Hz callbacks
+    }
+
+    // Return to foreground: continue healthy ~60fps frames
+    setHidden(false);
+    for (let i = 0; i < 200; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(16);
+    }
+
+    // If hidden pseudo-frames had polluted the buffer, P95 would be ~1fps and a
+    // warning would fire. The guard prevented that — no warning, mode stays full.
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(monitor.getDegradationMode()).toBe('full');
+
+    warnSpy.mockRestore();
+    perf.spy.mockRestore();
+  });
+
+  it('resume after a short hide (<10s) does not fire a spurious warning from the hide-gap delta', () => {
+    // Regression guard for the resume-gap pollution bug (step-04 review finding):
+    // the document.hidden guard blocks hidden frames, but the delta spanning the
+    // hide duration survives cutoff for hides <10s. With a small surviving buffer
+    // it would land at the P95 index and fire a warning on resume.
+    const signal = createModuleCountSignal(10); // ≤15 modules — within AC2 scope
+    const perf = mockPerformanceNow();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const monitor = new PerformanceMonitor(signal.get);
+
+    // Foreground: only ~10 frames (~160ms) — small surviving buffer, no recompute yet
+    for (let i = 0; i < 10; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(16);
+    }
+
+    // Hide 3s — below the 10s WINDOW_MS so pre-hide frames survive cutoff.
+    // Without the resume-gap guard, the 3000ms gap delta would dominate P95.
+    setHidden(true);
+    for (let i = 0; i < 3; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(1000);
+    }
+
+    // Foreground: first frame triggers recompute (now - lastP95Time ≥ 2000).
+    setHidden(false);
+    for (let i = 0; i < 200; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(16);
+    }
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(monitor.getDegradationMode()).toBe('full');
+
+    warnSpy.mockRestore();
+    perf.spy.mockRestore();
+  });
+
+  it('foreground frames are unaffected by the guard (default document.hidden === false)', () => {
+    const signal = createModuleCountSignal(10);
+    const perf = mockPerformanceNow();
+    const monitor = new PerformanceMonitor(signal.get);
+
+    // Standard healthy ~60fps sequence — guard is transparent when visible
+    for (let i = 0; i < 200; i++) {
+      monitor.recordFrame(perf.getTime());
+      perf.advance(16);
+    }
+    expect(monitor.getDegradationMode()).toBe('full');
+    perf.spy.mockRestore();
+  });
+});
+
+// =============================================================================
 // Story 7.7 — Task 7.2: Defensive try/catch on moduleCountSignal
 // =============================================================================
 

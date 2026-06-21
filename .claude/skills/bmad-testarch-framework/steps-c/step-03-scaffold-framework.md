@@ -1,9 +1,9 @@
 ---
-name: 'step-03-scaffold-framework'
-description: 'Create framework scaffold with adaptive orchestration (agent-team, subagent, or sequential)'
-nextStepFile: '{skill-root}/steps-c/step-04-docs-and-scripts.md'
-knowledgeIndex: './resources/tea-index.csv'
-outputFile: '{test_artifacts}/framework-setup-progress.md'
+name: "step-03-scaffold-framework"
+description: "Create framework scaffold with adaptive orchestration (agent-team, subagent, or sequential)"
+nextStepFile: "{skill-root}/steps-c/step-04-docs-and-scripts.md"
+knowledgeIndex: "./resources/tea-index.csv"
+outputFile: "{test_artifacts}/framework-setup-progress.md"
 ---
 
 # Step 3: Scaffold Framework
@@ -43,10 +43,10 @@ Generate the test directory structure, configuration files, fixtures, factories,
 
 ```javascript
 const parseBooleanFlag = (value, defaultValue = true) => {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
-    if (['false', '0', 'off', 'no'].includes(normalized)) return false;
-    if (['true', '1', 'on', 'yes'].includes(normalized)) return true;
+    if (["false", "0", "off", "no"].includes(normalized)) return false;
+    if (["true", "1", "on", "yes"].includes(normalized)) return true;
   }
   if (value === undefined || value === null) return defaultValue;
   return Boolean(value);
@@ -54,40 +54,63 @@ const parseBooleanFlag = (value, defaultValue = true) => {
 
 const orchestrationContext = {
   config: {
-    execution_mode: config.tea_execution_mode || 'auto', // "auto" | "subagent" | "agent-team" | "sequential"
+    execution_mode: config.tea_execution_mode || "auto", // "auto" | "subagent" | "agent-team" | "sequential"
     capability_probe: parseBooleanFlag(config.tea_capability_probe, true), // supports booleans and "false"/"true" strings
   },
-  timestamp: new Date().toISOString().replace(/[:.]/g, '-'),
+  timestamp: new Date().toISOString().replace(/[:.]/g, "-"),
 };
 
 const normalizeUserExecutionMode = (mode) => {
-  if (typeof mode !== 'string') return null;
-  const normalized = mode.trim().toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+  if (typeof mode !== "string") return null;
+  const normalized = mode
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ");
 
-  if (normalized === 'auto') return 'auto';
-  if (normalized === 'sequential') return 'sequential';
-  if (normalized === 'subagent' || normalized === 'sub agent' || normalized === 'subagents' || normalized === 'sub agents') {
-    return 'subagent';
+  if (normalized === "auto") return "auto";
+  if (normalized === "sequential") return "sequential";
+  if (
+    normalized === "subagent" ||
+    normalized === "sub agent" ||
+    normalized === "subagents" ||
+    normalized === "sub agents"
+  ) {
+    return "subagent";
   }
-  if (normalized === 'agent team' || normalized === 'agent teams' || normalized === 'agentteam') {
-    return 'agent-team';
+  if (
+    normalized === "agent team" ||
+    normalized === "agent teams" ||
+    normalized === "agentteam"
+  ) {
+    return "agent-team";
   }
 
   return null;
 };
 
 const normalizeConfigExecutionMode = (mode) => {
-  if (mode === 'subagent') return 'subagent';
-  if (mode === 'auto' || mode === 'sequential' || mode === 'subagent' || mode === 'agent-team') {
+  if (mode === "subagent") return "subagent";
+  if (
+    mode === "auto" ||
+    mode === "sequential" ||
+    mode === "subagent" ||
+    mode === "agent-team"
+  ) {
     return mode;
   }
   return null;
 };
 
 // Explicit user instruction in the active run takes priority over config.
-const explicitModeFromUser = normalizeUserExecutionMode(runtime.getExplicitExecutionModeHint?.() || null);
+const explicitModeFromUser = normalizeUserExecutionMode(
+  runtime.getExplicitExecutionModeHint?.() || null,
+);
 
-const requestedMode = explicitModeFromUser || normalizeConfigExecutionMode(orchestrationContext.config.execution_mode) || 'auto';
+const requestedMode =
+  explicitModeFromUser ||
+  normalizeConfigExecutionMode(orchestrationContext.config.execution_mode) ||
+  "auto";
 const probeEnabled = orchestrationContext.config.capability_probe;
 
 const supports = { subagent: false, agentTeam: false };
@@ -97,14 +120,18 @@ if (probeEnabled) {
 }
 
 let resolvedMode = requestedMode;
-if (requestedMode === 'auto') {
-  if (supports.agentTeam) resolvedMode = 'agent-team';
-  else if (supports.subagent) resolvedMode = 'subagent';
-  else resolvedMode = 'sequential';
-} else if (probeEnabled && requestedMode === 'agent-team' && !supports.agentTeam) {
-  resolvedMode = supports.subagent ? 'subagent' : 'sequential';
-} else if (probeEnabled && requestedMode === 'subagent' && !supports.subagent) {
-  resolvedMode = 'sequential';
+if (requestedMode === "auto") {
+  if (supports.agentTeam) resolvedMode = "agent-team";
+  else if (supports.subagent) resolvedMode = "subagent";
+  else resolvedMode = "sequential";
+} else if (
+  probeEnabled &&
+  requestedMode === "agent-team" &&
+  !supports.agentTeam
+) {
+  resolvedMode = supports.subagent ? "subagent" : "sequential";
+} else if (probeEnabled && requestedMode === "subagent" && !supports.subagent) {
+  resolvedMode = "sequential";
 }
 ```
 
@@ -300,9 +327,9 @@ Regardless of mode, outputs must be identical in structure and quality.
 
   ```yaml
   ---
-  stepsCompleted: ['step-03-scaffold-framework']
-  lastStep: 'step-03-scaffold-framework'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-03-scaffold-framework"]
+  lastStep: "step-03-scaffold-framework"
+  lastSaved: "{date}"
   ---
   ```
 

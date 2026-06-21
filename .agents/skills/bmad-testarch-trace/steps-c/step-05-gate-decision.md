@@ -1,7 +1,7 @@
 ---
-name: 'step-05-gate-decision'
-description: 'Phase 2: Apply gate decision logic and generate outputs'
-outputFile: '{test_artifacts}/traceability-matrix.md'
+name: "step-05-gate-decision"
+description: "Phase 2: Apply gate decision logic and generate outputs"
+outputFile: "{test_artifacts}/traceability-matrix.md"
 ---
 
 # Step 5: Phase 2 - Gate Decision
@@ -43,27 +43,27 @@ outputFile: '{test_artifacts}/traceability-matrix.md'
 Read `{outputFile}` frontmatter for `tempCoverageMatrixPath`. Halt when missing — the fallback timestamp cannot be reconstructed reliably in a different execution context:
 
 ```javascript
-const progressDoc = fs.readFileSync('{outputFile}', 'utf8');
+const progressDoc = fs.readFileSync("{outputFile}", "utf8");
 const frontmatterMatch = progressDoc.match(/^---\n([\s\S]*?)\n---/);
 const frontmatter = frontmatterMatch ? yaml.parse(frontmatterMatch[1]) : {};
 
 const matrixPath = frontmatter.tempCoverageMatrixPath;
 if (!matrixPath) {
   throw new Error(
-    '❌ tempCoverageMatrixPath not found in progress frontmatter. ' +
-      'Step 4 must record the resolved temp file path before Step 5 can proceed.',
+    "❌ tempCoverageMatrixPath not found in progress frontmatter. " +
+      "Step 4 must record the resolved temp file path before Step 5 can proceed.",
   );
 }
-const coverageMatrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
+const coverageMatrix = JSON.parse(fs.readFileSync(matrixPath, "utf8"));
 
-console.log('✅ Phase 1 coverage matrix loaded');
+console.log("✅ Phase 1 coverage matrix loaded");
 ```
 
 **Verify Phase 1 complete:**
 
 ```javascript
-if (coverageMatrix.phase !== 'PHASE_1_COMPLETE') {
-  throw new Error('Phase 1 not complete - cannot proceed to gate decision');
+if (coverageMatrix.phase !== "PHASE_1_COMPLETE") {
+  throw new Error("Phase 1 not complete - cannot proceed to gate decision");
 }
 ```
 
@@ -77,7 +77,7 @@ if (coverageMatrix.phase !== 'PHASE_1_COMPLETE') {
 const stats = coverageMatrix.coverage_statistics;
 if (
   !stats ||
-  typeof stats !== 'object' ||
+  typeof stats !== "object" ||
   !stats.priority_breakdown ||
   !stats.priority_breakdown.P0 ||
   !stats.priority_breakdown.P1 ||
@@ -85,8 +85,8 @@ if (
   !stats.priority_breakdown.P3
 ) {
   throw new Error(
-    'Phase 1 coverage_statistics.priority_breakdown is missing or incomplete. ' +
-      'Step 4 must emit P0-P3 totals and coverage percentages before Step 5 can proceed.',
+    "Phase 1 coverage_statistics.priority_breakdown is missing or incomplete. " +
+      "Step 4 must emit P0-P3 totals and coverage percentages before Step 5 can proceed.",
   );
 }
 const priorityBreakdown = stats.priority_breakdown;
@@ -96,33 +96,41 @@ const hasP1Requirements = (priorityBreakdown.P1.total || 0) > 0;
 const effectiveP1Coverage = hasP1Requirements ? p1Coverage : 100;
 const overallCoverage = stats.overall_coverage_percentage;
 const criticalGaps = (coverageMatrix.gap_analysis?.critical_gaps || []).length;
-const isUnresolved = (value) => typeof value === 'string' && value.startsWith('{') && value.endsWith('}');
+const isUnresolved = (value) =>
+  typeof value === "string" && value.startsWith("{") && value.endsWith("}");
 const normalizeResolvedToken = (value) => {
   if (value === undefined || value === null) return null;
   const normalized = String(value).trim().toLowerCase();
-  if (!normalized || normalized === 'auto' || isUnresolved(normalized)) return null;
+  if (!normalized || normalized === "auto" || isUnresolved(normalized))
+    return null;
   return normalized;
 };
-const oracleResolutionMode = normalizeResolvedToken(coverageMatrix.oracle?.resolution_mode) || 'formal_requirements';
+const oracleResolutionMode =
+  normalizeResolvedToken(coverageMatrix.oracle?.resolution_mode) ||
+  "formal_requirements";
 const coverageBasis =
   normalizeResolvedToken(coverageMatrix.coverage_basis) ||
   {
-    formal_requirements: 'acceptance_criteria',
-    spec_artifact: 'openapi_endpoints',
-    external_pointer: 'acceptance_criteria',
-    synthetic_source: 'user_journeys',
+    formal_requirements: "acceptance_criteria",
+    spec_artifact: "openapi_endpoints",
+    external_pointer: "acceptance_criteria",
+    synthetic_source: "user_journeys",
   }[oracleResolutionMode] ||
-  'acceptance_criteria';
+  "acceptance_criteria";
 const oracleConfidence =
-  normalizeResolvedToken(coverageMatrix.oracle?.confidence || coverageMatrix.summary_confidence) ||
+  normalizeResolvedToken(
+    coverageMatrix.oracle?.confidence || coverageMatrix.summary_confidence,
+  ) ||
   {
-    formal_requirements: 'high',
-    spec_artifact: 'high',
-    external_pointer: 'medium',
-    synthetic_source: 'medium',
+    formal_requirements: "high",
+    spec_artifact: "high",
+    external_pointer: "medium",
+    synthetic_source: "medium",
   }[oracleResolutionMode] ||
-  'medium';
-const syntheticOracle = coverageMatrix.oracle?.synthetic === true || ['synthetic_requirements', 'user_journeys'].includes(coverageBasis);
+  "medium";
+const syntheticOracle =
+  coverageMatrix.oracle?.synthetic === true ||
+  ["synthetic_requirements", "user_journeys"].includes(coverageBasis);
 const deriveActiveTestCasesFromRequirements = (requirements) => {
   const uniqueTests = new Map();
 
@@ -131,30 +139,33 @@ const deriveActiveTestCasesFromRequirements = (requirements) => {
       const stableId =
         test.id ||
         [test.file, test.title || test.name, test.line]
-          .filter((value) => value !== undefined && value !== null && value !== '')
-          .join(':') ||
+          .filter(
+            (value) => value !== undefined && value !== null && value !== "",
+          )
+          .join(":") ||
         null;
 
       if (stableId === null || uniqueTests.has(stableId)) return;
 
-      const explicitStatus = String(test.status || '')
+      const explicitStatus = String(test.status || "")
         .trim()
         .toLowerCase();
-      const status = ['skipped', 'pending', 'fixme'].includes(explicitStatus)
+      const status = ["skipped", "pending", "fixme"].includes(explicitStatus)
         ? explicitStatus
         : test.fixme === true
-          ? 'fixme'
+          ? "fixme"
           : test.pending === true
-            ? 'pending'
+            ? "pending"
             : test.skipped === true
-              ? 'skipped'
-              : 'active';
+              ? "skipped"
+              : "active";
 
       uniqueTests.set(stableId, status);
     });
   });
 
-  return [...uniqueTests.values()].filter((status) => status === 'active').length;
+  return [...uniqueTests.values()].filter((status) => status === "active")
+    .length;
 };
 const summarizedTestInventory = coverageMatrix.test_inventory?.summary || null;
 const activeTestCases =
@@ -168,39 +179,45 @@ const activeTestCases =
           (summarizedTestInventory.pending_cases || 0),
       );
 let effectiveOracleConfidence = oracleConfidence;
-if (effectiveOracleConfidence === 'high' && activeTestCases === 0) {
-  effectiveOracleConfidence = 'medium';
+if (effectiveOracleConfidence === "high" && activeTestCases === 0) {
+  effectiveOracleConfidence = "medium";
 }
 
 const normalizeBoolean = (value, defaultValue = true) => {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
-    if (['false', '0', 'off', 'no'].includes(normalized)) return false;
-    if (['true', '1', 'on', 'yes'].includes(normalized)) return true;
+    if (["false", "0", "off", "no"].includes(normalized)) return false;
+    if (["true", "1", "on", "yes"].includes(normalized)) return true;
   }
   if (value === undefined || value === null) return defaultValue;
   return Boolean(value);
 };
 
-const collectionMode = String(!isUnresolved(coverageMatrix.collection_mode) ? coverageMatrix.collection_mode : 'contract_static')
+const collectionMode = String(
+  !isUnresolved(coverageMatrix.collection_mode)
+    ? coverageMatrix.collection_mode
+    : "contract_static",
+)
   .trim()
   .toLowerCase();
-const rawAllowGate = !isUnresolved(coverageMatrix.allow_gate) ? coverageMatrix.allow_gate : true;
+const rawAllowGate = !isUnresolved(coverageMatrix.allow_gate)
+  ? coverageMatrix.allow_gate
+  : true;
 const allowGate = normalizeBoolean(rawAllowGate, true);
 const rawCollectionStatus =
   coverageMatrix.collection_status ||
   {
-    waived: 'WAIVED',
-    restricted: 'RESTRICTED',
-    inaccessible: 'INACCESSIBLE',
-    deferred_shared: 'DEFERRED_SHARED',
+    waived: "WAIVED",
+    restricted: "RESTRICTED",
+    inaccessible: "INACCESSIBLE",
+    deferred_shared: "DEFERRED_SHARED",
   }[collectionMode] ||
-  'COLLECTED';
+  "COLLECTED";
 // Normalize to UPPER_CASE + trimmed so comparisons are whitespace/case-safe.
 const collectionStatus = String(rawCollectionStatus).trim().toUpperCase();
-const gateEligible = allowGate && collectionStatus === 'COLLECTED';
+const gateEligible = allowGate && collectionStatus === "COLLECTED";
 
-let gateDecision = 'NOT_EVALUATED'; // default; overwritten when gateEligible
+let gateDecision = "NOT_EVALUATED"; // default; overwritten when gateEligible
 let rationale;
 
 if (!gateEligible) {
@@ -208,31 +225,31 @@ if (!gateEligible) {
 } else {
   // Rule 1: P0 coverage must be 100%
   if (p0Coverage < 100) {
-    gateDecision = 'FAIL';
+    gateDecision = "FAIL";
     rationale = `P0 coverage is ${p0Coverage}% (required: 100%). ${criticalGaps} critical requirements uncovered.`;
   }
   // Rule 2: Overall coverage must be >= 80%
   else if (overallCoverage < 80) {
-    gateDecision = 'FAIL';
+    gateDecision = "FAIL";
     rationale = `Overall coverage is ${overallCoverage}% (minimum: 80%). Significant gaps exist.`;
   }
   // Rule 3: P1 coverage < 80% → FAIL
   else if (effectiveP1Coverage < 80) {
-    gateDecision = 'FAIL';
+    gateDecision = "FAIL";
     rationale = hasP1Requirements
       ? `P1 coverage is ${effectiveP1Coverage}% (minimum: 80%). High-priority gaps must be addressed.`
       : `P1 requirements are not present; continuing with remaining gate criteria.`;
   }
   // Rule 4: P1 coverage >= 90% and overall >= 80% with P0 at 100% → PASS
   else if (effectiveP1Coverage >= 90) {
-    gateDecision = 'PASS';
+    gateDecision = "PASS";
     rationale = hasP1Requirements
       ? `P0 coverage is 100%, P1 coverage is ${effectiveP1Coverage}% (target: 90%), and overall coverage is ${overallCoverage}% (minimum: 80%).`
       : `P0 coverage is 100% and overall coverage is ${overallCoverage}% (minimum: 80%). No P1 requirements detected.`;
   }
   // Rule 5: P1 coverage 80-89% with P0 at 100% and overall >= 80% → CONCERNS
   else if (effectiveP1Coverage >= 80) {
-    gateDecision = 'CONCERNS';
+    gateDecision = "CONCERNS";
     rationale = hasP1Requirements
       ? `P0 coverage is 100% and overall coverage is ${overallCoverage}% (minimum: 80%), but P1 coverage is ${effectiveP1Coverage}% (target: 90%).`
       : `P0 coverage is 100% and overall coverage is ${overallCoverage}% (minimum: 80%), but additional non-P1 gaps need mitigation.`;
@@ -242,15 +259,23 @@ if (!gateEligible) {
   // if a stakeholder-approved waiver applies (wired through config or user input upstream).
 
   // Oracle confidence overlay
-  if (syntheticOracle && gateDecision === 'PASS' && effectiveOracleConfidence !== 'high') {
-    gateDecision = 'CONCERNS';
+  if (
+    syntheticOracle &&
+    gateDecision === "PASS" &&
+    effectiveOracleConfidence !== "high"
+  ) {
+    gateDecision = "CONCERNS";
     rationale =
-      `Coverage traced against inferred ${coverageBasis.replace('_', ' ')} with ${effectiveOracleConfidence} confidence. ` +
+      `Coverage traced against inferred ${coverageBasis.replace("_", " ")} with ${effectiveOracleConfidence} confidence. ` +
       `Base coverage meets PASS thresholds, but confidence is not high enough for an unconditional PASS.`;
-  } else if (syntheticOracle && effectiveOracleConfidence === 'low' && gateDecision === 'NOT_EVALUATED') {
-    gateDecision = 'CONCERNS';
+  } else if (
+    syntheticOracle &&
+    effectiveOracleConfidence === "low" &&
+    gateDecision === "NOT_EVALUATED"
+  ) {
+    gateDecision = "CONCERNS";
     rationale =
-      `Coverage traced against inferred ${coverageBasis.replace('_', ' ')} with low confidence. ` +
+      `Coverage traced against inferred ${coverageBasis.replace("_", " ")} with low confidence. ` +
       `Treat this result as advisory until the inferred journeys are confirmed or formalized.`;
   }
 }
@@ -264,7 +289,7 @@ if (!gateEligible) {
 const gateReport = {
   gate_eligible: gateEligible,
   collection_status: collectionStatus,
-  decision: gateEligible ? gateDecision : 'NOT_EVALUATED',
+  decision: gateEligible ? gateDecision : "NOT_EVALUATED",
   rationale: rationale,
   decision_date: new Date().toISOString(),
 
@@ -272,22 +297,29 @@ const gateReport = {
 
   gate_criteria: gateEligible
     ? {
-        p0_coverage_required: '100%',
+        p0_coverage_required: "100%",
         p0_coverage_actual: `${p0Coverage}%`,
-        p0_status: p0Coverage === 100 ? 'MET' : 'NOT_MET',
+        p0_status: p0Coverage === 100 ? "MET" : "NOT_MET",
 
-        p1_coverage_target: '90%',
-        p1_coverage_minimum: '80%',
+        p1_coverage_target: "90%",
+        p1_coverage_minimum: "80%",
         p1_coverage_actual: `${effectiveP1Coverage}%`,
-        p1_status: effectiveP1Coverage >= 90 ? 'MET' : effectiveP1Coverage >= 80 ? 'PARTIAL' : 'NOT_MET',
+        p1_status:
+          effectiveP1Coverage >= 90
+            ? "MET"
+            : effectiveP1Coverage >= 80
+              ? "PARTIAL"
+              : "NOT_MET",
 
-        overall_coverage_minimum: '80%',
+        overall_coverage_minimum: "80%",
         overall_coverage_actual: `${overallCoverage}%`,
-        overall_status: overallCoverage >= 80 ? 'MET' : 'NOT_MET',
+        overall_status: overallCoverage >= 80 ? "MET" : "NOT_MET",
       }
     : null,
 
-  uncovered_requirements: (coverageMatrix.gap_analysis?.critical_gaps || []).concat(coverageMatrix.gap_analysis?.high_gaps || []),
+  uncovered_requirements: (
+    coverageMatrix.gap_analysis?.critical_gaps || []
+  ).concat(coverageMatrix.gap_analysis?.high_gaps || []),
 
   recommendations: coverageMatrix.recommendations,
 };
@@ -310,7 +342,12 @@ const buildFallbackInventory = () => {
     unit: { tests: 0, criteria_covered: 0 },
     other: { tests: 0, criteria_covered: 0 }, // captures tests with unrecognized or empty level
   };
-  const coverageEligibleStatuses = new Set(['FULL', 'PARTIAL', 'UNIT-ONLY', 'INTEGRATION-ONLY']);
+  const coverageEligibleStatuses = new Set([
+    "FULL",
+    "PARTIAL",
+    "UNIT-ONLY",
+    "INTEGRATION-ONLY",
+  ]);
   const uniqueTests = new Map();
 
   (coverageMatrix.requirements || []).forEach((req) => {
@@ -318,46 +355,53 @@ const buildFallbackInventory = () => {
       const stableId =
         test.id ||
         [test.file, test.title || test.name, test.line]
-          .filter((value) => value !== undefined && value !== null && value !== '')
-          .join(':') ||
+          .filter(
+            (value) => value !== undefined && value !== null && value !== "",
+          )
+          .join(":") ||
         null; // unresolvable — skip rather than manufacture a key
 
       if (stableId === null || uniqueTests.has(stableId)) return;
-      const explicitStatus = String(test.status || '')
+      const explicitStatus = String(test.status || "")
         .trim()
         .toLowerCase();
-      const status = ['skipped', 'pending', 'fixme'].includes(explicitStatus)
+      const status = ["skipped", "pending", "fixme"].includes(explicitStatus)
         ? explicitStatus
         : test.fixme === true
-          ? 'fixme'
+          ? "fixme"
           : test.pending === true
-            ? 'pending'
+            ? "pending"
             : test.skipped === true
-              ? 'skipped'
-              : 'active';
+              ? "skipped"
+              : "active";
 
       uniqueTests.set(stableId, {
         id: stableId,
-        file: test.file || '',
+        file: test.file || "",
         title: test.title || test.name || stableId,
-        level: String(test.level || '')
+        level: String(test.level || "")
           .trim()
           .toLowerCase(),
-        skipped: status === 'skipped',
-        fixme: status === 'fixme',
-        pending: status === 'pending',
+        skipped: status === "skipped",
+        fixme: status === "fixme",
+        pending: status === "pending",
         status: status,
-        blocker_reason: test.skip_reason || test.blocker_reason || test.fixme_reason || test.pending_reason || '',
+        blocker_reason:
+          test.skip_reason ||
+          test.blocker_reason ||
+          test.fixme_reason ||
+          test.pending_reason ||
+          "",
       });
     });
 
     if (!coverageEligibleStatuses.has(req.coverage)) return;
     const requirementLevels = new Set(
       (req.tests || []).map((test) => {
-        const level = String(test.level || '')
+        const level = String(test.level || "")
           .trim()
           .toLowerCase();
-        return byLevel[level] ? level : 'other';
+        return byLevel[level] ? level : "other";
       }),
     );
     requirementLevels.forEach((level) => {
@@ -367,13 +411,15 @@ const buildFallbackInventory = () => {
 
   const deduplicatedTests = [...uniqueTests.values()];
   deduplicatedTests.forEach((test) => {
-    const bucket = byLevel[test.level] ? test.level : 'other';
+    const bucket = byLevel[test.level] ? test.level : "other";
     byLevel[bucket].tests += 1;
   });
 
   return {
     summary: {
-      files: [...new Set(deduplicatedTests.map((test) => test.file).filter(Boolean))].length,
+      files: [
+        ...new Set(deduplicatedTests.map((test) => test.file).filter(Boolean)),
+      ].length,
       cases: deduplicatedTests.length,
       skipped_cases: deduplicatedTests.filter((test) => test.skipped).length,
       fixme_cases: deduplicatedTests.filter((test) => test.fixme).length,
@@ -381,11 +427,13 @@ const buildFallbackInventory = () => {
       by_level: byLevel,
     },
     blockers: deduplicatedTests
-      .filter((test) => ['skipped', 'pending', 'fixme'].includes(test.status))
+      .filter((test) => ["skipped", "pending", "fixme"].includes(test.status))
       .map((test) => ({
         id: test.id,
-        severity: test.status === 'skipped' ? 'high' : 'medium',
-        reason: test.blocker_reason || `Test marked ${test.status} during trace collection`,
+        severity: test.status === "skipped" ? "high" : "medium",
+        reason:
+          test.blocker_reason ||
+          `Test marked ${test.status} during trace collection`,
         test_file: test.file,
         test_title: test.title,
       })),
@@ -393,8 +441,12 @@ const buildFallbackInventory = () => {
 };
 
 const fallbackInventory = buildFallbackInventory();
-const testInventory = coverageMatrix.test_inventory?.summary || fallbackInventory.summary;
-const blockers = coverageMatrix.blockers || coverageMatrix.test_inventory?.blockers || fallbackInventory.blockers;
+const testInventory =
+  coverageMatrix.test_inventory?.summary || fallbackInventory.summary;
+const blockers =
+  coverageMatrix.blockers ||
+  coverageMatrix.test_inventory?.blockers ||
+  fallbackInventory.blockers;
 
 const heuristicCounts = coverageMatrix.coverage_heuristics?.counts || {};
 const endpointGapCount = heuristicCounts.endpoints_without_tests ?? 0;
@@ -402,33 +454,38 @@ const authGapCount = heuristicCounts.auth_missing_negative_paths ?? 0;
 const errorPathGapCount = heuristicCounts.happy_path_only_criteria ?? 0;
 const uiJourneyGapCount = heuristicCounts.ui_journeys_without_e2e;
 const uiStateGapCount = heuristicCounts.ui_states_missing_coverage;
-const sourceSha = process.env.GITHUB_SHA || runtime.getSourceSha?.() || '';
+const sourceSha = process.env.GITHUB_SHA || runtime.getSourceSha?.() || "";
 const mapOptionalHeuristicStatus = (count, applicable) => {
-  if (!applicable) return 'not_applicable';
-  if (typeof count !== 'number' || Number.isNaN(count)) return 'unknown';
-  if (count === 0) return 'present';
-  return count <= 2 ? 'partial' : 'none';
+  if (!applicable) return "not_applicable";
+  if (typeof count !== "number" || Number.isNaN(count)) return "unknown";
+  if (count === 0) return "present";
+  return count <= 2 ? "partial" : "none";
 };
-const gateBasis = gateEligible ? 'priority_thresholds' : 'none';
+const gateBasis = gateEligible ? "priority_thresholds" : "none";
 
 const e2eTraceSummary = {
-  schema_version: '0.1.0',
+  schema_version: "0.1.0",
   snapshot_at: new Date().toISOString(),
-  repo: '{project_name}',
+  repo: "{project_name}",
   collection_mode: collectionMode,
   collection_status: collectionStatus,
   inventory_basis: coverageBasis,
   gate_basis: gateBasis,
-  source_sha: sourceSha || '',
-  target: coverageMatrix.trace_target || { type: '{gate_type}', id: null, label: null },
-  decision_mode: '{decision_mode}',
-  evaluator: '{user_name}',
+  source_sha: sourceSha || "",
+  target: coverageMatrix.trace_target || {
+    type: "{gate_type}",
+    id: null,
+    label: null,
+  },
+  decision_mode: "{decision_mode}",
+  evaluator: "{user_name}",
   confidence: effectiveOracleConfidence,
   oracle: {
     resolution_mode: oracleResolutionMode,
     confidence: effectiveOracleConfidence,
     sources: coverageMatrix.oracle?.sources || [],
-    external_pointer_status: coverageMatrix.oracle?.external_pointer_status || 'not_used',
+    external_pointer_status:
+      coverageMatrix.oracle?.external_pointer_status || "not_used",
     synthetic: syntheticOracle,
   },
 
@@ -480,40 +537,61 @@ const e2eTraceSummary = {
 
   heuristics: {
     endpoint_gaps: endpointGapCount,
-    auth_negative_path_status: authGapCount === 0 ? 'present' : authGapCount <= 2 ? 'partial' : 'none',
-    error_path_status: errorPathGapCount === 0 ? 'present' : errorPathGapCount <= 2 ? 'partial' : 'none',
-    ui_journey_status: mapOptionalHeuristicStatus(uiJourneyGapCount, syntheticOracle),
-    ui_state_status: mapOptionalHeuristicStatus(uiStateGapCount, syntheticOracle),
+    auth_negative_path_status:
+      authGapCount === 0 ? "present" : authGapCount <= 2 ? "partial" : "none",
+    error_path_status:
+      errorPathGapCount === 0
+        ? "present"
+        : errorPathGapCount <= 2
+          ? "partial"
+          : "none",
+    ui_journey_status: mapOptionalHeuristicStatus(
+      uiJourneyGapCount,
+      syntheticOracle,
+    ),
+    ui_state_status: mapOptionalHeuristicStatus(
+      uiStateGapCount,
+      syntheticOracle,
+    ),
   },
 
   blockers: blockers,
   recommendations: coverageMatrix.recommendations,
 
   links: {
-    trace_report_path: '{outputFile}',
-    trace_report_url: '', // populated by CI/CD runner after artifact upload
-    artifact_url: '',
-    journey_evidence_url: '',
+    trace_report_path: "{outputFile}",
+    trace_report_url: "", // populated by CI/CD runner after artifact upload
+    artifact_url: "",
+    journey_evidence_url: "",
   },
 };
 
 if (gateEligible) {
   e2eTraceSummary.gate_status = gateDecision;
   e2eTraceSummary.gate_criteria = {
-    p0_coverage_required: '100%',
+    p0_coverage_required: "100%",
     p0_coverage_actual: `${p0Coverage}%`,
-    p0_status: p0Coverage === 100 ? 'MET' : 'NOT_MET',
-    p1_coverage_target: '90%',
-    p1_coverage_minimum: '80%',
+    p0_status: p0Coverage === 100 ? "MET" : "NOT_MET",
+    p1_coverage_target: "90%",
+    p1_coverage_minimum: "80%",
     p1_coverage_actual: `${effectiveP1Coverage}%`,
-    p1_status: effectiveP1Coverage >= 90 ? 'MET' : effectiveP1Coverage >= 80 ? 'PARTIAL' : 'NOT_MET',
-    overall_coverage_minimum: '80%',
+    p1_status:
+      effectiveP1Coverage >= 90
+        ? "MET"
+        : effectiveP1Coverage >= 80
+          ? "PARTIAL"
+          : "NOT_MET",
+    overall_coverage_minimum: "80%",
     overall_coverage_actual: `${overallCoverage}%`,
-    overall_status: overallCoverage >= 80 ? 'MET' : 'NOT_MET',
+    overall_status: overallCoverage >= 80 ? "MET" : "NOT_MET",
   };
 }
 
-fs.writeFileSync('{e2e_trace_summary_output}', JSON.stringify(e2eTraceSummary, null, 2), 'utf8');
+fs.writeFileSync(
+  "{e2e_trace_summary_output}",
+  JSON.stringify(e2eTraceSummary, null, 2),
+  "utf8",
+);
 console.log(`✅ e2e-trace-summary.json written to {e2e_trace_summary_output}`);
 ```
 
@@ -523,9 +601,12 @@ console.log(`✅ e2e-trace-summary.json written to {e2e_trace_summary_output}`);
 // Construct and write only when gate evaluation was performed and produced a meaningful decision.
 // gateDecisionSlim is intentionally inside this guard: e2eTraceSummary.gate_criteria is only
 // populated when gateEligible is true, so constructing it outside would throw when !gateEligible.
-if (gateEligible && ['PASS', 'CONCERNS', 'FAIL', 'WAIVED'].includes(gateDecision)) {
+if (
+  gateEligible &&
+  ["PASS", "CONCERNS", "FAIL", "WAIVED"].includes(gateDecision)
+) {
   const gateDecisionSlim = {
-    schema_version: '0.1.0',
+    schema_version: "0.1.0",
     evaluated_at: e2eTraceSummary.snapshot_at,
     repo: e2eTraceSummary.repo,
     target: e2eTraceSummary.target,
@@ -539,7 +620,11 @@ if (gateEligible && ['PASS', 'CONCERNS', 'FAIL', 'WAIVED'].includes(gateDecision
     critical_open: e2eTraceSummary.risk_summary.critical_open,
     links: e2eTraceSummary.links,
   };
-  fs.writeFileSync('{gate_decision_output}', JSON.stringify(gateDecisionSlim, null, 2), 'utf8');
+  fs.writeFileSync(
+    "{gate_decision_output}",
+    JSON.stringify(gateDecisionSlim, null, 2),
+    "utf8",
+  );
   console.log(`✅ gate-decision.json written to {gate_decision_output}`);
 }
 ```
@@ -579,7 +664,7 @@ if (gateEligible && ['PASS', 'CONCERNS', 'FAIL', 'WAIVED'].includes(gateDecision
 **Save to:**
 
 ```javascript
-fs.writeFileSync('{outputFile}', reportContent, 'utf8');
+fs.writeFileSync("{outputFile}", reportContent, "utf8");
 ```
 
 ---

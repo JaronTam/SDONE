@@ -36,7 +36,9 @@
 ```typescript
 // 修复前
 if (this._isEditing) {
-  const input = this._el!.querySelector(`.${NAME_EDITING_CLASS}`) as HTMLInputElement | null;
+  const input = this._el!.querySelector(
+    `.${NAME_EDITING_CLASS}`,
+  ) as HTMLInputElement | null;
   if (input) {
     input.value = data.label;
   }
@@ -63,14 +65,14 @@ if (!this._isEditing && this._nameEl) {
 
 ```typescript
 // 修复前
-if (data.moduleType === 'stock') {
-  this._colorDotEl.style.display = 'none';
+if (data.moduleType === "stock") {
+  this._colorDotEl.style.display = "none";
 } else {
-  this._colorDotEl.style.display = '';
+  this._colorDotEl.style.display = "";
 }
 
 // 修复后
-if (data.moduleType === 'stock') {
+if (data.moduleType === "stock") {
   this._colorDotEl.classList.add(`${COLOR_DOT_CLASS}--hidden`);
 } else {
   this._colorDotEl.classList.remove(`${COLOR_DOT_CLASS}--hidden`);
@@ -123,7 +125,7 @@ destroy(): void {
 
 ---
 
-### F5: show()→hide()→show() 循环后 _currentType 状态泄漏 [P2]
+### F5: show()→hide()→show() 循环后 \_currentType 状态泄漏 [P2]
 
 **文件:** `sdone/src/ui/overlays/ToolbarController.ts:66, 86-116`
 
@@ -197,7 +199,7 @@ if (data.color) {
 if (data.color) {
   this._colorDotEl.style.backgroundColor = data.color;
 } else {
-  this._colorDotEl.style.backgroundColor = '';
+  this._colorDotEl.style.backgroundColor = "";
 }
 ```
 
@@ -223,10 +225,10 @@ cd sdone && npx tsc --noEmit
 
 以下 defer 项需在后续故事中处理：
 
-| Defer 项 | 目标故事 | 说明 |
-|----------|----------|------|
+| Defer 项                                         | 目标故事  | 说明                                                                                                                                                                                                    |
+| ------------------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DEFER-8.4a: `_isColorPickerOpen` @ts-ignore 移除 | Story 8.6 | AC30 明确: `@ts-ignore TS6133` on `_isColorPickerOpen` 需在 Story 8.6 接线后移除。ToolbarController 的 `onColorDotClick` 回调在 8.6 接线到 ColorPickerPopover 后，`_isColorPickerOpen` 才会被实际读取。 |
-| DEFER-8.4b: 回调签名适配 | Story 8.6 | InputManager 的 `onToolbarNameClick`/`onColorDotClick` 接收 `moduleId` 参数，ToolbarController 版本无参数 — Story 8.6 接线时需适配（闭包捕获 moduleId 或修改签名）。 |
+| DEFER-8.4b: 回调签名适配                         | Story 8.6 | InputManager 的 `onToolbarNameClick`/`onColorDotClick` 接收 `moduleId` 参数，ToolbarController 版本无参数 — Story 8.6 接线时需适配（闭包捕获 moduleId 或修改签名）。                                    |
 
 ---
 

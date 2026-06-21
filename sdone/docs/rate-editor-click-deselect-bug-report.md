@@ -9,20 +9,21 @@
 ## 1. 问题描述
 
 用户在右侧栏的速率编辑器中点击输入框时：
+
 - ✗ 点击输入框后编辑表单立即消失（跳回空状态）
 - ✗ 无法在输入框中修改速率值
 - ✗ 表现如同点击了空白画布触发了取消选中
 
 ## 2. 涉及的代码位置
 
-| 文件 | 函数/字段 | 作用 |
-|------|-----------|------|
-| `src/input/InputManager.ts:116-121` | `mouseDownModuleId`, `mouseDownInEdgeZone` | 点击-拖拽区分状态 |
-| `src/input/InputManager.ts:286` | `canvas.addEventListener('mousedown', ...)` | 仅在 canvas 上注册 |
-| `src/input/InputManager.ts:288` | `window.addEventListener('mouseup', ...)` | **在 window 上注册** |
-| `src/input/InputManager.ts:962-1055` | `handleMouseUp` (button 0 分支) | 点击/拖拽释放逻辑 |
-| `src/main.ts:173-202` | `inputManager.onModuleSelect` | 反选回调 → 调用 `rateEditorPanel.setConnection(null)` |
-| `src/ui/panels/RateEditorPanel.ts:188-226` | `setConnection(null)` | 隐藏编辑表单，显示空状态 |
+| 文件                                       | 函数/字段                                   | 作用                                                  |
+| ------------------------------------------ | ------------------------------------------- | ----------------------------------------------------- |
+| `src/input/InputManager.ts:116-121`        | `mouseDownModuleId`, `mouseDownInEdgeZone`  | 点击-拖拽区分状态                                     |
+| `src/input/InputManager.ts:286`            | `canvas.addEventListener('mousedown', ...)` | 仅在 canvas 上注册                                    |
+| `src/input/InputManager.ts:288`            | `window.addEventListener('mouseup', ...)`   | **在 window 上注册**                                  |
+| `src/input/InputManager.ts:962-1055`       | `handleMouseUp` (button 0 分支)             | 点击/拖拽释放逻辑                                     |
+| `src/main.ts:173-202`                      | `inputManager.onModuleSelect`               | 反选回调 → 调用 `rateEditorPanel.setConnection(null)` |
+| `src/ui/panels/RateEditorPanel.ts:188-226` | `setConnection(null)`                       | 隐藏编辑表单，显示空状态                              |
 
 ## 3. 根本原因分析
 
@@ -88,27 +89,27 @@ this._mouseDownOnCanvas = false;
 
 ### 自动化测试
 
-| 测试集 | 结果 |
-|--------|------|
-| Vitest 单元测试 (34 files, 774 tests) | ✅ 774 passed |
-| InputManager.test.ts 回归测试 | ✅ 2 passed（新增） |
+| 测试集                                | 结果                |
+| ------------------------------------- | ------------------- |
+| Vitest 单元测试 (34 files, 774 tests) | ✅ 774 passed       |
+| InputManager.test.ts 回归测试         | ✅ 2 passed（新增） |
 
 ### 新增回归测试
 
-| 测试用例 | 位置 | 说明 |
-|----------|------|------|
-| mouseup without canvas mousedown → no onModuleSelect(null) | `InputManager.test.ts` | 模拟右侧栏点击不触发反选 |
-| mouseup without canvas mousedown → no onCanvasClickEmpty | `InputManager.test.ts` | 模拟右侧栏点击不触发点击空白回调 |
+| 测试用例                                                   | 位置                   | 说明                             |
+| ---------------------------------------------------------- | ---------------------- | -------------------------------- |
+| mouseup without canvas mousedown → no onModuleSelect(null) | `InputManager.test.ts` | 模拟右侧栏点击不触发反选         |
+| mouseup without canvas mousedown → no onCanvasClickEmpty   | `InputManager.test.ts` | 模拟右侧栏点击不触发点击空白回调 |
 
 ## 6. 修复范围
 
-| 文件 | 改动 |
-|------|------|
-| `src/input/InputManager.ts` | +1 字段 `_mouseDownOnCanvas`，+1 行设置（handleMouseDown），+3 行守卫（handleMouseUp），+2 行重置（handleWindowBlur / cancelDrag） |
-| `src/input/InputManager.test.ts` | +2 回归测试用例 |
+| 文件                             | 改动                                                                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `src/input/InputManager.ts`      | +1 字段 `_mouseDownOnCanvas`，+1 行设置（handleMouseDown），+3 行守卫（handleMouseUp），+2 行重置（handleWindowBlur / cancelDrag） |
+| `src/input/InputManager.test.ts` | +2 回归测试用例                                                                                                                    |
 
 **总改动量**: 核心逻辑 4 行，测试 2 个用例。零 blast radius——仅影响 mouseup 入口的条件守卫，所有已有交互路径不变。
 
 ---
 
-*此 bug 属于输入事件传播架构的边界条件。修复遵循最小侵入原则：添加一个标记位 + 一处守卫，不改变任何已有事件处理逻辑。*
+_此 bug 属于输入事件传播架构的边界条件。修复遵循最小侵入原则：添加一个标记位 + 一处守卫，不改变任何已有事件处理逻辑。_

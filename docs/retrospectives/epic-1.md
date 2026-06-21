@@ -19,13 +19,13 @@ Epic 1 addressed the SDONE simulator's core data layer — the structural primit
 
 All four stories were delivered plus one additional story:
 
-| Story | Deliverable | Tests | LOC |
-|-------|------------|-------|-----|
-| 1.1 | `src/state/GraphState.ts` + `test.ts` | 15 | ~80 |
-| 1.2 | `src/event-bus/EventBus.ts` + `test.ts` | 17 | ~80 |
-| 1.3 | `src/state/HistoryManager.ts` + `test.ts` | 24 | ~120 |
-| 1.4 | `src/shared/utils.ts` + `test.ts` | 3 | ~40 |
-| **1.5** | `src/state/mutations.ts` + `test.ts` | **27** | ~280 |
+| Story   | Deliverable                               | Tests  | LOC  |
+| ------- | ----------------------------------------- | ------ | ---- |
+| 1.1     | `src/state/GraphState.ts` + `test.ts`     | 15     | ~80  |
+| 1.2     | `src/event-bus/EventBus.ts` + `test.ts`   | 17     | ~80  |
+| 1.3     | `src/state/HistoryManager.ts` + `test.ts` | 24     | ~120 |
+| 1.4     | `src/shared/utils.ts` + `test.ts`         | 3      | ~40  |
+| **1.5** | `src/state/mutations.ts` + `test.ts`      | **27** | ~280 |
 
 **Total: 86 tests, 5 files, full type safety**
 
@@ -33,16 +33,17 @@ All four stories were delivered plus one additional story:
 
 The retrospective exposed a critical design gap: Epic 1 defined the **what** (state shape, history recording, event dispatch) but not the **how** (how state transitions occur). The mutations layer bridges this gap with six pure reducer-style functions:
 
-| Mutation | Semantics |
-|----------|----------|
-| `addModule` | Creates stock/source/sink with type-specific defaults |
-| `deleteModule` | Removes node + cascade-deletes all connected edges |
-| `moveModule` | Updates canvas position (preserves other properties) |
-| `addConnection` | Creates directed edge between existing modules |
-| `deleteConnection` | Removes a single edge |
-| `updateRate` | Sets rate/formulaStr on a connection |
+| Mutation           | Semantics                                             |
+| ------------------ | ----------------------------------------------------- |
+| `addModule`        | Creates stock/source/sink with type-specific defaults |
+| `deleteModule`     | Removes node + cascade-deletes all connected edges    |
+| `moveModule`       | Updates canvas position (preserves other properties)  |
+| `addConnection`    | Creates directed edge between existing modules        |
+| `deleteConnection` | Removes a single edge                                 |
+| `updateRate`       | Sets rate/formulaStr on a connection                  |
 
 All mutations follow a strict contract:
+
 - **Pure functions** — no side effects, no EventBus, no DOM
 - **Immutable** — return new `GraphState`; input is never mutated
 - **Monotonic version** — version increments only on actual changes; no-ops return `version` unchanged
@@ -54,11 +55,13 @@ All mutations follow a strict contract:
 **Symptom:** HistoryManager stored state snapshots, but nothing produced meaningful transitions between snapshots.
 
 **Root Cause:** Three-layer architecture misunderstanding:
+
 1. `GraphState` = data shape ✓
 2. `HistoryManager` = recording/restoring ✓
 3. `Mutations` = state transitions ✗ (missing)
 
 Without the mutations layer, every consumer (canvas, toolbar, keyboard shortcuts) would independently reinvent the same CRUD logic on `GraphState.nodes`/`GraphState.connections`, creating:
+
 - Duplicate code
 - Inconsistent default values
 - Scattered version bumping logic

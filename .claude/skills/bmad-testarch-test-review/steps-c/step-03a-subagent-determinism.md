@@ -1,8 +1,8 @@
 ---
-name: 'step-03a-subagent-determinism'
-description: 'Subagent: Check test determinism (no random/time dependencies)'
+name: "step-03a-subagent-determinism"
+description: "Subagent: Check test determinism (no random/time dependencies)"
 subagent: true
-outputFile: '/tmp/tea-test-review-determinism-{{timestamp}}.json'
+outputFile: "/tmp/tea-test-review-determinism-{{timestamp}}.json"
 ---
 
 # Subagent 3A: Determinism Quality Check
@@ -73,38 +73,43 @@ For each test file from Step 2:
 const violations = [];
 
 // Check for Math.random()
-if (testFileContent.includes('Math.random()')) {
+if (testFileContent.includes("Math.random()")) {
   violations.push({
     file: testFile,
-    line: findLineNumber('Math.random()'),
-    severity: 'HIGH',
-    category: 'random-generation',
-    description: 'Test uses Math.random() - non-deterministic',
-    suggestion: 'Use faker.seed(12345) for deterministic random data',
+    line: findLineNumber("Math.random()"),
+    severity: "HIGH",
+    category: "random-generation",
+    description: "Test uses Math.random() - non-deterministic",
+    suggestion: "Use faker.seed(12345) for deterministic random data",
   });
 }
 
 // Check for Date.now()
-if (testFileContent.includes('Date.now()') || testFileContent.includes('new Date()')) {
+if (
+  testFileContent.includes("Date.now()") ||
+  testFileContent.includes("new Date()")
+) {
   violations.push({
     file: testFile,
-    line: findLineNumber('Date.now()'),
-    severity: 'HIGH',
-    category: 'time-dependency',
-    description: 'Test uses Date.now() or new Date() without mocking',
-    suggestion: 'Mock system time with test.useFakeTimers() or use fixed timestamps',
+    line: findLineNumber("Date.now()"),
+    severity: "HIGH",
+    category: "time-dependency",
+    description: "Test uses Date.now() or new Date() without mocking",
+    suggestion:
+      "Mock system time with test.useFakeTimers() or use fixed timestamps",
   });
 }
 
 // Check for hard waits
-if (testFileContent.includes('waitForTimeout')) {
+if (testFileContent.includes("waitForTimeout")) {
   violations.push({
     file: testFile,
-    line: findLineNumber('waitForTimeout'),
-    severity: 'MEDIUM',
-    category: 'hard-wait',
-    description: 'Test uses waitForTimeout - creates flakiness',
-    suggestion: 'Replace with expect(locator).toBeVisible() or interceptNetworkCall-based network waits',
+    line: findLineNumber("waitForTimeout"),
+    severity: "MEDIUM",
+    category: "hard-wait",
+    description: "Test uses waitForTimeout - creates flakiness",
+    suggestion:
+      "Replace with expect(locator).toBeVisible() or interceptNetworkCall-based network waits",
   });
 }
 
@@ -119,8 +124,11 @@ Vitest configs vary widely — `defineConfig({ test: { ... } })`, `mergeConfig(b
 // Resolve the config file(s). For consumer: scripts.test:pact:consumer:run in package.json
 // usually points at `vitest run --config <path>`. For provider: `vitest run --config <path>`.
 // If neither script exists but `.pacttest.ts` files exist, default to 'vitest.config.pact.ts'.
-const configPath = resolveVitestConfigPath({ scriptName: 'test:pact:consumer:run', fallback: 'vitest.config.pact.ts' });
-const src = fs.readFileSync(configPath, 'utf8');
+const configPath = resolveVitestConfigPath({
+  scriptName: "test:pact:consumer:run",
+  fallback: "vitest.config.pact.ts",
+});
+const src = fs.readFileSync(configPath, "utf8");
 
 // 1. Literal-match the two mandatory lines. Tolerate single or double quotes and whitespace.
 const hasFileParallelismFalse = /\bfileParallelism\s*:\s*false\b/.test(src);
@@ -128,16 +136,18 @@ const hasPoolForks = /\bpool\s*:\s*['"]forks['"]/.test(src);
 const hasSingleForkTrue = /\bsingleFork\s*:\s*true\b/.test(src);
 
 // 2. Flag settings that would defeat the rule if a human added them.
-const hasSequenceConcurrent = /\bsequence\s*:\s*\{[^}]*\bconcurrent\s*:\s*true/.test(src);
+const hasSequenceConcurrent =
+  /\bsequence\s*:\s*\{[^}]*\bconcurrent\s*:\s*true/.test(src);
 const hasHighMaxConcurrency = /\bmaxConcurrency\s*:\s*([2-9]|\d{2,})/.test(src);
 const hasHighMaxWorkers = /\bmaxWorkers\s*:\s*([2-9]|\d{2,})/.test(src);
 const hasIsolateFalse = /\bisolate\s*:\s*false\b/.test(src);
 
 // 3. mergeConfig / extends fallback — we cannot reliably follow imports. Emit LOW advisory.
-const usesMergeConfig = /\bmergeConfig\s*\(/.test(src) || /\bextends\s*:/.test(src);
+const usesMergeConfig =
+  /\bmergeConfig\s*\(/.test(src) || /\bextends\s*:/.test(src);
 
 // 4. File-count gating for the pool-forks rule.
-const pactTestCount = glob.sync('tests/contract/**/*.pacttest.ts').length;
+const pactTestCount = glob.sync("tests/contract/**/*.pacttest.ts").length;
 ```
 
 **Violation emission rules** (apply in order; exit on first match per check):
@@ -159,7 +169,10 @@ const passedChecks = totalChecks - failedChecks;
 
 // Weight violations by severity
 const severityWeights = { HIGH: 10, MEDIUM: 5, LOW: 2 };
-const totalPenalty = violations.reduce((sum, v) => sum + severityWeights[v.severity], 0);
+const totalPenalty = violations.reduce(
+  (sum, v) => sum + severityWeights[v.severity],
+  0,
+);
 
 // Score: 100 - (penalty points)
 const score = Math.max(0, 100 - totalPenalty);

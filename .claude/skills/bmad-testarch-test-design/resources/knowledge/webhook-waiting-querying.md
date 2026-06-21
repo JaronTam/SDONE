@@ -14,7 +14,7 @@ Poll until the first webhook matching the template arrives. Returns the typed `R
 const webhook = await webhookRegistry.waitFor(movieCreated(movieId));
 
 expect(webhook.body).toMatchObject({
-  event: 'movie.created',
+  event: "movie.created",
   timestamp: expect.any(String),
   data: {
     id: movieId,
@@ -30,21 +30,26 @@ expect(webhook.body).toMatchObject({
 When testing a downstream event (e.g. deletion), always `waitFor` the preceding event first. Without the drain, the create webhook may remain in the journal and interfere with cleanup or subsequent polling.
 
 ```typescript
-test('movie deletion triggers a webhook with correct payload', async ({ authToken, addMovie, deleteMovie, webhookRegistry }) => {
+test("movie deletion triggers a webhook with correct payload", async ({
+  authToken,
+  addMovie,
+  deleteMovie,
+  webhookRegistry,
+}) => {
   const movie = generateMovieWithoutId();
   const { body: createResponse } = await addMovie(authToken, movie);
   const movieId = createResponse.data.id;
 
-  await log.step('Drain the create webhook before testing the delete path');
+  await log.step("Drain the create webhook before testing the delete path");
   await webhookRegistry.waitFor(movieCreated(movieId)); // drain — consume the create event
 
   await deleteMovie(authToken, movieId);
 
-  await log.step('Wait for the delete webhook');
+  await log.step("Wait for the delete webhook");
   const webhook = await webhookRegistry.waitFor(movieDeleted(movieId));
 
   expect(webhook.body).toMatchObject({
-    event: 'movie.deleted',
+    event: "movie.deleted",
     data: { id: movieId, name: movie.name },
   });
 });
@@ -57,7 +62,7 @@ test('movie deletion triggers a webhook with correct payload', async ({ authToke
 Collect exactly N matching webhooks. Use `matchPredicate` with all IDs to prevent cross-worker contamination when running `fullyParallel: true`:
 
 ```typescript
-await log.step('Create two movies concurrently');
+await log.step("Create two movies concurrently");
 const [{ body: res1 }, { body: res2 }] = await Promise.all([
   addMovie(authToken, generateMovieWithoutId()),
   addMovie(authToken, generateMovieWithoutId()),
@@ -68,9 +73,12 @@ const [id1, id2] = [res1.data.id, res2.data.id];
 const batchTemplate = webhookTemplate<{
   event: string;
   data: { id: number };
-}>('movie.created.batch')
-  .matchField('event', 'movie.created')
-  .matchPredicate(`data.id is ${id1} or ${id2}`, (p) => p.data.id === id1 || p.data.id === id2)
+}>("movie.created.batch")
+  .matchField("event", "movie.created")
+  .matchPredicate(
+    `data.id is ${id1} or ${id2}`,
+    (p) => p.data.id === id1 || p.data.id === id2,
+  )
   .withTimeout(15_000)
   .withInterval(500)
   .build();
@@ -95,12 +103,12 @@ const all = await webhookRegistry.getReceived();
 expect(all.length).toBeGreaterThanOrEqual(1);
 
 // Method filter — all sample-app webhooks are delivered via POST
-const postOnly = await webhookRegistry.getReceived({ method: 'POST' });
-expect(postOnly.every((w) => w.method === 'POST')).toBe(true);
+const postOnly = await webhookRegistry.getReceived({ method: "POST" });
+expect(postOnly.every((w) => w.method === "POST")).toBe(true);
 
 // URL pattern filter — match the webhooks endpoint path
-const byUrl = await webhookRegistry.getReceived({ urlPattern: '/webhooks' });
-expect(byUrl.every((w) => w.url.includes('/webhooks'))).toBe(true);
+const byUrl = await webhookRegistry.getReceived({ urlPattern: "/webhooks" });
+expect(byUrl.every((w) => w.url.includes("/webhooks"))).toBe(true);
 ```
 
 `getReceived` accepts `WebhookQueryFilter`:
@@ -122,13 +130,15 @@ Always scope template factories to the entity's ID:
 ```typescript
 // ✅ Scoped — only matches webhooks for this specific movie
 const movieCreated = (movieId: number) =>
-  webhookTemplate('movie.created')
-    .matchField('event', 'movie.created')
-    .matchField('data.id', movieId) // scoped by ID
+  webhookTemplate("movie.created")
+    .matchField("event", "movie.created")
+    .matchField("data.id", movieId) // scoped by ID
     .build();
 
 // ❌ Unscoped — will match any movie.created from any parallel worker
-const movieCreatedUnscoped = webhookTemplate('movie.created').matchField('event', 'movie.created').build();
+const movieCreatedUnscoped = webhookTemplate("movie.created")
+  .matchField("event", "movie.created")
+  .build();
 ```
 
 ## Method Summary

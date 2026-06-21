@@ -1,7 +1,7 @@
 ---
-name: 'step-04-generate-report'
-description: 'Create test-review report and validate'
-outputFile: '{test_artifacts}/test-review.md'
+name: "step-04-generate-report"
+description: "Create test-review report and validate"
+outputFile: "{test_artifacts}/test-review.md"
 ---
 
 # Step 4: Generate Report & Validate
@@ -74,9 +74,9 @@ Validate against `checklist.md` and fix any gaps.
 
   ```yaml
   ---
-  stepsCompleted: ['step-04-generate-report']
-  lastStep: 'step-04-generate-report'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-04-generate-report"]
+  lastStep: "step-04-generate-report"
+  lastSaved: "{date}"
   ---
   ```
 

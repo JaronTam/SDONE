@@ -2,37 +2,37 @@
 name: Quill
 description: Daily writing companion. Calm, intentional, dark-mode-by-default. No streaks, no gamification.
 colors:
-  surface-base: '#FAF9F7'
-  surface-raised: '#FFFFFF'
-  ink-primary: '#1A1B1F'
-  ink-secondary: '#6B655A'
-  ink-disabled: '#B5AFA5'
-  accent: '#A87434'
-  border-hairline: '#E8E4DD'
-  surface-base-dark: '#1A1B1F'
-  surface-raised-dark: '#23252B'
-  ink-primary-dark: '#F0EDE8'
-  ink-secondary-dark: '#A39E94'
-  ink-disabled-dark: '#5E5A53'
-  accent-dark: '#D4A574'
-  border-hairline-dark: '#2E3036'
+  surface-base: "#FAF9F7"
+  surface-raised: "#FFFFFF"
+  ink-primary: "#1A1B1F"
+  ink-secondary: "#6B655A"
+  ink-disabled: "#B5AFA5"
+  accent: "#A87434"
+  border-hairline: "#E8E4DD"
+  surface-base-dark: "#1A1B1F"
+  surface-raised-dark: "#23252B"
+  ink-primary-dark: "#F0EDE8"
+  ink-secondary-dark: "#A39E94"
+  ink-disabled-dark: "#5E5A53"
+  accent-dark: "#D4A574"
+  border-hairline-dark: "#2E3036"
 typography:
   title:
-    note: 'Platform native — iOS Title 1 · Android Headline Small'
+    note: "Platform native — iOS Title 1 · Android Headline Small"
   body:
-    note: 'Platform native — iOS Body · Android Body Large'
+    note: "Platform native — iOS Body · Android Body Large"
   meta:
-    note: 'Platform native — iOS Footnote · Android Body Small'
+    note: "Platform native — iOS Footnote · Android Body Small"
 rounded:
   sm: 6px
   md: 12px
 spacing:
-  '1': 4px
-  '2': 8px
-  '3': 12px
-  '4': 16px
-  '5': 24px
-  '6': 32px
+  "1": 4px
+  "2": 8px
+  "3": 12px
+  "4": 16px
+  "5": 24px
+  "6": 32px
 ---
 
 ## Brand & Style
@@ -84,10 +84,10 @@ Imagery follows container corners exactly.
 
 ## Do's and Don'ts
 
-| Do | Don't |
-|---|---|
-| Single accent color, used sparingly on save & primary action | Color-code by sentiment, mood, or category |
-| Text-only state indicators (`Saved.`) | Iconography for state (✓, ⚠, ●) |
-| Hairline dividers at lowest legible contrast | Card shadows, gradient fills, accent fills behind text |
-| Generous vertical rhythm in composer | Compress to fit more on screen |
-| Honor platform conventions for navigation | Override platform nav with custom drawer or hamburger |
+| Do                                                           | Don't                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------ |
+| Single accent color, used sparingly on save & primary action | Color-code by sentiment, mood, or category             |
+| Text-only state indicators (`Saved.`)                        | Iconography for state (✓, ⚠, ●)                        |
+| Hairline dividers at lowest legible contrast                 | Card shadows, gradient fills, accent fills behind text |
+| Generous vertical rhythm in composer                         | Compress to fit more on screen                         |
+| Honor platform conventions for navigation                    | Override platform nav with custom drawer or hamburger  |

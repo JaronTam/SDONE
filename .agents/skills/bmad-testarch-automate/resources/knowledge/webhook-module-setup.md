@@ -12,10 +12,10 @@ The WireMock provider works with any backend that implements the `/__admin/reque
 
 ```typescript
 // playwright/support/merged-fixtures.ts
-import { test as base, mergeTests } from '@playwright/test';
-import { test as webhookFixture } from '@seontechnologies/playwright-utils/webhook/fixtures';
-import { WireMockWebhookProvider } from '@seontechnologies/playwright-utils/webhook';
-import { API_URL } from '../config/local.config';
+import { test as base, mergeTests } from "@playwright/test";
+import { test as webhookFixture } from "@seontechnologies/playwright-utils/webhook/fixtures";
+import { WireMockWebhookProvider } from "@seontechnologies/playwright-utils/webhook";
+import { API_URL } from "../config/local.config";
 
 // Lazy-initialized by Playwright — no cost for tests that don't request webhookRegistry.
 const webhookProviderFixture = base.extend<{
@@ -37,7 +37,7 @@ const test = mergeTests(
 // Use matched-only cleanup project-wide: each test only deletes the webhooks it
 // matched, so a parallel worker's teardown cannot wipe the shared journal while
 // another test is still mid-flight (fullyParallel: true race condition).
-test.use({ webhookConfig: { cleanupStrategy: 'matched-only' } });
+test.use({ webhookConfig: { cleanupStrategy: "matched-only" } });
 
 export { test };
 ```
@@ -47,7 +47,7 @@ This is the exact pattern used in the playwright-utils E2E suite (`playwright/su
 ### MockServer Provider
 
 ```typescript
-import { MockServerWebhookProvider } from '@seontechnologies/playwright-utils/webhook';
+import { MockServerWebhookProvider } from "@seontechnologies/playwright-utils/webhook";
 
 const webhookProviderFixture = base.extend<{
   webhookProvider: MockServerWebhookProvider;
@@ -57,16 +57,20 @@ const webhookProviderFixture = base.extend<{
   },
 });
 
-const test = mergeTests(base, /* ...other fixtures... */ webhookFixture, webhookProviderFixture);
+const test = mergeTests(
+  base,
+  /* ...other fixtures... */ webhookFixture,
+  webhookProviderFixture,
+);
 
 // MockServer has no delete-by-ID on log entries — use full-reset for explicit cleanup
-test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } });
+test.use({ webhookConfig: { cleanupStrategy: "full-reset" } });
 ```
 
 ### Mockoon Provider
 
 ```typescript
-import { MockoonWebhookProvider } from '@seontechnologies/playwright-utils/webhook';
+import { MockoonWebhookProvider } from "@seontechnologies/playwright-utils/webhook";
 
 const webhookProviderFixture = base.extend<{
   webhookProvider: MockoonWebhookProvider;
@@ -76,10 +80,14 @@ const webhookProviderFixture = base.extend<{
   },
 });
 
-const test = mergeTests(base, /* ...other fixtures... */ webhookFixture, webhookProviderFixture);
+const test = mergeTests(
+  base,
+  /* ...other fixtures... */ webhookFixture,
+  webhookProviderFixture,
+);
 
 // Mockoon has no delete-by-ID on log entries — use full-reset for explicit cleanup
-test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } });
+test.use({ webhookConfig: { cleanupStrategy: "full-reset" } });
 ```
 
 ## Cleanup Strategy Decision
@@ -110,7 +118,7 @@ Both cleanup and teardown failures are caught and logged as warnings — they do
 type WebhookRegistryConfig = {
   defaultTimeout?: number; // default: 30000 ms
   defaultInterval?: number; // default: 1000 ms
-  cleanupStrategy?: 'matched-only' | 'full-reset'; // default: 'full-reset'
+  cleanupStrategy?: "matched-only" | "full-reset"; // default: 'full-reset'
 };
 ```
 

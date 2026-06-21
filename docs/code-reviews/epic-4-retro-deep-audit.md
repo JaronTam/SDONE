@@ -14,13 +14,13 @@
 
 **五个关键偏差：**
 
-| # | 类型 | 回顾声称 | 实际验证值 | 偏差幅度 |
-|---|------|---------|-----------|---------|
-| 1 | 定量 | 388 个测试，18 个测试文件 | 364 个测试（352 passed + 12 failed），21 个测试文件 | -6.2% / -14.3% |
-| 2 | 遗漏 | Story 4.5 状态不一致未被发现 | sprint-status 说 "done"，story file 说 "ready-for-dev" | 完整性缺陷 |
-| 3 | 定量 | 12 项技术债务 | Epic 4 审查实际产生了 ~26 项 deferred items | -53.8% |
-| 4 | 归因 | 失败测试归因于"jsdom 配置问题" | 实际是 MinimapRenderer 测试（12）+ 2 个 panel 测试文件 | 归因不精确 |
-| 5 | 定性 | "仅 1 个关键 Bug" | 该表述模糊了 P1 缺陷（NaN 传播、console 洪水、撤销状态守卫）的分布 | 叙述不完整 |
+| #   | 类型 | 回顾声称                       | 实际验证值                                                         | 偏差幅度       |
+| --- | ---- | ------------------------------ | ------------------------------------------------------------------ | -------------- |
+| 1   | 定量 | 388 个测试，18 个测试文件      | 364 个测试（352 passed + 12 failed），21 个测试文件                | -6.2% / -14.3% |
+| 2   | 遗漏 | Story 4.5 状态不一致未被发现   | sprint-status 说 "done"，story file 说 "ready-for-dev"             | 完整性缺陷     |
+| 3   | 定量 | 12 项技术债务                  | Epic 4 审查实际产生了 ~26 项 deferred items                        | -53.8%         |
+| 4   | 归因 | 失败测试归因于"jsdom 配置问题" | 实际是 MinimapRenderer 测试（12）+ 2 个 panel 测试文件             | 归因不精确     |
+| 5   | 定性 | "仅 1 个关键 Bug"              | 该表述模糊了 P1 缺陷（NaN 传播、console 洪水、撤销状态守卫）的分布 | 叙述不完整     |
 
 ---
 
@@ -31,6 +31,7 @@
 **原句：** "测试总数：388（18 个测试文件）"
 
 **实际验证：**
+
 ```
 $ npx vitest run --reporter=verbose
 Test Files  3 failed | 17 passed (20)
@@ -40,12 +41,12 @@ $ find sdone/src -name "*.test.ts" | wc -l
 21
 ```
 
-| 指标 | 回顾声称 | 实际值 |
-|------|---------|--------|
-| 总测试数 | 388 | 364 |
-| 通过测试 | 未提及 | 352 |
-| 失败测试 | 未提及 | 12 |
-| 测试文件 | 18 | 21（20 passed + 1 error file） |
+| 指标     | 回顾声称 | 实际值                         |
+| -------- | -------- | ------------------------------ |
+| 总测试数 | 388      | 364                            |
+| 通过测试 | 未提及   | 352                            |
+| 失败测试 | 未提及   | 12                             |
+| 测试文件 | 18       | 21（20 passed + 1 error file） |
 
 **来源追踪：** "388" 这个数字出现在 Explore agent 的 Story 4.4 分析中（"故事 4.4 达到了总共 388 个测试（18 个测试文件）"）。此数字来自 story 4.4 文件的某个中间快照，不是当前项目状态。回顾文档直接引用了此数字而未重新计算。
 
@@ -56,6 +57,7 @@ $ find sdone/src -name "*.test.ts" | wc -l
 **原句：** "完成 Stories: 6 (100%)" + "4.5 Rate Editing via Sidebar | ✅ done"
 
 **实际验证：**
+
 - `sprint-status.yaml:74`：`4-5-rate-editing-via-sidebar-runtime-updates: done`
 - `4-5-rate-editing-via-sidebar-runtime-updates.md:3`：`Status: ready-for-dev`
 
@@ -69,17 +71,18 @@ $ find sdone/src -name "*.test.ts" | wc -l
 
 **实际验证：** `deferred-work.md` 包含 65 个 bullet 条目。按 Epic 分组的计数：
 
-| 来源 | 条目数 |
-|------|--------|
-| Story 4.1 | 6 |
-| Story 4.2 | 5 |
-| Story 4.3 | 5 |
-| Story 4.4 | 7 |
-| Story 4.6 | 3 |
-| **Epic 4 合计** | **26** |
-| Pre-Epic 4（来自 Epic 1/2/3） | ~39 |
+| 来源                          | 条目数 |
+| ----------------------------- | ------ |
+| Story 4.1                     | 6      |
+| Story 4.2                     | 5      |
+| Story 4.3                     | 5      |
+| Story 4.4                     | 7      |
+| Story 4.6                     | 3      |
+| **Epic 4 合计**               | **26** |
+| Pre-Epic 4（来自 Epic 1/2/3） | ~39    |
 
 **分析：** 回顾文档选择了 12 项作为"代表性"列出，但标题"累积技术债务"暗示这是完整清单。被遗漏的 14 项包括：
+
 - `_stateRef!` 非空断言（故事 4.2）
 - Space 键按钮聚焦双重切换（故事 4.2）
 - 标签页后台节流致时间跳跃（故事 4.2）
@@ -99,6 +102,7 @@ $ find sdone/src -name "*.test.ts" | wc -l
 **原句：** "12 个 canvas 渲染器测试因 jsdom 配置问题而失败"
 
 **实际验证：**
+
 ```
 FAIL  sdone/src/canvas/MinimapRenderer.test.ts — 12 tests (all tests in this file)
 FAIL  sdone/src/ui/panels/ModulePanel.test.ts — entire file
@@ -112,6 +116,7 @@ FAIL  sdone/src/ui/panels/RateEditorPanel.test.ts — entire file
 **原句：** "Story 4.2 的 `_stateRef` 引用分歧是 Epic 4 唯一的关键缺陷"
 
 **实际验证：** Story 4.4 的深度审计发现了多个 P1 级别的实际缺陷：
+
 - `Math.pow(负数, 分数)` 静默产生 NaN 并传播整个积分链
 - `formulaStr` 为 `undefined` 时导致未处理 TypeError 崩溃
 - 每次 tick 对无效公式调用 `console.warn` 造成控制台洪水（100ms 频率）
@@ -156,7 +161,7 @@ FAIL  sdone/src/ui/panels/RateEditorPanel.test.ts — entire file
 
 ### 修正 5：缺陷严重性叙事
 
-**正确表述：** "Epic 4 在 review 阶段发现 P0（1 个）：_stateRef 引用分歧；P1（4 个）：NaN 传播、undefined formulaStr 崩溃、console 洪水、switch 分支不完整。所有缺陷均在合并前修复。最终交付物零 P0/P1 已知问题。"
+**正确表述：** "Epic 4 在 review 阶段发现 P0（1 个）：\_stateRef 引用分歧；P1（4 个）：NaN 传播、undefined formulaStr 崩溃、console 洪水、switch 分支不完整。所有缺陷均在合并前修复。最终交付物零 P0/P1 已知问题。"
 
 **第一性原理：** 缺陷严重性是**客观分类**，不是叙事选择。将 P1 缺陷排除在"关键缺陷"的计数之外，是因为它们在 review 阶段被修复了——但这使得回顾的叙事变成了"我们没有犯错"而非"我们发现并修复了错误"。前者掩盖了审查流程的价值。
 
@@ -208,13 +213,13 @@ FAIL  sdone/src/ui/panels/RateEditorPanel.test.ts — entire file
 
 **需要修正的项：**
 
-| 修正 | 严重性 | 行动 |
-|------|--------|------|
-| 测试数量 388→364 | High | 更新回顾文档 |
-| Story 4.5 状态不一致 | High | 标记并修复不一致 |
-| 技术债务 12→26 | Medium | 更新为完整计数 + P1 优先级排序 |
-| 失败测试归因 | Low | 精确化为 MinimapRenderer + Panel 测试 |
-| 缺陷叙事 | Medium | 区分"发现的缺陷"和"遗留的缺陷" |
+| 修正                 | 严重性 | 行动                                  |
+| -------------------- | ------ | ------------------------------------- |
+| 测试数量 388→364     | High   | 更新回顾文档                          |
+| Story 4.5 状态不一致 | High   | 标记并修复不一致                      |
+| 技术债务 12→26       | Medium | 更新为完整计数 + P1 优先级排序        |
+| 失败测试归因         | Low    | 精确化为 MinimapRenderer + Panel 测试 |
+| 缺陷叙事             | Medium | 区分"发现的缺陷"和"遗留的缺陷"        |
 
 **不需要修正的项（已验证正确）：**
 

@@ -1,9 +1,9 @@
 ---
-name: 'step-02-load-context'
-description: 'Load documents, configuration, and knowledge fragments for the chosen mode'
-nextStepFile: '{skill-root}/steps-c/step-03-risk-and-testability.md'
-knowledgeIndex: './resources/tea-index.csv'
-outputFile: '{test_artifacts}/test-design-progress.md'
+name: "step-02-load-context"
+description: "Load documents, configuration, and knowledge fragments for the chosen mode"
+nextStepFile: "{skill-root}/steps-c/step-03-risk-and-testability.md"
+knowledgeIndex: "./resources/tea-index.csv"
+outputFile: "{test_artifacts}/test-design-progress.md"
 ---
 
 # Step 2: Load Context & Knowledge Base
@@ -219,12 +219,12 @@ Summarize what was loaded and confirm with the user if anything is missing.
 
   ```yaml
   ---
-  workflowStatus: 'in-progress'
+  workflowStatus: "in-progress"
   totalSteps: 5
-  stepsCompleted: ['step-02-load-context']
-  lastStep: 'step-02-load-context'
-  nextStep: '{nextStepFile}'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-02-load-context"]
+  lastStep: "step-02-load-context"
+  nextStep: "{nextStepFile}"
+  lastSaved: "{date}"
   ---
   ```
 

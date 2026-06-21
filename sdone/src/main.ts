@@ -19,14 +19,53 @@ import './ui/overlays/styles/achievement-toast.css'; // Story 5.5
 import './ui/overlays/styles/modal-dialog.css'; // Story 6.1
 import './ui/overlays/styles/capacity-input-popover.css'; // Infinity fix
 import './ui/overlays/styles/toolbar.css'; // Story 8.6
-import { CanvasResizer, ViewportManager, SceneRenderer, MinimapRenderer, getEdgePoint, ParticleEngine, ConfettiEngine, PerformanceMonitor, OverlaySyncManager, type ConfettiParticle } from './canvas/index.js';
-import { ModulePanel, RateEditorPanel, ControlBar, AnalyticsPanel, computeStockAnalytics, CountdownPanel, computeAllStockCountdowns, sortCountdownsByUrgency } from './ui/panels/index.js';
-import { ColorPickerPopover, AchievementToast, ModalDialog, CapacityInputPopover, ToolbarController } from './ui/overlays/index.js';
+import {
+  CanvasResizer,
+  ViewportManager,
+  SceneRenderer,
+  MinimapRenderer,
+  getEdgePoint,
+  ParticleEngine,
+  ConfettiEngine,
+  PerformanceMonitor,
+  OverlaySyncManager,
+  type ConfettiParticle,
+} from './canvas/index.js';
+import {
+  ModulePanel,
+  RateEditorPanel,
+  ControlBar,
+  AnalyticsPanel,
+  computeStockAnalytics,
+  CountdownPanel,
+  computeAllStockCountdowns,
+  sortCountdownsByUrgency,
+} from './ui/panels/index.js';
+import {
+  ColorPickerPopover,
+  AchievementToast,
+  ModalDialog,
+  CapacityInputPopover,
+  ToolbarController,
+} from './ui/overlays/index.js';
 import { InputManager, isEditingTarget } from './input/InputManager.js';
 import type { GraphState, ModuleType, ModuleNode, StockNode } from './state/GraphState.js';
 import { DEFAULT_MODULE_HEIGHT } from './state/GraphState.js';
 import type { Vec2 } from './shared/Vec2.js';
-import { moveModule, deleteModule, addModule, addConnection, addFeedbackConnection, deleteConnection, updateRate, updateFormula, changeModuleColor, updateCapacity, updateModuleSize, updateModuleLabel } from './state/mutations.js';
+import {
+  moveModule,
+  deleteModule,
+  addModule,
+  addConnection,
+  addFeedbackConnection,
+  deleteConnection,
+  updateRate,
+  updateFormula,
+  changeModuleColor,
+  updateCapacity,
+  updateModuleSize,
+  updateModuleLabel,
+} from './state/mutations.js';
 import { detectFirstCompleteStack } from './state/achievement-detection.js';
 import { HistoryManager } from './state/HistoryManager.js';
 import { EventBus } from './event-bus/EventBus.js';
@@ -82,7 +121,9 @@ const viewportManager = new ViewportManager();
 const overlaySyncManager = new OverlaySyncManager(viewportManager);
 
 const toolbarController = new ToolbarController({
-  onNameEditStart: () => { inputManager.isEditingName = true; },
+  onNameEditStart: () => {
+    inputManager.isEditingName = true;
+  },
   onNameCommit: (label: string) => {
     const moduleId = currentState.selectedModuleIds[0];
     if (!moduleId) return;
@@ -90,7 +131,9 @@ const toolbarController = new ToolbarController({
     historyManager.push(currentState);
     inputManager.isEditingName = false;
   },
-  onNameEditCancel: () => { inputManager.isEditingName = false; },
+  onNameEditCancel: () => {
+    inputManager.isEditingName = false;
+  },
   onColorDotClick: () => {
     const moduleId = currentState.selectedModuleIds[0];
     if (!moduleId) return;
@@ -99,7 +142,11 @@ const toolbarController = new ToolbarController({
     // Compute toolbar screen position for popover anchor
     const canvasCenter = { x: sceneCanvas.clientWidth / 2, y: sceneCanvas.clientHeight / 2 };
     const moduleHeight = node.height ?? DEFAULT_MODULE_HEIGHT;
-    const screenPos = overlaySyncManager.getToolbarScreenPosition(node.position, moduleHeight, canvasCenter);
+    const screenPos = overlaySyncManager.getToolbarScreenPosition(
+      node.position,
+      moduleHeight,
+      canvasCenter,
+    );
     const palette = node.type === 'source' ? SOURCE_PALETTE : SINK_PALETTE;
     const currentColor = node.color ?? palette[0];
     // No flag assignment — colorPickerOpenProvider reads colorPickerPopover.isOpen directly
@@ -174,10 +221,14 @@ inputManager.connectionsProvider = () => currentState.connections;
 /** Story 5.4 AC3 — Chinese type labels for connection tooltip direction. */
 const getModuleLabel = (type: string): string => {
   switch (type) {
-    case 'source': return '源';
-    case 'stock': return '存量';
-    case 'sink': return '汇';
-    default: return type;
+    case 'source':
+      return '源';
+    case 'stock':
+      return '存量';
+    case 'sink':
+      return '汇';
+    default:
+      return type;
   }
 };
 
@@ -219,7 +270,12 @@ inputManager.onModuleSelect = (moduleId: string | null) => {
     toolbarController.hide();
 
     // Deselect all (mutual exclusivity: clear both module & connection selection)
-    currentState = { ...currentState, selectedModuleIds: [], selectedConnectionIds: [], version: currentState.version + 1 };
+    currentState = {
+      ...currentState,
+      selectedModuleIds: [],
+      selectedConnectionIds: [],
+      version: currentState.version + 1,
+    };
     // Story 4.5: Deselect connection when clicking empty space
     rateEditorPanel.setConnection(null);
     // Story 6.2: Clear analytics panel when deselecting (AC3)
@@ -278,7 +334,12 @@ inputManager.onModuleSelect = (moduleId: string | null) => {
 inputManager.onConnectionSelect = (connectionId: string | null) => {
   if (connectionId === null) {
     // Deselect all — clear both selections for mutual exclusivity
-    currentState = { ...currentState, selectedConnectionIds: [], selectedModuleIds: [], version: currentState.version + 1 };
+    currentState = {
+      ...currentState,
+      selectedConnectionIds: [],
+      selectedModuleIds: [],
+      version: currentState.version + 1,
+    };
     // Story 8.6 (code review 2026-06-21): hide toolbar — a previously-selected module's
     // toolbar would otherwise stay visible since this path clears module selection directly.
     toolbarController.hide();
@@ -334,7 +395,11 @@ inputManager.onModuleDragStart = () => {
 };
 
 // ── Story 2.3: Module Move (drag) ────────────────────────────────────
-inputManager.onModuleMove = (moduleId: string, _fromWorld: import('./shared/Vec2.js').Vec2, toWorld: import('./shared/Vec2.js').Vec2) => {
+inputManager.onModuleMove = (
+  moduleId: string,
+  _fromWorld: import('./shared/Vec2.js').Vec2,
+  toWorld: import('./shared/Vec2.js').Vec2,
+) => {
   // Only move if we can find the module
   if (!currentState.nodes[moduleId]) return;
   currentState = moveModule(currentState, moduleId, toWorld);
@@ -342,7 +407,11 @@ inputManager.onModuleMove = (moduleId: string, _fromWorld: import('./shared/Vec2
 };
 
 // ── Story 2.3: Module Drag-End (commit history + emit event) ────────
-inputManager.onModuleDragEnd = (moduleId: string, fromWorld: import('./shared/Vec2.js').Vec2, toWorld: import('./shared/Vec2.js').Vec2) => {
+inputManager.onModuleDragEnd = (
+  moduleId: string,
+  fromWorld: import('./shared/Vec2.js').Vec2,
+  toWorld: import('./shared/Vec2.js').Vec2,
+) => {
   // POST-mutation push: currentState already reflects all onModuleMove calls.
   historyManager.push(currentState);
   eventBus.emit('MODULE_MOVED', { type: 'move', moduleId, from: fromWorld, to: toWorld });
@@ -377,52 +446,52 @@ inputManager.onResizeEnd = (moduleId: string, newSize: { width: number; height: 
   resizeAnchorWorld = null;
 };
 
-  // ── Story 3.4: Module Delete (Click + Delete Key) ──────────────────────
-  inputManager.onModuleDelete = () => {
-    const selected = currentState.selectedModuleIds[0];
-    if (!selected) return;                        // AC5: no-op if nothing selected
+// ── Story 3.4: Module Delete (Click + Delete Key) ──────────────────────
+inputManager.onModuleDelete = () => {
+  const selected = currentState.selectedModuleIds[0];
+  if (!selected) return; // AC5: no-op if nothing selected
 
-    currentState = deleteModule(currentState, selected);  // AC1 + AC2
-    // Clear all selections (mutual exclusivity)
-    currentState = { ...currentState, selectedModuleIds: [], selectedConnectionIds: [] };
-    // Story 8.6 (code review 2026-06-21): hide toolbar — the deleted module's toolbar
-    // would otherwise stay mounted/visible since this path clears selection directly
-    // rather than going through onModuleSelect(null), and onPreFrame skips toolbar
-    // updates when no module is selected.
-    toolbarController.hide();
-    historyManager.push(currentState);            // AC3: POST-mutation push
-    eventBus.emit('MODULE_DELETED', { moduleId: selected });  // audit event
-    minimapRenderer.markDirty();
-    // Story 4.5: Deleting a module may cascade-delete the selected connection
-    rateEditorPanel.setConnection(null);
-    // Story 6.2: Deleting a module clears analytics (selection is now empty)
-    analyticsPanel.setStock(null);
-    // Story 7.2: Deleting a module → refresh countdown panels
-    refreshCountdownPanels();
-    // Story 7.3: Clean up stale auto-pause + overflow tracking for the deleted module
-    _autoPausedStockIds.delete(selected);
-    _cumulativeOverflow.delete(selected);
-    _prevCountdownMap.delete(selected); // Story 7.4: deferred from 7.2 — clean up stale zero-crossing tracking
-    updateAutoPauseStatus();
-  };
+  currentState = deleteModule(currentState, selected); // AC1 + AC2
+  // Clear all selections (mutual exclusivity)
+  currentState = { ...currentState, selectedModuleIds: [], selectedConnectionIds: [] };
+  // Story 8.6 (code review 2026-06-21): hide toolbar — the deleted module's toolbar
+  // would otherwise stay mounted/visible since this path clears selection directly
+  // rather than going through onModuleSelect(null), and onPreFrame skips toolbar
+  // updates when no module is selected.
+  toolbarController.hide();
+  historyManager.push(currentState); // AC3: POST-mutation push
+  eventBus.emit('MODULE_DELETED', { moduleId: selected }); // audit event
+  minimapRenderer.markDirty();
+  // Story 4.5: Deleting a module may cascade-delete the selected connection
+  rateEditorPanel.setConnection(null);
+  // Story 6.2: Deleting a module clears analytics (selection is now empty)
+  analyticsPanel.setStock(null);
+  // Story 7.2: Deleting a module → refresh countdown panels
+  refreshCountdownPanels();
+  // Story 7.3: Clean up stale auto-pause + overflow tracking for the deleted module
+  _autoPausedStockIds.delete(selected);
+  _cumulativeOverflow.delete(selected);
+  _prevCountdownMap.delete(selected); // Story 7.4: deferred from 7.2 — clean up stale zero-crossing tracking
+  updateAutoPauseStatus();
+};
 
-  // ── Story 3.7: Connection Delete (Click + Delete Key) ──────────────────
-  inputManager.onConnectionDelete = () => {
-    const selected = currentState.selectedConnectionIds[0];
-    if (!selected) return; // no-op if no connection selected
+// ── Story 3.7: Connection Delete (Click + Delete Key) ──────────────────
+inputManager.onConnectionDelete = () => {
+  const selected = currentState.selectedConnectionIds[0];
+  if (!selected) return; // no-op if no connection selected
 
-    currentState = deleteConnection(currentState, selected);
-    currentState = { ...currentState, selectedConnectionIds: [] };
-    historyManager.push(currentState);
-    eventBus.emit('CONNECTION_DELETED', { connectionId: selected });
-    minimapRenderer.markDirty();
-    // Story 4.5: Stale-rate guard — deleted connection must clear panel
-    rateEditorPanel.setConnection(null);
-    // Story 6.2: Connection deletion changes inflow/outflow → refresh analytics
-    refreshAnalyticsPanel();
-    // Story 7.2: Connection deletion changes net rate → refresh countdown
-    refreshCountdownPanels();
-  };
+  currentState = deleteConnection(currentState, selected);
+  currentState = { ...currentState, selectedConnectionIds: [] };
+  historyManager.push(currentState);
+  eventBus.emit('CONNECTION_DELETED', { connectionId: selected });
+  minimapRenderer.markDirty();
+  // Story 4.5: Stale-rate guard — deleted connection must clear panel
+  rateEditorPanel.setConnection(null);
+  // Story 6.2: Connection deletion changes inflow/outflow → refresh analytics
+  refreshAnalyticsPanel();
+  // Story 7.2: Connection deletion changes net rate → refresh countdown
+  refreshCountdownPanels();
+};
 
 // ── Story 3.5: Tab → cycle module selection (AC1, AC5) ──────────────
 inputManager.onTabNext = () => {
@@ -526,9 +595,9 @@ function applyPaletteColor(
   type: 'source' | 'sink',
 ): GraphState {
   const palette = type === 'source' ? SOURCE_PALETTE : SINK_PALETTE;
-  const existing = Object.values(nextState.nodes).filter(n => n.type === type).length;
+  const existing = Object.values(nextState.nodes).filter((n) => n.type === type).length;
   const colour = palette[(existing - 1) % palette.length];
-  const newNodeId = Object.keys(nextState.nodes).find(id => !(id in prevState.nodes));
+  const newNodeId = Object.keys(nextState.nodes).find((id) => !(id in prevState.nodes));
   if (!newNodeId) return nextState;
   return {
     ...nextState,
@@ -680,8 +749,12 @@ if (btnResetViewport) {
 }
 
 // ── Story 7.4: Save Point & Time Rewind Buttons ──────────────────────
-const btnSaveCheckpoint = document.querySelector('.btn-save-checkpoint') as HTMLButtonElement | null;
-const btnRewindCheckpoint = document.querySelector('.btn-rewind-checkpoint') as HTMLButtonElement | null;
+const btnSaveCheckpoint = document.querySelector(
+  '.btn-save-checkpoint',
+) as HTMLButtonElement | null;
+const btnRewindCheckpoint = document.querySelector(
+  '.btn-rewind-checkpoint',
+) as HTMLButtonElement | null;
 
 /** Story 7.4: Enable save button when paused, rewind button when checkpoint exists. */
 function updateCheckpointButtons(): void {
@@ -811,7 +884,14 @@ const handleResetShortcut = (e: KeyboardEvent): void => {
   }
 
   // ── Story 6.6: "P" key toggles panel pin state (AC1) ──────────────
-  if (e.code === 'KeyP' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.repeat && !isEditingTarget(e.target as EventTarget | null)) {
+  if (
+    e.code === 'KeyP' &&
+    !e.shiftKey &&
+    !e.ctrlKey &&
+    !e.metaKey &&
+    !e.repeat &&
+    !isEditingTarget(e.target as EventTarget | null)
+  ) {
     e.preventDefault();
     const leftHidden = document.querySelector('.module-panel--hidden') !== null;
     const rightHidden = rightSidebarContent.classList.contains('right-sidebar__content--hidden');
@@ -820,7 +900,7 @@ const handleResetShortcut = (e: KeyboardEvent): void => {
       // Re-show hidden panels and pin them
       if (leftHidden) {
         modulePanel.setHidden(false);
-        modulePanel.setPinned(true);    // Story 6.6 AC1 — re-expand also pins
+        modulePanel.setPinned(true); // Story 6.6 AC1 — re-expand also pins
       }
       if (rightHidden) {
         setRightSidebarHidden(false);
@@ -838,9 +918,9 @@ const handleResetShortcut = (e: KeyboardEvent): void => {
 
   // ── Story 4.2: Space → Run/Pause toggle ────────────────────────────
   if (!e.shiftKey && !e.ctrlKey && !e.metaKey && e.code === 'Space') {
-    if (e.repeat) return;                        // ignore key repeat (~30Hz)
-    if (isEditingTarget(e.target)) return;       // don't toggle when typing
-    if (inputManager.isDragging) return;         // don't toggle during drag
+    if (e.repeat) return; // ignore key repeat (~30Hz)
+    if (isEditingTarget(e.target)) return; // don't toggle when typing
+    if (inputManager.isDragging) return; // don't toggle during drag
     e.preventDefault();
     if (simEngine.state === 'running') {
       eventBus.emit('PAUSE', undefined);
@@ -875,7 +955,11 @@ eventBus.on('SNAPSHOT_EMITTED', (payload: { state: GraphState }) => {
     if (node.type !== 'stock') continue;
     const stock = node as StockNode;
     // Story 7.3 P2 fix: guard against Infinity stock.value (degenerate simulation state)
-    if (Number.isFinite(stock.capacity) && Number.isFinite(stock.value) && stock.value > stock.capacity) {
+    if (
+      Number.isFinite(stock.capacity) &&
+      Number.isFinite(stock.value) &&
+      stock.value > stock.capacity
+    ) {
       const overflow = stock.value - stock.capacity;
       const prev = _cumulativeOverflow.get(id) ?? 0;
       if (overflow > prev) {
@@ -914,7 +998,7 @@ eventBus.on('RUN', () => {
   _autoPausedStockIds.clear();
   updateAutoPauseStatus();
   updateCheckpointButtons(); // Story 7.4: save disabled when running (AC6)
-  modulePanel.clearSelection();   // Story 6.5 — prevent accidental placement during hide animation
+  modulePanel.clearSelection(); // Story 6.5 — prevent accidental placement during hide animation
   // Story 6.6: Only auto-hide when not pinned (AC3)
   if (!modulePanel.isPinned()) {
     modulePanel.setHidden(true);
@@ -1064,7 +1148,7 @@ void import.meta.hot?.dispose(() => {
   window.removeEventListener('keydown', handleResetShortcut);
   nudgeDebouncer.cancel();
   simEngine.reset(); // stop interval + reset state
-  updateAutoPauseStatus();  // button → '▶ Run' (reset sets state to idle)
+  updateAutoPauseStatus(); // button → '▶ Run' (reset sets state to idle)
   canvasResizer.destroy();
   sceneRenderer.stop();
   // Story 4.6: Clean up stock warning provider (follows provider dereference pattern)
@@ -1089,8 +1173,8 @@ void import.meta.hot?.dispose(() => {
   if (panelRightContainer && rightReExpandTab.parentNode === panelRightContainer) {
     panelRightContainer.removeChild(rightReExpandTab);
   }
-  controlBar.destroy();    // Story 6.1: cleanup button listeners + status element
-  modalDialog.destroy();   // Story 6.1: cleanup modal DOM + keyboard listeners
+  controlBar.destroy(); // Story 6.1: cleanup button listeners + status element
+  modalDialog.destroy(); // Story 6.1: cleanup modal DOM + keyboard listeners
   colorPickerPopover.destroy();
   toolbarController.destroy(); // Story 8.6
   capacityInputPopover.destroy(); // Infinity fix
@@ -1224,42 +1308,42 @@ const rightReExpandClickHandler = () => {
 rightReExpandTab.addEventListener('click', rightReExpandClickHandler);
 panelRightContainer.appendChild(rightReExpandTab);
 
-  // ── Story 4.5: Rate Editor Submit Callback ───────────────────────────
-  rateEditorPanel.onRateSubmit = (newRate: number) => {
-    const selectedConnId = currentState.selectedConnectionIds[0];
-    if (!selectedConnId) return;
-    const conn = currentState.connections[selectedConnId];
-    // Guard: no-op if connection missing or rate unchanged
-    if (!conn || conn.rate === newRate) return;
+// ── Story 4.5: Rate Editor Submit Callback ───────────────────────────
+rateEditorPanel.onRateSubmit = (newRate: number) => {
+  const selectedConnId = currentState.selectedConnectionIds[0];
+  if (!selectedConnId) return;
+  const conn = currentState.connections[selectedConnId];
+  // Guard: no-op if connection missing or rate unchanged
+  if (!conn || conn.rate === newRate) return;
 
-    const nextState = updateRate(currentState, selectedConnId, newRate);
-    // No-op guard: mutation returns same state if connection not found
-    if (nextState.version === currentState.version) return;
-    // AC2/AC7: POST-mutation push — stack top reflects current state for correct redo
-    currentState = nextState;
-    historyManager.push(currentState);
-    minimapRenderer.markDirty();
-    // Story 6.2: Rate change affects inflow/outflow → refresh analytics
-    refreshAnalyticsPanel();
-    // Story 7.2: Rate change affects net rate → refresh countdown
-    refreshCountdownPanels();
-  };
+  const nextState = updateRate(currentState, selectedConnId, newRate);
+  // No-op guard: mutation returns same state if connection not found
+  if (nextState.version === currentState.version) return;
+  // AC2/AC7: POST-mutation push — stack top reflects current state for correct redo
+  currentState = nextState;
+  historyManager.push(currentState);
+  minimapRenderer.markDirty();
+  // Story 6.2: Rate change affects inflow/outflow → refresh analytics
+  refreshAnalyticsPanel();
+  // Story 7.2: Rate change affects net rate → refresh countdown
+  refreshCountdownPanels();
+};
 
-  // ── Story 7.1: Formula Editor Submit Callback ────────────────────────
-  rateEditorPanel.onFormulaSubmit = (formulaStr: string) => {
-    const selectedConnId = currentState.selectedConnectionIds[0];
-    if (!selectedConnId) return;
-    const conn = currentState.connections[selectedConnId];
-    if (!conn) return;
+// ── Story 7.1: Formula Editor Submit Callback ────────────────────────
+rateEditorPanel.onFormulaSubmit = (formulaStr: string) => {
+  const selectedConnId = currentState.selectedConnectionIds[0];
+  if (!selectedConnId) return;
+  const conn = currentState.connections[selectedConnId];
+  if (!conn) return;
 
-    const nextState = updateFormula(currentState, selectedConnId, formulaStr);
-    if (nextState.version === currentState.version) return;
-    currentState = nextState;
-    historyManager.push(currentState);
-    minimapRenderer.markDirty();
-    refreshAnalyticsPanel();
-    refreshCountdownPanels();
-  };
+  const nextState = updateFormula(currentState, selectedConnId, formulaStr);
+  if (nextState.version === currentState.version) return;
+  currentState = nextState;
+  historyManager.push(currentState);
+  minimapRenderer.markDirty();
+  refreshAnalyticsPanel();
+  refreshCountdownPanels();
+};
 
 // ── Story 3.2: Drag & Drop Module Placement ───────────────────────────
 
@@ -1270,7 +1354,10 @@ inputManager.onConnectionDragStart = (_sourceModuleId: string) => {
   // inputManager.connectionDragWorldPosition / connectionDragSourceId.
 };
 
-inputManager.onConnectionDragMove = (_sourceModuleId: string, _worldCursor: import('./shared/Vec2.js').Vec2) => {
+inputManager.onConnectionDragMove = (
+  _sourceModuleId: string,
+  _worldCursor: import('./shared/Vec2.js').Vec2,
+) => {
   // No-op: preview is handled by SceneRenderer's connectionDragProvider.
 };
 
@@ -1344,10 +1431,10 @@ inputManager.onConnectionDragEnd = (sourceModuleId: string, targetModuleId: stri
     for (const stockNode of Object.values(currentState.nodes)) {
       if (stockNode.type !== 'stock') continue;
       const sourceConns = Object.values(currentState.connections).filter(
-        c => c.toId === stockNode.id && currentState.nodes[c.fromId]?.type === 'source'
+        (c) => c.toId === stockNode.id && currentState.nodes[c.fromId]?.type === 'source',
       );
       const sinkConns = Object.values(currentState.connections).filter(
-        c => c.fromId === stockNode.id && currentState.nodes[c.toId]?.type === 'sink'
+        (c) => c.fromId === stockNode.id && currentState.nodes[c.toId]?.type === 'sink',
       );
       if (sourceConns.length > 0 && sinkConns.length > 0) {
         stackModuleIds.add(stockNode.id);
@@ -1396,7 +1483,8 @@ inputManager.onFeedbackDragCancel = () => {
 };
 
 // Story 7.1: Feedback handle hover provider for SceneRenderer
-sceneRenderer.feedbackHandleHoveredStockIdProvider = () => inputManager.feedbackHandleHoveredStockId;
+sceneRenderer.feedbackHandleHoveredStockIdProvider = () =>
+  inputManager.feedbackHandleHoveredStockId;
 
 // Story 7.3: Breathing glow provider for SceneRenderer (renders during auto-pause)
 sceneRenderer.breathingGlowStockIdsProvider = () => _autoPausedStockIds;
@@ -1462,7 +1550,7 @@ sceneRenderer.onPreFrame = (dt: number) => {
   particleEngine.update(dt, currentState.connections, currentState.nodes, simEngine.state);
   // Story 5.5: update confetti engine + border flash lifetime
   const nextConfetti = confettiEngine.update(dt);
-  confettiParticles = (nextConfetti && nextConfetti.length > 0) ? nextConfetti : null;
+  confettiParticles = nextConfetti && nextConfetti.length > 0 ? nextConfetti : null;
   if (borderFlashState) {
     borderFlashState = { ...borderFlashState, life: borderFlashState.life - dt };
     if (borderFlashState.life <= 0) borderFlashState = null;
@@ -1475,7 +1563,11 @@ sceneRenderer.onPreFrame = (dt: number) => {
     if (node) {
       const canvasCenter = { x: sceneCanvas.clientWidth / 2, y: sceneCanvas.clientHeight / 2 };
       const moduleHeight = node.height ?? DEFAULT_MODULE_HEIGHT;
-      const screenPos = overlaySyncManager.getToolbarScreenPosition(node.position, moduleHeight, canvasCenter);
+      const screenPos = overlaySyncManager.getToolbarScreenPosition(
+        node.position,
+        moduleHeight,
+        canvasCenter,
+      );
       toolbarController.updatePosition(screenPos);
 
       // Refresh dataText each frame (stock value changes during sim)
@@ -1540,8 +1632,14 @@ minimapRenderer.start();
 
 console.log(
   'SDONE v0.1 – dual-canvas DOM + viewport + input + module interaction initialized',
-  '\n  scene:', sceneCanvas.id, `(${sceneCanvas.width}x${sceneCanvas.height})`,
-  '\n  minimap:', minimapCanvas.id, `(${minimapCanvas.width}x${minimapCanvas.height})`,
-  '\n  viewport zoom:', viewportManager.viewport.zoom,
-  '\n  modules:', Object.keys(currentState.nodes).length,
+  '\n  scene:',
+  sceneCanvas.id,
+  `(${sceneCanvas.width}x${sceneCanvas.height})`,
+  '\n  minimap:',
+  minimapCanvas.id,
+  `(${minimapCanvas.width}x${minimapCanvas.height})`,
+  '\n  viewport zoom:',
+  viewportManager.viewport.zoom,
+  '\n  modules:',
+  Object.keys(currentState.nodes).length,
 );

@@ -29,9 +29,9 @@ Error: mouse.move: Target page, context or browser has been closed
   214 |   }
   215 |   await page.mouse.up();
   216 | }
-  217 | 
+  217 |
   218 | // ── Connection Creation ───────────────────────────────────────────────────
-  219 | 
+  219 |
   220 | /**
   221 |  * Create a connection via edge-drag between two modules.
   222 |  *
@@ -51,16 +51,16 @@ Error: mouse.move: Target page, context or browser has been closed
   236 | ): Promise<void> {
   237 |   const from = worldToScreen(fromWorldX, fromWorldY);
   238 |   const to = worldToScreen(toWorldX, toWorldY);
-  239 | 
+  239 |
   240 |   // Calculate direction vector
   241 |   const dx = to.x - from.x;
   242 |   const dy = to.y - from.y;
   243 |   const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-  244 | 
+  244 |
   245 |   // Normalized direction
   246 |   const nx = dx / dist;
   247 |   const ny = dy / dist;
-  248 | 
+  248 |
   249 |   // Edge-drag start: must be in the edge zone (outer 30% of hit radius)
   250 |   // Source: hit-radius 32px, edge zone starts at 32*0.7 = 22px → click at ~26px
   251 |   // Stock:  hit-radius ~72px, edge zone starts at 72*0.7 = 50px → click at ~56px
@@ -99,20 +99,20 @@ Error: mouse.move: Target page, context or browser has been closed
   284 |   // Then start the drag from that edge-zone point.
   285 |   // This guarantees we're in the edge zone for ANY module type if we pick an
   286 |   // appropriate distance.
-  287 | 
+  287 |
   288 |   // Use 28px offset for edge zone — works for source (22+), sink (17+)
   289 |   // For stock: this is INNER zone, not edge. But connection drag from stock
   290 |   // is handled differently in the actual test (we verify via toast, not direct drag).
   291 |   // For now, keep 28px and let the platform-specific tests handle edge cases.
   292 |   const edgeDist = 28;
-  293 | 
+  293 |
   294 |   const startX = from.x + nx * edgeDist;
   295 |   const startY = from.y + ny * edgeDist;
   296 |   // End at the target's edge
   297 |   const endDist = Math.min(dist * 0.85, dist - 20);
   298 |   const endX = from.x + nx * endDist;
   299 |   const endY = from.y + ny * endDist;
-  300 | 
+  300 |
   301 |   await page.mouse.move(startX, startY);
   302 |   await page.mouse.down();
   303 |   const steps = 8;
@@ -128,9 +128,9 @@ Error: mouse.move: Target page, context or browser has been closed
   312 |   await page.mouse.up();
   313 |   await page.waitForTimeout(300);
   314 | }
-  315 | 
+  315 |
   316 | // ── Keyboard Helpers ──────────────────────────────────────────────────────
-  317 | 
+  317 |
   318 | /**
   319 |  * Press a key combination. Defaults to no modifiers.
   320 |  */
@@ -141,83 +141,83 @@ Error: mouse.move: Target page, context or browser has been closed
   325 |   const combo = [...modifiers, key].join('+');
   326 |   await page.keyboard.press(combo);
   327 | }
-  328 | 
+  328 |
   329 | /**
   330 |  * Press Space (run/pause toggle).
   331 |  */
   332 | export async function pressSpace(page: Page): Promise<void> {
   333 |   await page.keyboard.press('Space');
   334 | }
-  335 | 
+  335 |
   336 | /**
   337 |  * Press Delete key.
   338 |  */
   339 | export async function pressDelete(page: Page): Promise<void> {
   340 |   await page.keyboard.press('Delete');
   341 | }
-  342 | 
+  342 |
   343 | /**
   344 |  * Press Tab key.
   345 |  */
   346 | export async function pressTab(page: Page): Promise<void> {
   347 |   await page.keyboard.press('Tab');
   348 | }
-  349 | 
+  349 |
   350 | /**
   351 |  * Press Enter key.
   352 |  */
   353 | export async function pressEnter(page: Page): Promise<void> {
   354 |   await page.keyboard.press('Enter');
   355 | }
-  356 | 
+  356 |
   357 | // ── Arrow key nudge ───────────────────────────────────────────────────────
-  358 | 
+  358 |
   359 | /**
   360 |  * Press an arrow key (for nudging selected module).
   361 |  */
   362 | export async function nudgeArrow(page: Page, direction: 'Up' | 'Down' | 'Left' | 'Right'): Promise<void> {
   363 |   await page.keyboard.press(`Arrow${direction}`);
   364 | }
-  365 | 
+  365 |
   366 | // ── Simulation Helpers ────────────────────────────────────────────────────
-  367 | 
+  367 |
   368 | /**
   369 |  * Click the Run button in the control bar.
   370 |  */
   371 | export async function clickRun(page: Page): Promise<void> {
   372 |   await page.locator(SELECTORS.btnRun).click();
   373 | }
-  374 | 
+  374 |
   375 | /**
   376 |  * Click the Reset button in the control bar.
   377 |  */
   378 | export async function clickReset(page: Page): Promise<void> {
   379 |   await page.locator(SELECTORS.btnReset).click();
   380 | }
-  381 | 
+  381 |
   382 | /**
   383 |  * Click the Clear Canvas button.
   384 |  */
   385 | export async function clickClearCanvas(page: Page): Promise<void> {
   386 |   await page.locator(SELECTORS.btnClearCanvas).click();
   387 | }
-  388 | 
+  388 |
   389 | /**
   390 |  * Click save checkpoint button.
   391 |  */
   392 | export async function clickSaveCheckpoint(page: Page): Promise<void> {
   393 |   await page.locator(SELECTORS.btnSaveCheckpoint).click();
   394 | }
-  395 | 
+  395 |
   396 | /**
   397 |  * Click rewind checkpoint button.
   398 |  */
   399 | export async function clickRewindCheckpoint(page: Page): Promise<void> {
   400 |   await page.locator(SELECTORS.btnRewindCheckpoint).click();
   401 | }
-  402 | 
+  402 |
   403 | // ── Modal Helpers ─────────────────────────────────────────────────────────
-  404 | 
+  404 |
   405 | /**
   406 |  * Click the confirm button in an open modal.
 ```

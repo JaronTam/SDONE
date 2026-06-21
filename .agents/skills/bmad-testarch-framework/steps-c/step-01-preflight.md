@@ -1,8 +1,8 @@
 ---
-name: 'step-01-preflight'
-description: 'Verify prerequisites and gather project context'
-nextStepFile: '{skill-root}/steps-c/step-02-select-framework.md'
-outputFile: '{test_artifacts}/framework-setup-progress.md'
+name: "step-01-preflight"
+description: "Verify prerequisites and gather project context"
+nextStepFile: "{skill-root}/steps-c/step-02-select-framework.md"
+outputFile: "{test_artifacts}/framework-setup-progress.md"
 ---
 
 # Step 1: Preflight Checks
@@ -104,9 +104,9 @@ Summarize:
 
   ```yaml
   ---
-  stepsCompleted: ['step-01-preflight']
-  lastStep: 'step-01-preflight'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-01-preflight"]
+  lastStep: "step-01-preflight"
+  lastSaved: "{date}"
   ---
   ```
 

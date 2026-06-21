@@ -1,8 +1,8 @@
 ---
-name: 'step-02-define-thresholds'
-description: 'Identify NFR categories and thresholds'
-nextStepFile: '{skill-root}/steps-c/step-03-gather-evidence.md'
-outputFile: '{test_artifacts}/nfr-assessment.md'
+name: "step-02-define-thresholds"
+description: "Identify NFR categories and thresholds"
+nextStepFile: "{skill-root}/steps-c/step-03-gather-evidence.md"
+outputFile: "{test_artifacts}/nfr-assessment.md"
 ---
 
 # Step 2: Define NFR Categories & Thresholds
@@ -90,9 +90,9 @@ List each NFR category with its threshold or UNKNOWN status.
 
   ```yaml
   ---
-  stepsCompleted: ['step-02-define-thresholds']
-  lastStep: 'step-02-define-thresholds'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-02-define-thresholds"]
+  lastStep: "step-02-define-thresholds"
+  lastSaved: "{date}"
   ---
   ```
 

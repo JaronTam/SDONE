@@ -13,6 +13,7 @@
 审查在宏观方向上正确——确实发现了多处 spec 偏离和状态机缺口。但在严重性定级上存在**系统性夸大**：将开发者的合理设计选择（颜色值、尺寸参数、比例阈值）错误地升级为 P1（AC 违反），而实际上这些参数在 AC 文本中没有约束力。
 
 具体而言：
+
 - 18 个 patch 中，**5 个被过度定级**（P1→P2/P3），**1 个为误报**（Enter guard 已存在），**3 个实质性问题确认**为真正的 P1
 - 审查框架的"spec 合规"视角将 Dev Notes 中的**示例代码**错误地等同于**规范性 AC 约束**，这是本次审查最核心的认知偏差
 
@@ -63,7 +64,7 @@
 
 - **审查声称：** P1 — SNAP_ZONE_RADIUS 14 vs 20，hitTest 使用完整 hit radius
 - **源代码：** `SceneRenderer.ts:132` → `SNAP_ZONE_RADIUS = 14`（视觉反馈环）；`InputManager.ts:485` → `this.hitTest(screenPos)`（目标检测）
-- **分析：** 
+- **分析：**
   - 视觉环 14px vs spec 20px 是视觉选择
   - hitTest 的半径（source=32px, stock=~72px, sink=24px）比 spec 的 20px 更大，使连接创建**更容易**而非更难
   - AC2 写的是 "~20px"（约 20px），"~" 表示近似值
@@ -84,29 +85,31 @@
 
 ### 修正后的真实问题清单
 
-| # | 严重性 | 类别 | 描述 | 文件:行 |
-|---|--------|------|------|---------|
-| 1 | **P1** | AC3 违反 | 新连接 rate:0 而非 rate:1 | main.ts:2070, mutations.ts:218 |
-| 2 | **P1** | 状态泄漏 | undo/redo 中 cancelDrag() 不清除连接拖拽状态 | main.ts:247, InputManager.ts:689-696 |
-| 3 | **P1** | AC8 违反 | 箭头偏移硬编码 SINK_RADIUS(24px)，stock 模块箭头浮于内部 48px | SceneRenderer.ts:769 |
-| 4 | **P1** | AC8 违反 | 连线 center-to-center 而非 edge-to-edge（无 getEdgePoint） | SceneRenderer.ts:699-700 |
-| 5 | **P2** | 代码质量 | `expect(true).toBe(true)` 无用测试 | EmptyCanvasAffordance.test.ts:16,22 |
-| 6 | **P2** | 代码质量 | addModule 颜色与 applyPaletteColor 冲突，调色板循环死代码 | mutations.ts:74, main.ts:177-194 |
-| 7 | **P2** | Guard 缺失 | Tab handler 无 isDragging 守卫（Arrow/Enter 已有） | InputManager.ts:613 |
-| 8 | **P3** | 设计参数 | EDGE_ZONE_INNER_FRACTION 0.7 vs spec 0.5（有意选择） | InputManager.ts:12 |
-| 9 | **P3** | 设计参数 | 连接线颜色 #4fc3f7 vs spec #1a1a1a（视觉选择） | SceneRenderer.ts:127 |
-| 10 | **P3** | 设计参数 | 箭头尺寸 14/7 vs spec 8/6（视觉选择） | SceneRenderer.ts:130-131 |
-| 11 | **P3** | 设计参数 | 线宽 2.5 vs spec 2（视觉选择） | SceneRenderer.ts:128 |
-| 12 | **P3** | 设计参数 | 虚线样式 [6,6] vs spec [6,4]（视觉选择） | SceneRenderer.ts:736 |
-| 13 | **P3** | 设计参数 | SNAP_ZONE_RADIUS 14 vs spec 20（视觉选择） | SceneRenderer.ts:132 |
-| 14 | **P3** | 边界条件 | NaN 通过 ShapePaths 尺寸守卫 | ShapePaths.ts |
-| 15 | **P3** | 边界条件 | 零长度连接无守卫（drawArrowhead 有 len<1 但 line 仍绘制） | SceneRenderer.ts:699-701 |
-| 16 | **P3** | 边界条件 | 拖拽中删除源模块的竞态 | InputManager.ts:482 |
+| #   | 严重性 | 类别       | 描述                                                          | 文件:行                              |
+| --- | ------ | ---------- | ------------------------------------------------------------- | ------------------------------------ |
+| 1   | **P1** | AC3 违反   | 新连接 rate:0 而非 rate:1                                     | main.ts:2070, mutations.ts:218       |
+| 2   | **P1** | 状态泄漏   | undo/redo 中 cancelDrag() 不清除连接拖拽状态                  | main.ts:247, InputManager.ts:689-696 |
+| 3   | **P1** | AC8 违反   | 箭头偏移硬编码 SINK_RADIUS(24px)，stock 模块箭头浮于内部 48px | SceneRenderer.ts:769                 |
+| 4   | **P1** | AC8 违反   | 连线 center-to-center 而非 edge-to-edge（无 getEdgePoint）    | SceneRenderer.ts:699-700             |
+| 5   | **P2** | 代码质量   | `expect(true).toBe(true)` 无用测试                            | EmptyCanvasAffordance.test.ts:16,22  |
+| 6   | **P2** | 代码质量   | addModule 颜色与 applyPaletteColor 冲突，调色板循环死代码     | mutations.ts:74, main.ts:177-194     |
+| 7   | **P2** | Guard 缺失 | Tab handler 无 isDragging 守卫（Arrow/Enter 已有）            | InputManager.ts:613                  |
+| 8   | **P3** | 设计参数   | EDGE_ZONE_INNER_FRACTION 0.7 vs spec 0.5（有意选择）          | InputManager.ts:12                   |
+| 9   | **P3** | 设计参数   | 连接线颜色 #4fc3f7 vs spec #1a1a1a（视觉选择）                | SceneRenderer.ts:127                 |
+| 10  | **P3** | 设计参数   | 箭头尺寸 14/7 vs spec 8/6（视觉选择）                         | SceneRenderer.ts:130-131             |
+| 11  | **P3** | 设计参数   | 线宽 2.5 vs spec 2（视觉选择）                                | SceneRenderer.ts:128                 |
+| 12  | **P3** | 设计参数   | 虚线样式 [6,6] vs spec [6,4]（视觉选择）                      | SceneRenderer.ts:736                 |
+| 13  | **P3** | 设计参数   | SNAP_ZONE_RADIUS 14 vs spec 20（视觉选择）                    | SceneRenderer.ts:132                 |
+| 14  | **P3** | 边界条件   | NaN 通过 ShapePaths 尺寸守卫                                  | ShapePaths.ts                        |
+| 15  | **P3** | 边界条件   | 零长度连接无守卫（drawArrowhead 有 len<1 但 line 仍绘制）     | SceneRenderer.ts:699-701             |
+| 16  | **P3** | 边界条件   | 拖拽中删除源模块的竞态                                        | InputManager.ts:482                  |
 
 **已撤销（Dismiss）：**
+
 - Enter guard 缺失 → **误报**，`this.isDragging` 已覆盖
 
 **降级为 Defer：**
+
 - onModuleSelect 绕过 mutation 函数 → 预存（Story 2.3）
 - Tab 阻止默认浏览器导航 → 预存（Story 3.5）
 - Ghost provider 重复 → 预存
@@ -129,6 +132,7 @@
 ### 偏差 1：确认偏误（Confirmation Bias）— 审查框架预设"代码有问题"
 
 三个审查 agent 被赋予的角色分别是"cynical reviewer"、"path tracer"、"auditor"——它们被**预设为寻找问题**。这种框架在发现真实缺陷方面有效，但会导致：
+
 - 将主观设计选择（颜色、尺寸）当作客观缺陷
 - 系统性夸大严重性（P3→P1 升级）
 - 审查 agent 之间形成回声室：Blind Hunter 的发现被 Acceptance Auditor 重复确认，产生虚假的"多重验证"
@@ -144,6 +148,7 @@
 ### 偏差 3：Enter guard 误报 — 代码阅读不完整
 
 审查声称 Enter handler 缺少 `isDraggingConnection` 守卫，但实际上 `this.isDragging` 已经覆盖了。这是因为：
+
 1. Edge Case Hunter 只看到代码摘要（非完整源代码），信息不完整
 2. Acceptance Auditor 可能复用了 Edge Case Hunter 的结论而没有独立验证
 3. 在 triage 阶段，我（作为合并者）没有逐行验证每个发现
@@ -153,6 +158,7 @@
 ### 偏差 4：严重性通胀 — P3→P1 升级模式
 
 审查中存在系统性模式：视觉参数偏差 → 定性为"spec 违反" → 升级到 P1。正确的推理链应该是：
+
 1. 代码值与 spec Dev Notes 值不同 → 这是 spec 建议还是 AC 要求？
 2. 如果是 AC 要求 → P1
 3. 如果是 Dev Notes 建议 → P2/P3

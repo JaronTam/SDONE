@@ -18,14 +18,14 @@ metadata:
 
 **严重偏差等级：C 级（轻微）** — 此前审查在事实层面 **100% 准确**，零伪造、零遗漏、零逻辑错误。5 个 patch 发现全部基于真实的代码观察。存在 **2 处严重度虚高（P2→P3）**，均属于"影响面评估偏差"而非"事实错误"。
 
-| 发现 | 此前判定 | 审计判定 | 变更原因 |
-|------|----------|----------|----------|
-| F1: CSS display 冲突 | P2 | **P3** | 单子节点下零用户可感知影响 |
-| F2: Error+Warning 共存 | P2 | P2 ✅ | 正确 |
-| F3: setRate() 不清 warning | P2 | **P3** | 场景不可达（setRate 收到的 rate 已是 0） |
-| F4: showError/有效提交残留 warning | P2 | P2 ✅ | 正确 |
-| F5: _lastValidRate 不同步 | P3 | P3 ✅ | 正确 |
-| F8: Fake timer 易碎性 | defer | defer ✅ | 正确 |
+| 发现                               | 此前判定 | 审计判定 | 变更原因                                 |
+| ---------------------------------- | -------- | -------- | ---------------------------------------- |
+| F1: CSS display 冲突               | P2       | **P3**   | 单子节点下零用户可感知影响               |
+| F2: Error+Warning 共存             | P2       | P2 ✅    | 正确                                     |
+| F3: setRate() 不清 warning         | P2       | **P3**   | 场景不可达（setRate 收到的 rate 已是 0） |
+| F4: showError/有效提交残留 warning | P2       | P2 ✅    | 正确                                     |
+| F5: \_lastValidRate 不同步         | P3       | P3 ✅    | 正确                                     |
+| F8: Fake timer 易碎性              | defer    | defer ✅ | 正确                                     |
 
 **综合评定：审查质量 42/50（A 级），扣分项为 2 处严重度虚高（每处 -4 分）。**
 
@@ -38,6 +38,7 @@ metadata:
 **此前判定：** P2（三方独立发现，严重度升级）
 
 **审计发现：**
+
 - 事实层 100% 正确：TS:315 `style.display = 'block'` 确实覆盖 CSS:126 `display: flex`
 - 但 `.rate-editor__warning` 元素当前仅包含 **1 个子节点**（`_warningTextEl` span）
 - `align-items: center` 和 `gap: 4px` 在单子节点 flex 容器中 **不会产生任何可观测的视觉效果差异**
@@ -58,6 +59,7 @@ metadata:
 **此前判定：** P2（用户可能看到过期 warning 与当前值矛盾）
 
 **审计发现：**
+
 - 事实层 100% 正确：`setRate()` 第 182-190 行确实未调用 `_clearWarningTimeout()`
 - 但审查层假设的场景 **不可达**：
   1. 用户输入 -3 → `onRateSubmit(0)` → `updateRate` 将 `conn.rate` 设为 **0**
@@ -81,6 +83,7 @@ metadata:
 ### 修正 1：F1 → P3（CSS/JS display 不一致）
 
 **第一性原理：CSS 层叠规则**
+
 - CSS 优先级：inline style > ID > class > element
 - `element.style.display = 'block'` 是 inline style，必然覆盖任何 class 定义的 `display: flex`
 - 但 display 属性的语义是"布局模式"。如果容器只有 1 个文本子节点，block 和 flex 的渲染结果等价（block 的子元素是 inline span，flex 的单子元素也是 flex item，两者都在 normal flow 中占据相同空间）
@@ -91,6 +94,7 @@ metadata:
 ### 修正 2：F3 → P3（setRate 不清 warning）
 
 **第一性原理：数据流完整性**
+
 - `setRate()` 的数据来源（SNAPSHOT_EMITTED 中的 `conn.rate`）与 `_handleKeydown` 负值路径写入的数据目标（`updateRate` 中的 `conn.rate`）是**同一个字段**
 - 从负值钳位到下一次 SNAPSHOT_EMITTED 之间，没有任何代码路径修改 `conn.rate`
 - 因此 `setRate()` 收到的值和 input 当前显示的值**必然相同**，不会产生矛盾
@@ -107,6 +111,7 @@ metadata:
 **发生节点：** Step 3 分类阶段，对 F1 的严重度评估。
 
 **机制：** 当 Blind Hunter、Edge Case Hunter、Acceptance Auditor 三方独立发现同一问题时，审查层潜意识地将"三方共识"作为严重度升级的依据。推理链为：
+
 1. 三方都发现了 → 问题很"明显"
 2. 明显的问题 → 应该很重要
 3. 很重要 → P2 而非 P3
@@ -126,6 +131,7 @@ metadata:
 ### 系统性评估
 
 此次审查的整体方法论是稳健的：三个独立审查层 + 去重 + 分类的流水线正确捕获了所有代码层面的问题。偏差仅出现在分类阶段（严重度判定），而非发现阶段（事实提取）。这表明：
+
 - **发现层（Blind/Edge/Auditor）：工作正常，无遗漏**
 - **分类层（Triage）：需要增加"影响面独立验证"步骤**，特别是对 multi-source 发现，不应自动升级严重度
 

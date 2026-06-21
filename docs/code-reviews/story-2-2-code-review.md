@@ -12,6 +12,7 @@
 - **P0 问题：** 0 个（原报告中的 P0 经悔过审计核实为误报，已降级至 P2）
 
 **⚠️ 悔过审计更新（2026-05-22）：** 独立审计发现原报告存在 1 项关键事实错误 — `SceneRenderer.ts` 第 214 行的 `if (!node) continue;` 守卫防止了声称的崩溃。原 P0 已降级为 P2。完整审计报告见 `docs/code-reviews/story-2-2-confession-report.md`。
+
 - **P1 问题：** 3 个（强烈建议修复 — 键盘拦截、事件监听器内存泄漏）
 - **P2 问题：** 3 个（建议修复 — 公开可变属性、密集网格、引用语义模糊）
 - **已验证正确：** 10 项核心功能
@@ -35,9 +36,11 @@
 - **修复方案：** 在 `handleKeyDown` 和 `handleKeyUp` 的顶部添加目标检查：
 
 ```typescript
-if (e.target instanceof HTMLInputElement || 
-    e.target instanceof HTMLTextAreaElement ||
-    (e.target instanceof HTMLElement && e.target.isContentEditable)) {
+if (
+  e.target instanceof HTMLInputElement ||
+  e.target instanceof HTMLTextAreaElement ||
+  (e.target instanceof HTMLElement && e.target.isContentEditable)
+) {
   return;
 }
 ```
@@ -51,15 +54,15 @@ if (e.target instanceof HTMLInputElement ||
 
 ```typescript
 const handleResetShortcut = (e: KeyboardEvent) => {
-  if (e.ctrlKey && e.key === '0') {
+  if (e.ctrlKey && e.key === "0") {
     e.preventDefault();
     viewportManager.reset();
   }
 };
-window.addEventListener('keydown', handleResetShortcut);
+window.addEventListener("keydown", handleResetShortcut);
 
 // 在 dispose 钩子中：
-window.removeEventListener('keydown', handleResetShortcut);
+window.removeEventListener("keydown", handleResetShortcut);
 ```
 
 ### 4. `CanvasResizer` 实例被丢弃 — 在 HMR 重载时永不销毁
@@ -105,43 +108,43 @@ canvasResizer.destroy();
 
 ## ✅ 已验证正确（无需操作）
 
-| # | 审查层 | 发现 | 结论 |
-|---|--------|------|------|
-| 1 | Blind Hunter | `applyTransform` 矩阵数学 | ✅ 正确 — 第 169-181 行的变换矩阵正确应用 `e = center.x - offset.x * zoom` |
-| 2 | Blind Hunter | `zoomAtScreenPoint` 数学 — "向鼠标缩放" | ✅ 正确 — 第 123-148 行正确地将缩放前的世界点映射到缩放后的世界点 |
-| 3 | Blind Hunter | Pan 方向（拖动右 = 世界内容向左移动） | ✅ 正确 — 第 100-107 行从 offset 中减去世界变化量 |
-| 4 | Blind Hunter | `wheel` passive: false | ✅ 正确 — 第 91 行正确使用 `{ passive: false }` 以允许 `preventDefault()` |
-| 5 | Blind Hunter | rAF 循环停止 | ✅ `stop()` 正确调用 `cancelAnimationFrame`。`start()` 在第 93 行有幂等性保护 |
-| 6 | Edge Case | `CanvasResizer` clientWidth/Height 零值保护 | ✅ 第 54 行：`if (w === 0 || h === 0) return;` |
-| 7 | Edge Case | `Vec2.distance` NaN 保护 | ✅ 平方运算保证非负输入；不会发生 NaN 传播 |
-| 8 | Edge Case | `structuredClone` 可用性 | ✅ Target 为 ES2022+；自 Node 17+ 和所有现代浏览器起均可用 |
-| 9 | Acceptance Auditor | 全部 7 条推断的验收标准 | ✅ 全部通过 |
-| 10 | Acceptance Auditor | 跨 Story 2.1/2.3 冲突 | ✅ 未检测到冲突 |
+| #   | 审查层             | 发现                                        | 结论                                                                          |
+| --- | ------------------ | ------------------------------------------- | ----------------------------------------------------------------------------- | --- | ----------------- |
+| 1   | Blind Hunter       | `applyTransform` 矩阵数学                   | ✅ 正确 — 第 169-181 行的变换矩阵正确应用 `e = center.x - offset.x * zoom`    |
+| 2   | Blind Hunter       | `zoomAtScreenPoint` 数学 — "向鼠标缩放"     | ✅ 正确 — 第 123-148 行正确地将缩放前的世界点映射到缩放后的世界点             |
+| 3   | Blind Hunter       | Pan 方向（拖动右 = 世界内容向左移动）       | ✅ 正确 — 第 100-107 行从 offset 中减去世界变化量                             |
+| 4   | Blind Hunter       | `wheel` passive: false                      | ✅ 正确 — 第 91 行正确使用 `{ passive: false }` 以允许 `preventDefault()`     |
+| 5   | Blind Hunter       | rAF 循环停止                                | ✅ `stop()` 正确调用 `cancelAnimationFrame`。`start()` 在第 93 行有幂等性保护 |
+| 6   | Edge Case          | `CanvasResizer` clientWidth/Height 零值保护 | ✅ 第 54 行：`if (w === 0                                                     |     | h === 0) return;` |
+| 7   | Edge Case          | `Vec2.distance` NaN 保护                    | ✅ 平方运算保证非负输入；不会发生 NaN 传播                                    |
+| 8   | Edge Case          | `structuredClone` 可用性                    | ✅ Target 为 ES2022+；自 Node 17+ 和所有现代浏览器起均可用                    |
+| 9   | Acceptance Auditor | 全部 7 条推断的验收标准                     | ✅ 全部通过                                                                   |
+| 10  | Acceptance Auditor | 跨 Story 2.1/2.3 冲突                       | ✅ 未检测到冲突                                                               |
 
 ---
 
 ## 推断验收标准评估
 
-| # | 推断需求 | 判定 | 证据 |
-|---|---------|--------|------|
-| 1 | 鼠标中键拖动平移 | ✅ 通过 | `InputManager.ts:163-168`，`ViewportManager.panByScreenDelta:100-107` |
-| 2 | 空格+左键拖动平移 | ✅ 通过 | `InputManager.ts:170-176`，space 追踪于 :307-333 |
-| 3 | 鼠标滚轮向光标缩放 | ✅ 通过 | `InputManager.handleWheel:290-301`，`ViewportManager.zoomAtScreenPoint:123-148` |
-| 4 | Zoom 钳制 [0.1, 5.0] | ✅ 通过 | `Viewport.ts:19-22` 常量，`clampZoom:187-189` |
-| 5 | 正确的屏幕↔世界坐标变换 | ✅ 通过 | `screenToWorld:63-72`，`worldToScreen:79-84`，往返测试通过 |
-| 6 | Canvas 渲染使用视口变换 | ✅ 通过 | `SceneRenderer.drawFrame:129` 调用 `applyTransform` |
-| 7 | 单元测试覆盖 | ✅ 通过 | `Viewport.test.ts`（340 行），`InputManager.test.ts`（445 行） |
+| #   | 推断需求                | 判定    | 证据                                                                            |
+| --- | ----------------------- | ------- | ------------------------------------------------------------------------------- |
+| 1   | 鼠标中键拖动平移        | ✅ 通过 | `InputManager.ts:163-168`，`ViewportManager.panByScreenDelta:100-107`           |
+| 2   | 空格+左键拖动平移       | ✅ 通过 | `InputManager.ts:170-176`，space 追踪于 :307-333                                |
+| 3   | 鼠标滚轮向光标缩放      | ✅ 通过 | `InputManager.handleWheel:290-301`，`ViewportManager.zoomAtScreenPoint:123-148` |
+| 4   | Zoom 钳制 [0.1, 5.0]    | ✅ 通过 | `Viewport.ts:19-22` 常量，`clampZoom:187-189`                                   |
+| 5   | 正确的屏幕↔世界坐标变换 | ✅ 通过 | `screenToWorld:63-72`，`worldToScreen:79-84`，往返测试通过                      |
+| 6   | Canvas 渲染使用视口变换 | ✅ 通过 | `SceneRenderer.drawFrame:129` 调用 `applyTransform`                             |
+| 7   | 单元测试覆盖            | ✅ 通过 | `Viewport.test.ts`（340 行），`InputManager.test.ts`（445 行）                  |
 
 ---
 
 ## 统计摘要
 
-| 指标 | 数值 |
-|--------|-------|
-| 审查文件数 | 25 |
-| P0 问题 | 0 |
-| P1 问题 | 3 |
-| P2 问题 | 3 |
-| 已验证正确 | 10 |
-| 推断 AC 状态 | 7/7 通过 |
+| 指标         | 数值                                      |
+| ------------ | ----------------------------------------- |
+| 审查文件数   | 25                                        |
+| P0 问题      | 0                                         |
+| P1 问题      | 3                                         |
+| P2 问题      | 3                                         |
+| 已验证正确   | 10                                        |
+| 推断 AC 状态 | 7/7 通过                                  |
 | **整体评估** | **⚠️ 有条件下通过 — 强烈建议修复所有 P1** |

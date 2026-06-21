@@ -24,9 +24,16 @@
 - **严重级别：** P0（阻止编译）
 - **描述：** `eventBus.emit('MODULE_MOVED', ...)` 使用了未在 `EventMap` 接口中定义的键名。现有事件是 `DRAG_END: { moduleId: string; fromPosition: Vec2; toPosition: Vec2 }`，但 payload 结构不匹配（代码使用 `from` 而非 `fromPosition`，且多了一个 `type` 字段）。
 - **修复方案：** 在 `src/event-bus/EventMap.ts` 中添加：
+
 ```typescript
-MODULE_MOVED: { type: string; moduleId: string; from: Vec2; to: Vec2 };
+MODULE_MOVED: {
+  type: string;
+  moduleId: string;
+  from: Vec2;
+  to: Vec2;
+}
 ```
+
 或改用现有的 `DRAG_END` 事件（需调整 payload 结构以匹配）。
 
 ### 2. `UNDO` 不在 EventMap 中（编译错误）
@@ -35,8 +42,12 @@ MODULE_MOVED: { type: string; moduleId: string; from: Vec2; to: Vec2 };
 - **严重级别：** P0（阻止编译）
 - **描述：** `eventBus.emit('UNDO', ...)` 使用了未定义的键名。
 - **修复方案：** 在 `EventMap` 中添加：
+
 ```typescript
-UNDO: { fromState: GraphState; toState: GraphState };
+UNDO: {
+  fromState: GraphState;
+  toState: GraphState;
+}
 ```
 
 ### 3. `REDO` 不在 EventMap 中（编译错误）
@@ -45,8 +56,12 @@ UNDO: { fromState: GraphState; toState: GraphState };
 - **严重级别：** P0（阻止编译）
 - **描述：** `eventBus.emit('REDO', ...)` 使用了未定义的键名。
 - **修复方案：** 在 `EventMap` 中添加：
+
 ```typescript
-REDO: { fromState: GraphState; toState: GraphState };
+REDO: {
+  fromState: GraphState;
+  toState: GraphState;
+}
 ```
 
 ### 4. `HistoryManager.push()` 在 `onModuleDragStart` 中过早调用 — 无状态变更时销毁 redo 历史
@@ -56,6 +71,7 @@ REDO: { fromState: GraphState; toState: GraphState };
 - **描述：** `onModuleDragStart` 在用户移动 ≥4px 时触发，此时 `currentState` 尚未发生任何变更（`onModuleMove` 在同一帧内但 `push` 先执行）。`push()` 的副作用是 `redoStack.length = 0`——无条件清空所有 redo 历史。用户仅仅"尝试拖动"就永久丢失了 redo 能力。
 
   **可重现路径：**
+
   ```
   1. 添加模块 A → push(s0 → s1)          // undoStack: [s0, s1]
   2. 添加模块 B → push(s0 → s1 → s2)     // undoStack: [s0, s1, s2]
@@ -83,7 +99,9 @@ REDO: { fromState: GraphState; toState: GraphState };
   4. `mouseup` 时 `onModuleDragEnd` 的 `fromWorld` 参数是过时坐标
 
   **不崩溃**（`moveModule` 有守卫），但 event payload 数据不一致。
+
 - **修复方案：** 在 undo/redo handler 中，执行状态替换后检查并取消活动拖拽：
+
 ```typescript
 if (inputManager.isDraggingModule) {
   // 需要 InputManager 添加 cancelDrag() 方法
@@ -100,11 +118,13 @@ if (inputManager.isDraggingModule) {
 - **文件：** `src/main.ts:108`
 - **严重级别：** P2
 - **描述：** 参数以 `_` 前缀命名（TypeScript 约定表示"有意未使用"），但 `_moduleId` 实际被使用了：
+
 ```typescript
 inputManager.onModuleDragEnd = (_moduleId: string, _fromWorld: ..., _toWorld: ...) => {
   eventBus.emit('MODULE_MOVED', { type: 'move', moduleId: _moduleId, from: _fromWorld, to: _toWorld });
 };
 ```
+
 - **修复方案：** 移除前缀下划线，改为 `moduleId`、`fromWorld`、`toWorld`。
 
 ### 7. 测试未覆盖关键边缘场景
@@ -120,27 +140,28 @@ inputManager.onModuleDragEnd = (_moduleId: string, _fromWorld: ..., _toWorld: ..
 
 ## ✅ 已验证正确
 
-| 审查点 | 结论 |
-|---|---|
-| `onModuleDragStart` 阈值交叉逻辑 (`dist >= 4px`) | 只在首次超过阈值时点燃，后续移动不再触发 ✅ |
-| `nodesProvider` 为空时防护 | `dragModuleId` 仅在 node lookup 成功时赋值 ✅ |
-| 点击非模块 → 不触发拖拽起始 | `mouseDownModuleId` 为 `null` 时跳过整个逻辑 ✅ |
-| 指针抬起后 `dragModuleId = null` 清理 | ✅ |
-| `HistoryManager.undo()` 返回深拷贝 | 调用方安全 ✅ |
-| `HistoryManager.redo()` 返回深拷贝 | 调用方安全 ✅ |
-| `isEditingTarget` 守卫（Ctrl+Z 时跳过文本输入） | ✅ |
+| 审查点                                           | 结论                                            |
+| ------------------------------------------------ | ----------------------------------------------- |
+| `onModuleDragStart` 阈值交叉逻辑 (`dist >= 4px`) | 只在首次超过阈值时点燃，后续移动不再触发 ✅     |
+| `nodesProvider` 为空时防护                       | `dragModuleId` 仅在 node lookup 成功时赋值 ✅   |
+| 点击非模块 → 不触发拖拽起始                      | `mouseDownModuleId` 为 `null` 时跳过整个逻辑 ✅ |
+| 指针抬起后 `dragModuleId = null` 清理            | ✅                                              |
+| `HistoryManager.undo()` 返回深拷贝               | 调用方安全 ✅                                   |
+| `HistoryManager.redo()` 返回深拷贝               | 调用方安全 ✅                                   |
+| `isEditingTarget` 守卫（Ctrl+Z 时跳过文本输入）  | ✅                                              |
 
 ---
 
 ## 总结
 
-| 优先级 | 数量 | 描述 |
-|---|---|---|
-| P0 | 4 | 3 个编译错误（EventMap 缺失事件类型）+ 1 个数据丢失（push 过早清空 redo） |
-| P1 | 1 | Ctrl+Z 与活动拖拽的并发状态不一致 |
-| P2 | 2 | 参数命名 + 测试覆盖缺口 |
+| 优先级 | 数量 | 描述                                                                      |
+| ------ | ---- | ------------------------------------------------------------------------- |
+| P0     | 4    | 3 个编译错误（EventMap 缺失事件类型）+ 1 个数据丢失（push 过早清空 redo） |
+| P1     | 1    | Ctrl+Z 与活动拖拽的并发状态不一致                                         |
+| P2     | 2    | 参数命名 + 测试覆盖缺口                                                   |
 
 **核心修复路径：**
+
 1. 在 `EventMap.ts` 中添加 `MODULE_MOVED`、`UNDO`、`REDO` 三个事件类型（恢复编译）
 2. 将 `historyManager.push()` 从 `onModuleDragStart` 移至 `onModuleDragEnd`，加位移判断守卫
 3. 在 undo/redo handler 中添加活动拖拽取消逻辑

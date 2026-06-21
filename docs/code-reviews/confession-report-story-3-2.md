@@ -13,13 +13,14 @@
 
 审查报告声称的三个 P1 问题均无法在源码中复现。审查者在推理链中存在系统性偏差：**将 TypeScript 语言语义错误推断为未初始化漏洞；将 `ctx.getTransform()` 的隐性知识误判为视口变换缺失；将非必要事件监听器的缺失等价于功能缺陷。** 每一个 P1 发现均经独立验证后驳回。
 
-| 审查声称 | 独立审计结论 | 偏差类型 |
-|----------|------------|---------|
-| `pulseStartTime` 声明但未初始化 | **False Positive** — 已在 constructor 第 139 行初始化 | 类型系统语义误读 |
-| Ghost 渲染未应用视口变换 | **False Positive** — `drawGhost()` 在 `applyTransform()` 之后调用（第 190 → 205 行） | 控制流推理失败 |
-| 缺少 `dragend` 处理器导致 ghost 残留 | **False Positive** — `dragleave` / `drop` / `windowBlur` 三条清理路径均存在 | 防御替代等价判断失败 |
+| 审查声称                             | 独立审计结论                                                                         | 偏差类型             |
+| ------------------------------------ | ------------------------------------------------------------------------------------ | -------------------- |
+| `pulseStartTime` 声明但未初始化      | **False Positive** — 已在 constructor 第 139 行初始化                                | 类型系统语义误读     |
+| Ghost 渲染未应用视口变换             | **False Positive** — `drawGhost()` 在 `applyTransform()` 之后调用（第 190 → 205 行） | 控制流推理失败       |
+| 缺少 `dragend` 处理器导致 ghost 残留 | **False Positive** — `dragleave` / `drop` / `windowBlur` 三条清理路径均存在          | 防御替代等价判断失败 |
 
 **唯一有效的改进建议**（P2/P3 级别，不构成功能性缺陷）：
+
 - `onDragStart` 回调在 `main.ts` 中未被显式赋值（line 74 of ModulePanel.ts），但在当前架构中不影响功能，因为 ghost 状态完全由 `InputManager.handleDragOver` 驱动。
 - `handleDragOver` 中缺少对 `effectAllowed` 的 `move` 屏蔽 — 不影响功能但语义不精确。
 
@@ -30,9 +31,11 @@
 ### 偏差 #1 — `pulseStartTime` 误报
 
 **审查原文声称**:
+
 > "SceneRenderer.ts 第 115 行 `private readonly pulseStartTime: number;` 声明了 `readonly` 属性但从未在任何位置初始化"
 
 **源码真相**:
+
 ```typescript
 // SceneRenderer.ts line 115
 private readonly pulseStartTime: number;
@@ -42,6 +45,7 @@ this.pulseStartTime = performance.now();
 ```
 
 **第一性原理**:
+
 - TypeScript 的 `readonly` 修饰符语义为「不可在构造函数外部重新赋值」，而非「必须在声明时赋值」。
 - 构造函数体内对 `readonly` 属性的赋值是完全合法的，这是 ES2015+ 规范的确定性行为（Definite Assignment Analysis 在构造函数结束时通过即可）。
 - 审查者在此处的推断路径：看到 `readonly` → 等价推断为 "must have inline initializer" → 未找到 `= performance.now()` → 判定为未初始化。这是**类型系统规则的部分知识应用**导致的误判。
@@ -53,25 +57,28 @@ this.pulseStartTime = performance.now();
 ### 偏差 #2 — Ghost 视口变换误报
 
 **审查原文声称**:
+
 > "Ghost 渲染在 SceneRenderer.drawGhost() 中以 world space 坐标绘制，但视口变换（translate + scale）并未应用到 ghost 渲染路径，导致 ghost 始终渲染在屏幕坐标而非世界坐标"
 
 **源码真相**:
+
 ```typescript
 // SceneRenderer.ts drawFrame(), lines 184-206
 ctx.resetTransform();
-ctx.fillStyle = '#11111b';
+ctx.fillStyle = "#11111b";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 const canvasCenter = vec2(canvas.width / 2, canvas.height / 2);
-this.viewportManager.applyTransform(ctx, canvasCenter);  // ← line 190: 视口变换已应用
+this.viewportManager.applyTransform(ctx, canvasCenter); // ← line 190: 视口变换已应用
 
-this.drawEmptyCanvasAffordance();  // line 195
-this.drawGrid();                   // line 197
+this.drawEmptyCanvasAffordance(); // line 195
+this.drawGrid(); // line 197
 // ...
-this.drawGhost();                  // line 205: ghost 在 applyTransform 之后绘制
+this.drawGhost(); // line 205: ghost 在 applyTransform 之后绘制
 ```
 
 **第一性原理**:
+
 - Canvas 2D `setTransform` / `applyTransform` 在上下文中设置的是**全局仿射变换矩阵**，对后续所有绘制操作生效，直到下一次 `resetTransform()` 或 `save()/restore()`。
 - `drawGhost()` 在 `applyTransform()` 之后调用，不包含 `resetTransform()` 调用，因此其世界空间坐标 `(x, y)` 会经由画布变换矩阵自动映射到屏幕空间。
 - 审查者在此处的推断路径：看到了 `worldPosition` 变量名称 → 将其解读为「以世界坐标直接绘制在屏幕上」→ 未追踪控制流中第 190 行的 `applyTransform` 调用是否对后续 `drawGhost()` 可见。这是**控制流分析中的近视效应**。
@@ -83,9 +90,11 @@ this.drawGhost();                  // line 205: ghost 在 applyTransform 之后�
 ### 偏差 #3 — `dragend` 缺失误报
 
 **审查原文声称**:
+
 > "main.ts 中注册了 ghostProvider / onModuleDrop，但 InputManager 完全没有监听 dragend 事件，拖拽取消时 ghost 状态无法清除"
 
 **源码真相 — 三条独立清理路径**:
+
 ```typescript
 // 路径 1: InputManager.ts handleDragLeave (line 198)
 private handleDragLeave(_e: DragEvent): void {
@@ -109,6 +118,7 @@ private handleWindowBlur(): void {
 ```
 
 **第一性原理**:
+
 - HTML Drag and Drop API 的生命周期为 `dragstart → (drag → dragover)* → (dragleave | drop) → dragend`。
 - `dragleave` 事件在拖拽离开目标区域（canvas）时触发 — 这正是 ghost 需要被清除的时刻。额外监听 `dragend` 并不能覆盖 `dragleave` 未覆盖的场景。
 - `dragend` 的作用域是源元素（panel item），对于目标侧（canvas）的 ghost 清理来说，`dragleave` / `drop` 已经是完备的事件覆盖集。
@@ -142,16 +152,19 @@ private handleWindowBlur(): void {
 本审查的 false positive 产生可追溯至以下推理节点的概率预测干扰：
 
 ### 节点 A: `readonly` 语义检索偏差
+
 **模型内在过程**: LLM 在扫描 `private readonly pulseStartTime: number;` 时，关联到的最高概率 token 序列是 `readonly` 与 `=` 的常见协现模式（如 `readonly x = 5`）。当未在声明的同一行找到 `=` 时，模型将其归因为「未初始化」，而非切换到「构造器赋值」模式。这是**协现频率压倒语法规则**的典型案例 — TypeScript 中 `readonly` 后接 `=` 的训练样本远多于接空声明的样本。
 
 **可验证证据**: 代码文件的行号距离（line 115 声明 → line 139 赋值）跨越了 24 行，包括 import 声明和多个方法签名。LLM 的注意力窗口在跨越非代码逻辑块后衰减，无法可靠地追踪变量声明到构造函数赋值的依赖链。
 
 ### 节点 B: 视口变换的控制流推理失败
+
 **模型内在过程**: LLM 看到 `drawGhost()` 内部使用 `worldPosition` 变量，字面量「world」激活了模型中关于「世界坐标 vs 屏幕坐标需手动转换」的编码模式。模型优先检索到「需要在函数内部调用 screenToWorld」的常见模式，而忽略了「函数调用时 ctx 已处于世界空间变换之下」的上下文状态。这是**局部推理压倒全局状态分析**的偏差。
 
 **可验证证据**: `drawFrame()` 在第 190 行 `applyTransform` 之后，到第 205 行 `drawGhost()` 之间有 5 个函数调用（drawEmptyCanvasAffordance, drawGrid, drawModules, drawConnections, drawGhost），间距 15 行。模型无法可靠地维护「第 190 行的 ctx 状态对第 205 行可见」这一因果链。
 
 ### 节点 C: 事件生命周期对称性过度泛化
+
 **模型内在过程**: HTML Drag and Drop 规范定义了 `dragstart → drag → dragend` 的生命周期。模型将该规范模式编码为「所有 DnD 相关状态必须在 `dragend` 清理」的通用模式，而忽略了 `dragleave` 作为目标侧早退出点的等效性。这是**模式匹配的过度刚性应用** — 规范中的对称结构被不加鉴别地强制要求。
 
 **可验证证据**: `handleDragLeave`（line 198）和 `handleDrop`（line 215）均包含 ghost 清理逻辑，距离 `handleDragOver`（line 173）仅 25-42 行。模型在分析 `handleDrop` 后未能回溯检查 `handleDragLeave` 是否已经覆盖了清理路径。

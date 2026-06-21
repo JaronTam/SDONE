@@ -12,6 +12,7 @@
 **严重偏差等级：无（G0）— 故事文件在事实和逻辑层面均正确。**
 
 经过对以下内容的穷举逐句验证：
+
 - `sdone/src/simulation/SimulationEngine.ts`（202 行，逐行核对）
 - `sdone/src/main.ts`（537 行，逐行核对）
 - `sdone/src/event-bus/EventMap.ts`（44 行）
@@ -38,6 +39,7 @@
 **问题:** 测试模板使用了 `GraphState[]`（L368）和 `StockNode`（L285, L290, L337）类型，但代码块中没有展示 `import type` 语句。开发代理必须自行推断需要从 `../state/GraphState.js` 导入这些类型。
 
 **现有测试文件对比:** `SimulationEngine.test.ts` 的 L3-9 已有正确的导入：
+
 ```typescript
 import type {
   Connection,
@@ -45,12 +47,13 @@ import type {
   SinkNode,
   SourceNode,
   StockNode,
-} from '../state/GraphState.js';
+} from "../state/GraphState.js";
 ```
 
 **严重性:** Low — 任何有能力的开发代理都会添加导入。不会造成阻塞。
 
 **建议修正:** 在测试模板代码块顶部添加注释：
+
 ```typescript
 // NOTE: Imports required — add these to the top of the test file:
 // import type { GraphState, StockNode } from '../state/GraphState.js';
@@ -63,13 +66,17 @@ import type {
 **位置:** 故事文件 L353
 
 ```typescript
-expect(state.nodes[stock.id]?.type === 'stock' && (state.nodes[stock.id] as StockNode).value).toBe(42);
+expect(
+  state.nodes[stock.id]?.type === "stock" &&
+    (state.nodes[stock.id] as StockNode).value,
+).toBe(42);
 ```
 
 **问题:** 该复合表达式可读性差。逻辑上等价于：
+
 ```typescript
 const s = state.nodes[stock.id] as StockNode;
-expect(s.type).toBe('stock');
+expect(s.type).toBe("stock");
 expect(s.value).toBe(42);
 ```
 
@@ -88,6 +95,7 @@ expect(s.value).toBe(42);
 ```
 
 **问题:** Epic spec 的 AC1 原文包含 "the version counter is incremented"：
+
 > "the mutable `GraphState` is cloned via `structuredClone()`, the `version` counter is incremented, and the clone is emitted via `EventBus.emit('SNAPSHOT_EMITTED', { state: clonedState })`"
 
 故事文件在 Dev Notes（L152）中正确解释了 version 已由 `tick()` 递增（每次 interval 6 个子步骤各递增一次），但 AC 文本本身没有提及。这不会导致实现错误（`tick()` 已经在递增 version），但 AC 文本与 epic spec 不完全匹配。
@@ -103,8 +111,9 @@ expect(s.value).toBe(42);
 **问题:** `structuredClone` 是相对较新的 API（Chrome 98+, Edge 98+, Firefox 94+, Safari 15.4+）。架构文件指定目标浏览器为 "Chrome/Edge latest 2 major versions"（当前已远超该版本）。虽然当前版本完全支持，但故事文件应该记录这一依赖关系以便将来参考。
 
 **建议修正:** 在 "Why structuredClone" 部分添加一行注释：
+
 ```
-> **Browser compatibility:** `structuredClone` is supported in Chrome 98+, Edge 98+ (released Feb 2022). 
+> **Browser compatibility:** `structuredClone` is supported in Chrome 98+, Edge 98+ (released Feb 2022).
 > Target browsers (latest 2 major versions as of 2026) fully support it.
 ```
 
@@ -116,22 +125,22 @@ expect(s.value).toBe(42);
 
 以下声明已在源代码层面逐一核实，均通过：
 
-| # | 声明 | 故事文件位置 | 源代码验证 | 结果 |
-|---|------|-------------|-----------|------|
-| 1 | `onTick` callback slot exists at `SimulationEngine.ts:38` | L99 | `SimulationEngine.ts:38` — `onTick: ((state: GraphState) => void) \| null = null;` | ✅ |
-| 2 | `onTick` fires after each 100ms interval (after all 6 sub-steps) | L148 | `SimulationEngine.ts:156-162` — `this.onTick?.(state)` 在 for 循环结束后调用 | ✅ |
-| 3 | `start(stateProvider)` takes a callback, not a direct reference | L100 | `SimulationEngine.ts:150` — `start(stateProvider: () => GraphState): void` | ✅ |
-| 4 | `SNAPSHOT_EMITTED` already in `EventMap.ts:24` | L102 | `EventMap.ts:24` — `SNAPSHOT_EMITTED: { state: GraphState }` | ✅ |
-| 5 | `EventBus.emit()` is synchronous | L103 | `EventBus.ts:38-51` — synchronous `for...of` dispatch | ✅ |
-| 6 | `simEngine` instantiated at `main.ts:26` | L108 | `main.ts:26` — `const simEngine = new SimulationEngine();` | ✅ |
-| 7 | `eventBus` instantiated at `main.ts:25` | L109 | `main.ts:25` — `const eventBus = new EventBus();` | ✅ |
-| 8 | Canvas reads state via `stateProvider` at `main.ts:58` | L111 | `main.ts:58` — `sceneRenderer.stateProvider = () => currentState;` | ✅ |
-| 9 | `currentState` is a `let` variable (mutable reference) | L110 | `main.ts:46-52` — `let currentState: GraphState = { ... };` | ✅ |
-| 10 | `SUB_STEPS_PER_INTERVAL = 6` | L56 | `SimulationEngine.ts:56` — `private static readonly SUB_STEPS_PER_INTERVAL = 6;` | ✅ |
-| 11 | Provider calls `_stateProvider()` each interval to get latest state | L157 | `SimulationEngine.ts:157` — `const state = this._stateProvider();` | ✅ |
-| 12 | `tick()` mutates state in-place (no clone) | L67-69 | `SimulationEngine.ts:105-114` — `stock.value += netFlow * dt;` | ✅ |
-| 13 | State is ~2KB at ≤15 modules | L91 | `GraphState.ts` — POJO, all fields are plain data (strings, numbers, arrays) | ✅ |
-| 14 | `structuredClone` on all-GraphState types works without custom logic | L86 | `GraphState.ts` — 零 Function/Symbol/DOM 引用 | ✅ |
+| #   | 声明                                                                 | 故事文件位置 | 源代码验证                                                                         | 结果 |
+| --- | -------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------------------- | ---- |
+| 1   | `onTick` callback slot exists at `SimulationEngine.ts:38`            | L99          | `SimulationEngine.ts:38` — `onTick: ((state: GraphState) => void) \| null = null;` | ✅   |
+| 2   | `onTick` fires after each 100ms interval (after all 6 sub-steps)     | L148         | `SimulationEngine.ts:156-162` — `this.onTick?.(state)` 在 for 循环结束后调用       | ✅   |
+| 3   | `start(stateProvider)` takes a callback, not a direct reference      | L100         | `SimulationEngine.ts:150` — `start(stateProvider: () => GraphState): void`         | ✅   |
+| 4   | `SNAPSHOT_EMITTED` already in `EventMap.ts:24`                       | L102         | `EventMap.ts:24` — `SNAPSHOT_EMITTED: { state: GraphState }`                       | ✅   |
+| 5   | `EventBus.emit()` is synchronous                                     | L103         | `EventBus.ts:38-51` — synchronous `for...of` dispatch                              | ✅   |
+| 6   | `simEngine` instantiated at `main.ts:26`                             | L108         | `main.ts:26` — `const simEngine = new SimulationEngine();`                         | ✅   |
+| 7   | `eventBus` instantiated at `main.ts:25`                              | L109         | `main.ts:25` — `const eventBus = new EventBus();`                                  | ✅   |
+| 8   | Canvas reads state via `stateProvider` at `main.ts:58`               | L111         | `main.ts:58` — `sceneRenderer.stateProvider = () => currentState;`                 | ✅   |
+| 9   | `currentState` is a `let` variable (mutable reference)               | L110         | `main.ts:46-52` — `let currentState: GraphState = { ... };`                        | ✅   |
+| 10  | `SUB_STEPS_PER_INTERVAL = 6`                                         | L56          | `SimulationEngine.ts:56` — `private static readonly SUB_STEPS_PER_INTERVAL = 6;`   | ✅   |
+| 11  | Provider calls `_stateProvider()` each interval to get latest state  | L157         | `SimulationEngine.ts:157` — `const state = this._stateProvider();`                 | ✅   |
+| 12  | `tick()` mutates state in-place (no clone)                           | L67-69       | `SimulationEngine.ts:105-114` — `stock.value += netFlow * dt;`                     | ✅   |
+| 13  | State is ~2KB at ≤15 modules                                         | L91          | `GraphState.ts` — POJO, all fields are plain data (strings, numbers, arrays)       | ✅   |
+| 14  | `structuredClone` on all-GraphState types works without custom logic | L86          | `GraphState.ts` — 零 Function/Symbol/DOM 引用                                      | ✅   |
 
 ---
 
@@ -139,27 +148,27 @@ expect(s.value).toBe(42);
 
 ### Decision 1 — Three-Layer Architecture
 
-| 架构要求 | 故事文件处理 | 合规 |
-|----------|-------------|------|
-| Canvas Kernel reads mutable state at 60FPS | ✅ 正确识别 `stateProvider` 模式 — 无修改 | ✅ |
-| Snapshot Bridge emits at ~10Hz via `structuredClone` | ✅ `onTick` 每 100ms 触发一次，产生一个 clone | ✅ |
-| UI Layer subscribes to `SNAPSHOT_EMITTED` | ✅ 正确延迟至 Story 6.x | ✅ |
-| "emits at ~10Hz, never at 60FPS" | ✅ `onTick` 在 100ms interval 回调中触发，不在 rAF 中 | ✅ |
+| 架构要求                                             | 故事文件处理                                          | 合规 |
+| ---------------------------------------------------- | ----------------------------------------------------- | ---- |
+| Canvas Kernel reads mutable state at 60FPS           | ✅ 正确识别 `stateProvider` 模式 — 无修改             | ✅   |
+| Snapshot Bridge emits at ~10Hz via `structuredClone` | ✅ `onTick` 每 100ms 触发一次，产生一个 clone         | ✅   |
+| UI Layer subscribes to `SNAPSHOT_EMITTED`            | ✅ 正确延迟至 Story 6.x                               | ✅   |
+| "emits at ~10Hz, never at 60FPS"                     | ✅ `onTick` 在 100ms interval 回调中触发，不在 rAF 中 | ✅   |
 
 ### Decision 3 — Event Bus
 
-| 架构要求 | 故事文件处理 | 合规 |
-|----------|-------------|------|
-| 10Hz snapshot channel | ✅ `onTick` → 每 100ms 一次，10Hz | ✅ |
-| `SNAPSHOT_EMITTED` 载荷类型 | ✅ `{ state: GraphState }` — 与 EventMap 匹配 | ✅ |
-| Wiring at composition root | ✅ `main.ts` 中 `simEngine.onTick = ...` — 不在引擎内部 | ✅ |
+| 架构要求                    | 故事文件处理                                            | 合规 |
+| --------------------------- | ------------------------------------------------------- | ---- |
+| 10Hz snapshot channel       | ✅ `onTick` → 每 100ms 一次，10Hz                       | ✅   |
+| `SNAPSHOT_EMITTED` 载荷类型 | ✅ `{ state: GraphState }` — 与 EventMap 匹配           | ✅   |
+| Wiring at composition root  | ✅ `main.ts` 中 `simEngine.onTick = ...` — 不在引擎内部 | ✅   |
 
 ### Decision 4 — Simulation Engine
 
-| 架构要求 | 故事文件处理 | 合规 |
-|----------|-------------|------|
-| 引擎不导入 EventBus | ✅ 反模式列表中明确："Do NOT emit SNAPSHOT_EMITTED from inside SimulationEngine" | ✅ |
-| `onTick` callback slot | ✅ Story 4.2 已提供，Story 4.3 仅使用 | ✅ |
+| 架构要求               | 故事文件处理                                                                     | 合规 |
+| ---------------------- | -------------------------------------------------------------------------------- | ---- |
+| 引擎不导入 EventBus    | ✅ 反模式列表中明确："Do NOT emit SNAPSHOT_EMITTED from inside SimulationEngine" | ✅   |
+| `onTick` callback slot | ✅ Story 4.2 已提供，Story 4.3 仅使用                                            | ✅   |
 
 ---
 
@@ -213,7 +222,7 @@ expect(s.value).toBe(42);
   → 编写测试逻辑：✅ 正确（覆盖了所有 AC）
   → 编写测试断言：⚠️ E2 — 复合断言过于复杂
   → 标注导入依赖：❌ E1 — 遗漏了类型导入标注
-  
+
   根因：上下文窗口碎片化。测试模板作为独立 Markdown 代码块存在，
   与实际 test 文件的 import 块分离。模型编写测试逻辑时使用了真实的
   类型名（GraphState, StockNode），但在代码片段渲染时没有显式包含
@@ -242,15 +251,15 @@ expect(s.value).toBe(42);
 
 ## 七、最终裁定
 
-| 项目 | 结论 |
-|------|------|
-| **事实准确性** | ✅ 通过 — 15/15 抽样声明均通过源代码验证 |
-| **架构合规性** | ✅ 通过 — 与 Decision 1, 3, 4 完全对齐 |
-| **AC 覆盖度** | ✅ 通过 — 4/4 AC 均覆盖，边缘情况充分（空状态、PAUSED、RESET、多次 interval） |
-| **反模式预防** | ✅ 通过 — 5 个 P0/P1 反模式明确禁止，均有原因说明 |
-| **范围控制** | ✅ 通过 — 仅 2 个文件需修改，11 个文件在 "NOT to Touch" 列表中 |
-| **知识传承** | ✅ 通过 — Story 4.2 P0 修复（provider 模式）及反模式均正确融入 |
-| **代码示例质量** | ✅ 有 2 个次要可读性问题（E1, E2） |
-| **文档完整性** | ✅ 有 2 个信息性遗漏（E3, E4） |
+| 项目             | 结论                                                                          |
+| ---------------- | ----------------------------------------------------------------------------- |
+| **事实准确性**   | ✅ 通过 — 15/15 抽样声明均通过源代码验证                                      |
+| **架构合规性**   | ✅ 通过 — 与 Decision 1, 3, 4 完全对齐                                        |
+| **AC 覆盖度**    | ✅ 通过 — 4/4 AC 均覆盖，边缘情况充分（空状态、PAUSED、RESET、多次 interval） |
+| **反模式预防**   | ✅ 通过 — 5 个 P0/P1 反模式明确禁止，均有原因说明                             |
+| **范围控制**     | ✅ 通过 — 仅 2 个文件需修改，11 个文件在 "NOT to Touch" 列表中                |
+| **知识传承**     | ✅ 通过 — Story 4.2 P0 修复（provider 模式）及反模式均正确融入                |
+| **代码示例质量** | ✅ 有 2 个次要可读性问题（E1, E2）                                            |
+| **文档完整性**   | ✅ 有 2 个信息性遗漏（E3, E4）                                                |
 
 **建议:** 应用 E1 和 E2 修正，E3 和 E4 为可选。修正后的故事文件即可交付开发。

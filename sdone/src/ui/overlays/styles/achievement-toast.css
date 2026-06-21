@@ -4,7 +4,9 @@
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: var(--z-toast); /* topmost UI layer — above popover (--z-popover: 1000) and modal (--z-modal: 200) */
+  z-index: var(
+    --z-toast
+  ); /* topmost UI layer — above popover (--z-popover: 1000) and modal (--z-modal: 200) */
   min-width: 260px;
   max-width: 400px;
   padding: 12px 20px;
@@ -15,8 +17,13 @@
   font-size: 14px;
   font-family: system-ui, sans-serif;
   font-weight: 500;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 12px rgba(249, 226, 175, 0.15);
-  transition: transform 300ms ease-out, opacity 300ms ease-in, top 300ms ease-out;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(249, 226, 175, 0.15);
+  transition:
+    transform 300ms ease-out,
+    opacity 300ms ease-in,
+    top 300ms ease-out;
   transform: translateX(0);
   opacity: 1;
   pointer-events: none; /* toasts don't block interaction — UX-DR16 */
@@ -30,5 +37,7 @@
 .achievement-toast--exiting {
   opacity: 0;
   transform: translateX(120%);
-  transition: transform 300ms ease-in, opacity 300ms ease-in;
+  transition:
+    transform 300ms ease-in,
+    opacity 300ms ease-in;
 }

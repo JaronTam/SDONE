@@ -1,8 +1,8 @@
 ---
 stepsCompleted: []
-lastStep: ''
-lastSaved: ''
-workflowType: 'testarch-nfr-assess'
+lastStep: ""
+lastSaved: ""
+workflowType: "testarch-nfr-assess"
 inputDocuments: []
 ---
 
@@ -389,20 +389,20 @@ Note: This audit summarizes existing implementation evidence; it does not run te
 
 ```yaml
 nfr_assessment:
-  date: '{DATE}'
-  story_id: '{STORY_ID}'
-  feature_name: '{FEATURE_NAME}'
-  adr_checklist_score: '{TOTAL_MET}/29' # ADR Quality Readiness Checklist
+  date: "{DATE}"
+  story_id: "{STORY_ID}"
+  feature_name: "{FEATURE_NAME}"
+  adr_checklist_score: "{TOTAL_MET}/29" # ADR Quality Readiness Checklist
   categories:
-    testability_automation: '{T_STATUS}'
-    test_data_strategy: '{TD_STATUS}'
-    scalability_availability: '{SA_STATUS}'
-    disaster_recovery: '{DR_STATUS}'
-    security: '{SEC_STATUS}'
-    monitorability: '{MON_STATUS}'
-    qos_qoe: '{QOS_STATUS}'
-    deployability: '{DEP_STATUS}'
-  overall_status: '{OVERALL_STATUS}'
+    testability_automation: "{T_STATUS}"
+    test_data_strategy: "{TD_STATUS}"
+    scalability_availability: "{SA_STATUS}"
+    disaster_recovery: "{DR_STATUS}"
+    security: "{SEC_STATUS}"
+    monitorability: "{MON_STATUS}"
+    qos_qoe: "{QOS_STATUS}"
+    deployability: "{DEP_STATUS}"
+  overall_status: "{OVERALL_STATUS}"
   critical_issues: { CRITICAL_COUNT }
   high_priority_issues: { HIGH_COUNT }
   medium_priority_issues: { MEDIUM_COUNT }
@@ -411,9 +411,9 @@ nfr_assessment:
   quick_wins: { QUICK_WIN_COUNT }
   evidence_gaps: { EVIDENCE_GAP_COUNT }
   recommendations:
-    - '{RECOMMENDATION_1}'
-    - '{RECOMMENDATION_2}'
-    - '{RECOMMENDATION_3}'
+    - "{RECOMMENDATION_1}"
+    - "{RECOMMENDATION_2}"
+    - "{RECOMMENDATION_3}"
 ```
 
 ---

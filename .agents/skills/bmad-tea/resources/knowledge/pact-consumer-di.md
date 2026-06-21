@@ -45,20 +45,20 @@ export type ApiContext = {
 
 ```typescript
 // src/http-client.ts
-import axios from 'axios';
-import type { AxiosInstance } from 'axios';
-import type { ApiContext } from './types.js';
-import { API_BASE_URL, REQUEST_TIMEOUT } from './constants.js';
+import axios from "axios";
+import type { AxiosInstance } from "axios";
+import type { ApiContext } from "./types.js";
+import { API_BASE_URL, REQUEST_TIMEOUT } from "./constants.js";
 
 function createAxiosInstanceWithContext(context: ApiContext): AxiosInstance {
   return axios.create({
     baseURL: context.baseUrl ?? API_BASE_URL,
     timeout: REQUEST_TIMEOUT,
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+      "Content-Type": "application/json",
+      Accept: "application/json",
       Authorization: `Bearer ${context.jwtToken}`,
-      ...(context.correlationId && { 'X-Request-Id': context.correlationId }),
+      ...(context.correlationId && { "X-Request-Id": context.correlationId }),
     },
   });
 }
@@ -79,11 +79,11 @@ function createAxiosInstanceWithContext(context: ApiContext): AxiosInstance {
 
 ```typescript
 // pact/support/test-context.ts
-import type { ApiContext } from '../../src/types.js';
+import type { ApiContext } from "../../src/types.js";
 
 export function createTestContext(mockServerUrl: string): ApiContext {
   return {
-    jwtToken: 'test-jwt-token',
+    jwtToken: "test-jwt-token",
     customerId: 1,
     baseUrl: `${mockServerUrl}/api/v2`,
   };
@@ -198,33 +198,38 @@ This was wrong but passed because raw fetch let you hand-craft any body. When sw
 **Implementation**:
 
 ```typescript
-import { describe, it, expect } from 'vitest';
-import type { V3MockServer } from '@pact-foundation/pact';
-import { makeApiRequestWithContext } from '../../src/http-client.js';
-import type { CountStatistics } from '../../src/types.js';
-import { createTestContext } from '../support/test-context.js';
+import { describe, it, expect } from "vitest";
+import type { V3MockServer } from "@pact-foundation/pact";
+import { makeApiRequestWithContext } from "../../src/http-client.js";
+import type { CountStatistics } from "../../src/types.js";
+import { createTestContext } from "../support/test-context.js";
 
-describe('Transaction Statistics - Count Endpoint', () => {
+describe("Transaction Statistics - Count Endpoint", () => {
   // ... provider setup ...
 
-  it('should return count statistics', async () => {
-    const statsRequest = { transactionId: 'txn-123', period: 'daily' };
+  it("should return count statistics", async () => {
+    const statsRequest = { transactionId: "txn-123", period: "daily" };
 
     await provider
-      .given('transaction statistics exist')
-      .uponReceiving('a request for transaction count statistics')
+      .given("transaction statistics exist")
+      .uponReceiving("a request for transaction count statistics")
       .withRequest({
-        method: 'POST',
-        path: '/api/v2/transactions/statistics/count',
+        method: "POST",
+        path: "/api/v2/transactions/statistics/count",
         body: statsRequest,
       })
       .willRespondWith({
         status: 200,
-        body: { count: 42, period: 'daily' },
+        body: { count: 42, period: "daily" },
       })
       .executeTest(async (mockServer: V3MockServer) => {
         const context = createTestContext(mockServer.url);
-        const result = await makeApiRequestWithContext<CountStatistics>(context, '/transactions/statistics/count', 'POST', statsRequest);
+        const result = await makeApiRequestWithContext<CountStatistics>(
+          context,
+          "/transactions/statistics/count",
+          "POST",
+          statsRequest,
+        );
         expect(result.count).toBeDefined();
       });
   });
@@ -245,10 +250,10 @@ describe('Transaction Statistics - Count Endpoint', () => {
 ```typescript
 // BAD: Raw fetch duplicates headers and URL assembly
 const response = await fetch(`${mockServer.url}/api/v2/transactions`, {
-  method: 'GET',
+  method: "GET",
   headers: {
-    Authorization: 'Bearer test-jwt-token',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer test-jwt-token",
+    "Content-Type": "application/json",
   },
 });
 expect(response.status).toBe(200);
@@ -258,7 +263,7 @@ expect(response.status).toBe(200);
 
 ```typescript
 // BAD: ESM hoisting makes this non-obvious and brittle
-vi.mock('../../src/constants.js', async (importOriginal) => ({
+vi.mock("../../src/constants.js", async (importOriginal) => ({
   ...(await importOriginal()),
   get API_BASE_URL() {
     return mockBaseUrl;

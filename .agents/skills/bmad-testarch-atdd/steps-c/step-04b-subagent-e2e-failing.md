@@ -1,8 +1,8 @@
 ---
-name: 'step-04b-subagent-e2e-failing'
-description: 'Subagent: Generate red-phase E2E test scaffolds (TDD red phase)'
+name: "step-04b-subagent-e2e-failing"
+description: "Subagent: Generate red-phase E2E test scaffolds (TDD red phase)"
 subagent: true
-outputFile: '/tmp/tea-atdd-e2e-tests-{{timestamp}}.json'
+outputFile: "/tmp/tea-atdd-e2e-tests-{{timestamp}}.json"
 ---
 
 # Subagent 4B: Generate Red-Phase E2E Test Scaffolds (TDD Red Phase)
@@ -96,33 +96,35 @@ For each user journey, create test file in `tests/e2e/[feature].spec.ts`:
 **Test Structure (ATDD - Red Phase):**
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 
-test.describe('[Story Name] E2E User Journey (ATDD)', () => {
-  test.skip('[P0] should complete user registration successfully', async ({ page }) => {
+test.describe("[Story Name] E2E User Journey (ATDD)", () => {
+  test.skip("[P0] should complete user registration successfully", async ({
+    page,
+  }) => {
     // THIS TEST WILL FAIL - UI not implemented yet
-    await page.goto('/register');
+    await page.goto("/register");
 
     // Expect registration form but will get 404 or missing elements
-    await page.fill('[name="email"]', 'newuser@example.com');
-    await page.fill('[name="password"]', 'SecurePass123!');
+    await page.fill('[name="email"]', "newuser@example.com");
+    await page.fill('[name="password"]', "SecurePass123!");
     await page.click('button:has-text("Register")');
 
     // Expect success message and redirect
-    await expect(page.getByText('Registration successful!')).toBeVisible();
-    await page.waitForURL('/dashboard');
+    await expect(page.getByText("Registration successful!")).toBeVisible();
+    await page.waitForURL("/dashboard");
   });
 
-  test.skip('[P1] should show error if email exists', async ({ page }) => {
+  test.skip("[P1] should show error if email exists", async ({ page }) => {
     // THIS TEST WILL FAIL - UI not implemented yet
-    await page.goto('/register');
+    await page.goto("/register");
 
-    await page.fill('[name="email"]', 'existing@example.com');
-    await page.fill('[name="password"]', 'SecurePass123!');
+    await page.fill('[name="email"]', "existing@example.com");
+    await page.fill('[name="password"]', "SecurePass123!");
     await page.click('button:has-text("Register")');
 
     // Expect error message
-    await expect(page.getByText('Email already exists')).toBeVisible();
+    await expect(page.getByText("Email already exists")).toBeVisible();
   });
 });
 ```
@@ -186,7 +188,11 @@ Write JSON to temp file: `/tmp/tea-atdd-e2e-tests-{{timestamp}}.json`
     }
   ],
   "fixture_needs": ["registrationPageMock"],
-  "knowledge_fragments_used": ["fixture-architecture", "network-first", "selector-resilience"],
+  "knowledge_fragments_used": [
+    "fixture-architecture",
+    "network-first",
+    "selector-resilience"
+  ],
   "test_count": 2,
   "tdd_phase": "RED",
   "summary": "Generated 2 red-phase E2E test scaffolds for user registration story"

@@ -18,13 +18,13 @@ SDONE 的 `stock.capacity` 产品设计中为有限值（倒计时、负反馈�
 
 ## 2. 变更范围总览
 
-| 类别 | 文件数 | 说明 |
-|------|--------|------|
-| 源代码 | 7 | 含 2 新文件 |
-| 样式 | 2 | 1 新增 + 1 追加 |
-| 测试 | 9 | Infinity→100 替换 + 新增 8 tests |
-| 文档 | 1 | epics.md 2 处 AC 修正 |
-| **合计** | **19** | |
+| 类别     | 文件数 | 说明                             |
+| -------- | ------ | -------------------------------- |
+| 源代码   | 7      | 含 2 新文件                      |
+| 样式     | 2      | 1 新增 + 1 追加                  |
+| 测试     | 9      | Infinity→100 替换 + 新增 8 tests |
+| 文档     | 1      | epics.md 2 处 AC 修正            |
+| **合计** | **19** |                                  |
 
 ---
 
@@ -34,45 +34,45 @@ SDONE 的 `stock.capacity` 产品设计中为有限值（倒计时、负反馈�
 
 **`sdone/src/state/mutations.ts`** — 3 处变更
 
-| ID | 位置 | 变更 | 代码 diff |
-|----|------|------|-----------|
-| S1 | L53-70 | `addModule` 签名 + 默认值 | `initialCapacity?: number` 新参数；`capacity: Infinity` → `capacity: initialCapacity ?? 100` |
-| S2 | L312-330 | 新增 `updateCapacity` | 参照 `changeModuleColor` 模式，stockId 非 stock → no-op unchanged()，否则 bump + 更新 capacity |
+| ID  | 位置     | 变更                      | 代码 diff                                                                                      |
+| --- | -------- | ------------------------- | ---------------------------------------------------------------------------------------------- |
+| S1  | L53-70   | `addModule` 签名 + 默认值 | `initialCapacity?: number` 新参数；`capacity: Infinity` → `capacity: initialCapacity ?? 100`   |
+| S2  | L312-330 | 新增 `updateCapacity`     | 参照 `changeModuleColor` 模式，stockId 非 stock → no-op unchanged()，否则 bump + 更新 capacity |
 
 **`sdone/src/state/index.ts`** — 1 处变更
 
-| ID | 变更 |
-|----|------|
-| S3 | mutations.ts 导出列表新增 `updateCapacity` |
+| ID  | 变更                                       |
+| --- | ------------------------------------------ |
+| S3  | mutations.ts 导出列表新增 `updateCapacity` |
 
 ### 3.2 Canvas 渲染层
 
 **`sdone/src/canvas/SceneRenderer.ts`** — 1 处变更
 
-| ID | 位置 | 变更 |
-|----|------|------|
-| C1 | L701-702 | `if (ratio > 0 && Number.isFinite(node.capacity) && node.capacity > 0)` → `if (ratio > 0 && node.capacity > 0)`. `computeFillRatio` L185 已在 capacity≤0 时返回 0，`Number.isFinite` 因移除 Infinity 而冗余。 |
+| ID  | 位置     | 变更                                                                                                                                                                                                          |
+| --- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | L701-702 | `if (ratio > 0 && Number.isFinite(node.capacity) && node.capacity > 0)` → `if (ratio > 0 && node.capacity > 0)`. `computeFillRatio` L185 已在 capacity≤0 时返回 0，`Number.isFinite` 因移除 Infinity 而冗余。 |
 
 ### 3.3 UI 面板层
 
 **`sdone/src/ui/panels/CountdownPanel.ts`** — 5 处变更
 
-| 位置 | 变更 |
-|------|------|
-| L45 JSDoc | `Infinity if uncapped` → `always a finite positive number` |
-| L105-108 `computeCountdown` | 移除 `Number.isFinite(stock.capacity)` guard；`remainingSeconds` 始终计算 |
-| L149-152 `sortCountdownsByUrgency` JSDoc | 移除 "3. Infinite capacity" 组；stable 组编号 4→3 |
-| L189 `getUrgencyGroup` | 移除 `cd.capacity === Infinity` 分支；stable 组改 return 3 |
-| L355-358 渲染 | 移除 `data.capacity === Infinity` → "∞" 分支 |
+| 位置                                     | 变更                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| L45 JSDoc                                | `Infinity if uncapped` → `always a finite positive number`                |
+| L105-108 `computeCountdown`              | 移除 `Number.isFinite(stock.capacity)` guard；`remainingSeconds` 始终计算 |
+| L149-152 `sortCountdownsByUrgency` JSDoc | 移除 "3. Infinite capacity" 组；stable 组编号 4→3                         |
+| L189 `getUrgencyGroup`                   | 移除 `cd.capacity === Infinity` 分支；stable 组改 return 3                |
+| L355-358 渲染                            | 移除 `data.capacity === Infinity` → "∞" 分支                              |
 
 **`sdone/src/ui/panels/AnalyticsPanel.ts`** — 4 处变更
 
-| 位置 | 变更 |
-|------|------|
-| L34 JSDoc | `Infinity if uncapped` → `always a finite positive number` |
-| L91-93 类成员 | `_capacityEl: HTMLElement` → `HTMLInputElement`；新增 `_lastValidCapacity` / `onCapacitySubmit` |
-| L210-215 构造函数 | `<span>` → `<input type="number">` + `keydown` Enter handler（验证≥1、非法值红色闪烁 revert） |
-| L302-306 `setStock` | `textContent = '∞'` 分支移除 → `input.value = capacity.toFixed(0)` |
+| 位置                | 变更                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| L34 JSDoc           | `Infinity if uncapped` → `always a finite positive number`                                      |
+| L91-93 类成员       | `_capacityEl: HTMLElement` → `HTMLInputElement`；新增 `_lastValidCapacity` / `onCapacitySubmit` |
+| L210-215 构造函数   | `<span>` → `<input type="number">` + `keydown` Enter handler（验证≥1、非法值红色闪烁 revert）   |
+| L302-306 `setStock` | `textContent = '∞'` 分支移除 → `input.value = capacity.toFixed(0)`                              |
 
 **`sdone/src/ui/panels/styles/analytics-panel.css`** — 追加
 
@@ -88,6 +88,7 @@ SDONE 的 `stock.capacity` 产品设计中为有限值（倒计时、负反馈�
 **`sdone/src/ui/overlays/CapacityInputPopover.ts`** (新) — 86 行
 
 核心 API:
+
 ```typescript
 export class CapacityInputPopover {
   onConfirm: ((capacity: number) => void) | null;
@@ -100,6 +101,7 @@ export class CapacityInputPopover {
 ```
 
 设计参照 `ColorPickerPopover.ts`（DOM pattern、viewport clamp、setTimeout(0) dismiss）+ `RateEditorPanel.ts`（input 事件模式）。关键行为：
+
 - Enter → 验证 ≥1 → `onConfirm(parsed)` + close
 - Esc / click-outside / wheel → `onCancel()` + close
 - 非法输入 → 红色闪烁 + revert 到默认值
@@ -112,36 +114,36 @@ export class CapacityInputPopover {
 
 **`sdone/src/main.ts`** — 7 处变更
 
-| ID | 变更 |
-|----|------|
-| I1-new | 模块级 `handleModulePlace(moduleType, worldPos)` helper — stock 走 popover 流程，非 stock 即时创建 |
-| I1-p1 | `onModuleDrop` → 委托 `handleModulePlace`（drag-drop 路径） |
-| I1-p2 | `onCanvasClickEmpty` → 委托 `handleModulePlace`（click-to-place 路径） |
-| I1-p3 | `onModulePlaceAtCenter` → 委托 `handleModulePlace` + `capacityInputPopover.isOpen` 防重复弹窗 guard |
-| I2 | `analyticsPanel.onCapacitySubmit` 回调 — `updateCapacity` → `historyManager.push` → refresh panels |
-| I3-import | 新增 `CapacityInputPopover` + `updateCapacity` + `Vec2` import |
-| I3-lifecycle | `capacityInputPopover.destroy()` 加入 hot-reload dispose |
+| ID           | 变更                                                                                                |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| I1-new       | 模块级 `handleModulePlace(moduleType, worldPos)` helper — stock 走 popover 流程，非 stock 即时创建  |
+| I1-p1        | `onModuleDrop` → 委托 `handleModulePlace`（drag-drop 路径）                                         |
+| I1-p2        | `onCanvasClickEmpty` → 委托 `handleModulePlace`（click-to-place 路径）                              |
+| I1-p3        | `onModulePlaceAtCenter` → 委托 `handleModulePlace` + `capacityInputPopover.isOpen` 防重复弹窗 guard |
+| I2           | `analyticsPanel.onCapacitySubmit` 回调 — `updateCapacity` → `historyManager.push` → refresh panels  |
+| I3-import    | 新增 `CapacityInputPopover` + `updateCapacity` + `Vec2` import                                      |
+| I3-lifecycle | `capacityInputPopover.destroy()` 加入 hot-reload dispose                                            |
 
 ### 3.6 测试层
 
-| 文件 | 变更数 | 说明 |
-|------|--------|------|
-| `mutations.test.ts` | 3 替换 + 8 新增 | Infinity→100；新增 `updateCapacity`(5 tests) + `addModule initialCapacity`(3 tests) |
-| `SimulationEngine.test.ts` | 1 | `makeStock` 默认 `= Infinity` → `= 100` |
-| `SimulationEngine.integration.test.ts` | 1 | 同上 |
-| `StackValidator.test.ts` | 1 | 同上 |
-| `NumericalDrift.test.ts` | 1 | 同上 |
-| `achievement-detection.test.ts` | 1 | 同上 |
-| `AnalyticsPanel.test.ts` | ~8 | Infinity→100；capacity 字段 `textContent` → `value`；Infinity 专项测试重写 |
-| `CountdownPanel.test.ts` | ~8 | Infinity→100；"∞" 显示测试→stable 状态测试；sort 无穷容量测试移除 |
-| `feedback.test.ts` | 1 | stock value=100 且 capacity=100 导致 feedback formula=0 死锁 → value=50 + rate=5 修复 |
+| 文件                                   | 变更数          | 说明                                                                                  |
+| -------------------------------------- | --------------- | ------------------------------------------------------------------------------------- |
+| `mutations.test.ts`                    | 3 替换 + 8 新增 | Infinity→100；新增 `updateCapacity`(5 tests) + `addModule initialCapacity`(3 tests)   |
+| `SimulationEngine.test.ts`             | 1               | `makeStock` 默认 `= Infinity` → `= 100`                                               |
+| `SimulationEngine.integration.test.ts` | 1               | 同上                                                                                  |
+| `StackValidator.test.ts`               | 1               | 同上                                                                                  |
+| `NumericalDrift.test.ts`               | 1               | 同上                                                                                  |
+| `achievement-detection.test.ts`        | 1               | 同上                                                                                  |
+| `AnalyticsPanel.test.ts`               | ~8              | Infinity→100；capacity 字段 `textContent` → `value`；Infinity 专项测试重写            |
+| `CountdownPanel.test.ts`               | ~8              | Infinity→100；"∞" 显示测试→stable 状态测试；sort 无穷容量测试移除                     |
+| `feedback.test.ts`                     | 1               | stock value=100 且 capacity=100 导致 feedback formula=0 死锁 → value=50 + rate=5 修复 |
 
 ### 3.7 文档层
 
-| 文档 | 变更 |
-|------|------|
-| `epics.md` Story 1.5 AC L326 | `capacity: Infinity` → `capacity: 100`；新增容量弹窗 AC |
-| `epics.md` Story 5.2 AC3 L820-822 | "Infinity (default)" → "100 (default)"；填充始终有效 |
+| 文档                              | 变更                                                    |
+| --------------------------------- | ------------------------------------------------------- |
+| `epics.md` Story 1.5 AC L326      | `capacity: Infinity` → `capacity: 100`；新增容量弹窗 AC |
+| `epics.md` Story 5.2 AC3 L820-822 | "Infinity (default)" → "100 (default)"；填充始终有效    |
 
 ---
 
@@ -157,12 +159,12 @@ export class CapacityInputPopover {
 
 ## 5. 验收门禁
 
-| 门禁 | 结果 |
-|------|------|
-| `npx vitest run` | ✅ **782/782 tests pass**，零回归 |
-| `npx tsc --noEmit` | ✅ 零新增类型错误（pre-existing 2 errors in InputManager.test.ts 与本次无关） |
-| 新增 `updateCapacity` tests | ✅ 5 tests (update/not-found/non-stock/preserve/monotonicity) |
-| 新增 `addModule initialCapacity` tests | ✅ 3 tests (default 100/explicit 50/source-sink unaffected) |
+| 门禁                                   | 结果                                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| `npx vitest run`                       | ✅ **782/782 tests pass**，零回归                                             |
+| `npx tsc --noEmit`                     | ✅ 零新增类型错误（pre-existing 2 errors in InputManager.test.ts 与本次无关） |
+| 新增 `updateCapacity` tests            | ✅ 5 tests (update/not-found/non-stock/preserve/monotonicity)                 |
+| 新增 `addModule initialCapacity` tests | ✅ 3 tests (default 100/explicit 50/source-sink unaffected)                   |
 
 ---
 
@@ -174,7 +176,7 @@ export class CapacityInputPopover {
 2. **🟡 `AnalyticsPanel` input 验证** — `_lastValidCapacity` 状态机在 setStock 覆盖 + 用户输入 + 非法 revert 三者间的一致性。
 3. **🟢 `CountdownPanel` Infinity 移除** — `remainingSeconds` 始终计算，不再有 null；`getUrgencyGroup` 编号缺口（1→2→3）sort 比较仍正确？
 4. **🟢 `CapacityInputPopover`** — DOM cleanup (listeners/mousedown/wheel) 在 close/destroy 路径上是否正确？
-5. **🟢 `feedback.test.ts`** — 原测试假设 `value=100, capacity=Infinity` 使 formula 产生非零乘数；修正后 `value=50, capacity=100` 等价，语义是否保持？(formula: `max(0, (100-50)/100)` = 0.5, effective rate = 5*0.5 = 2.5)
+5. **🟢 `feedback.test.ts`** — 原测试假设 `value=100, capacity=Infinity` 使 formula 产生非零乘数；修正后 `value=50, capacity=100` 等价，语义是否保持？(formula: `max(0, (100-50)/100)` = 0.5, effective rate = 5\*0.5 = 2.5)
 
 ---
 

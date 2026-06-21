@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 
   // Find and click the stock module button
   const stockBtn = page.locator('.module-panel__btn--stock');
-  if (await stockBtn.count() > 0) {
+  if ((await stockBtn.count()) > 0) {
     await stockBtn.click();
     await page.waitForTimeout(500);
 
@@ -30,9 +30,9 @@ import { chromium } from 'playwright';
 
   // Check if capacity input popover appeared
   const popover = page.locator('.capacity-input-popover');
-  if (await popover.count() > 0) {
+  if ((await popover.count()) > 0) {
     const input = popover.locator('input');
-    if (await input.count() > 0) {
+    if ((await input.count()) > 0) {
       await input.click({ clickCount: 3 });
       await input.type('200');
       await page.keyboard.press('Enter');
@@ -65,7 +65,7 @@ import { chromium } from 'playwright';
 
   // Test: Try to set capacity to 0 in analytics panel (should be rejected)
   const capInput = page.locator('.analytics-panel__field-value--capacity');
-  if (await capInput.count() > 0) {
+  if ((await capInput.count()) > 0) {
     await capInput.click({ clickCount: 3 });
     await capInput.type('0');
     await page.keyboard.press('Enter');
@@ -84,4 +84,4 @@ import { chromium } from 'playwright';
 
   await browser.close();
   console.log('Manual test complete!');
-})().catch(e => console.error('Error:', e));
+})().catch((e) => console.error('Error:', e));

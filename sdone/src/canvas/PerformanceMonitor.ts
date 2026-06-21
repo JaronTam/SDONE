@@ -68,6 +68,27 @@ export class PerformanceMonitor {
    * Per-frame overhead: one array push + conditional check (AC6 constraint).
    */
   recordFrame(now: number): void {
+    // Hidden-tab guard: when the tab is not visible, the browser throttles rAF
+    // to ~1Hz instead of stopping it. Those throttled callbacks are not real
+    // render frames — pushing them into the buffer would pollute the P95 window
+    // with ~1000ms intervals and trigger spurious NFR-P1 warnings every ~2s.
+    // Pause both sampling and recompute while hidden.
+    if (document.hidden) return;
+    // Resume-gap guard: the hidden-tab guard above blocks hidden frames from
+    // being pushed, but the *delta* between the last pre-hide frame and the
+    // first post-hide frame still spans the full hide duration. When the hide
+    // is < 10s, cutoff pruning does NOT remove the pre-hidden frames, so that
+    // gap delta survives in the window; for a small surviving buffer it lands
+    // at/below the P95 index and fires the very warning the guard meant to kill
+    // (deferred from "刷屏 while hidden" to "一次性误报 on resume"). Drop the
+    // stale window on any visible-frame gap > 1s. The 1000ms threshold sits
+    // above the 16–35ms frame intervals and below the 2s recompute interval, so
+    // no legitimate render sequence trips it; it also covers debugger pauses,
+    // GC stalls, and lid-close gaps as defense in depth.
+    const last = this.frameTimestamps[this.frameTimestamps.length - 1];
+    if (last !== undefined && now - last > 1000) {
+      this.frameTimestamps = [];
+    }
     this.frameTimestamps.push(now);
 
     // Prune timestamps older than 10s

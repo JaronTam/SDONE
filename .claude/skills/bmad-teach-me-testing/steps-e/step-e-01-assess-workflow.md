@@ -1,11 +1,11 @@
 ---
-name: 'step-e-01-assess-workflow'
-description: 'Assess what needs to be edited in the teaching workflow'
+name: "step-e-01-assess-workflow"
+description: "Assess what needs to be edited in the teaching workflow"
 
-nextStepFile: '{skill-root}/steps-e/step-e-02-apply-edits.md'
-workflowPath: '{skill-root}'
-advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+nextStepFile: "{skill-root}/steps-e/step-e-02-apply-edits.md"
+workflowPath: "{skill-root}"
+advancedElicitationTask: "{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Edit Step 1: Assess What to Edit

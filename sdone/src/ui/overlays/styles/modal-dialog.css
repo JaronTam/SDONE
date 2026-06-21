@@ -89,7 +89,9 @@
   color: #a6adc8;
   font-size: 14px;
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
 }
 
 .modal-btn-cancel:hover {

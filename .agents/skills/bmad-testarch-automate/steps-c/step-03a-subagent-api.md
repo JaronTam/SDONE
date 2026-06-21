@@ -1,8 +1,8 @@
 ---
-name: 'step-03a-subagent-api'
-description: 'Subagent: Generate API tests only'
+name: "step-03a-subagent-api"
+description: "Subagent: Generate API tests only"
 subagent: true
-outputFile: '/tmp/tea-automate-api-tests-{{timestamp}}.json'
+outputFile: "/tmp/tea-automate-api-tests-{{timestamp}}.json"
 ---
 
 # Subagent 3A: Generate API Tests
@@ -62,15 +62,15 @@ For each API endpoint, create test file in `tests/api/[feature].spec.ts`:
 **Test Structure:**
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 // If Playwright Utils enabled:
 // import { apiRequest } from '@playwright-utils/api';
 
-test.describe('[Feature] API Tests', () => {
-  test('[P0] should handle successful [operation]', async ({ request }) => {
+test.describe("[Feature] API Tests", () => {
+  test("[P0] should handle successful [operation]", async ({ request }) => {
     // Use apiRequest helper if Playwright Utils enabled
     // Otherwise use standard request fixture
-    const response = await request.post('/api/endpoint', {
+    const response = await request.post("/api/endpoint", {
       data: {
         /* test data */
       },
@@ -82,7 +82,7 @@ test.describe('[Feature] API Tests', () => {
     });
   });
 
-  test('[P1] should handle [error scenario]', async ({ request }) => {
+  test("[P1] should handle [error scenario]", async ({ request }) => {
     // Test error handling
   });
 });
@@ -214,9 +214,17 @@ Write JSON to temp file: `/tmp/tea-automate-api-tests-{{timestamp}}.json`
     }
   ],
   "fixture_needs": ["authToken", "userDataFactory", "productDataFactory"],
-  "knowledge_fragments_used": ["api-request", "data-factories", "api-testing-patterns"],
+  "knowledge_fragments_used": [
+    "api-request",
+    "data-factories",
+    "api-testing-patterns"
+  ],
   "provider_scrutiny": "completed",
-  "provider_files_read": ["server/src/routes/authHandlers.ts", "server/src/routes/checkoutHandlers.ts", "server/src/types/auth.ts"],
+  "provider_files_read": [
+    "server/src/routes/authHandlers.ts",
+    "server/src/routes/checkoutHandlers.ts",
+    "server/src/types/auth.ts"
+  ],
   "test_count": 12,
   "summary": "Generated 12 API test cases covering 3 features"
 }

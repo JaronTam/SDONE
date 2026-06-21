@@ -2,7 +2,12 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { InputManager, pointToSegmentDistance, hitTestConnectionPoint, hitTestResizeHandle } from './InputManager.js';
+import {
+  InputManager,
+  pointToSegmentDistance,
+  hitTestConnectionPoint,
+  hitTestResizeHandle,
+} from './InputManager.js';
 import { ViewportManager, MIN_ZOOM } from '../canvas/Viewport.js';
 import { vec2, type Vec2 } from '../shared/Vec2.js';
 import type { ModuleType } from '../state/GraphState.js';
@@ -209,7 +214,8 @@ describe('InputManager', () => {
       moveFn(new MouseEvent('mousemove', { clientX: 410, clientY: 305 }));
 
       // Call count resets based on vi.fn() spy
-      const callCountAfterFirst = (mockVM.panByScreenDelta as ReturnType<typeof vi.fn>).mock.calls.length;
+      const callCountAfterFirst = (mockVM.panByScreenDelta as ReturnType<typeof vi.fn>).mock.calls
+        .length;
 
       moveFn(new MouseEvent('mousemove', { clientX: 420, clientY: 310 }));
 
@@ -260,9 +266,7 @@ describe('InputManager', () => {
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
 
       // Press space
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Space' }));
 
       dispatchMouseEvent(canvas, 'mousedown', 0, 400, 300);
 
@@ -279,9 +283,7 @@ describe('InputManager', () => {
     it('stops Space+left-click pan on mouseup', () => {
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Space' }));
       dispatchMouseEvent(canvas, 'mousedown', 0, 400, 300);
       expect(canvas.style.cursor).toBe('grabbing');
 
@@ -296,9 +298,7 @@ describe('InputManager', () => {
     it('sets cursor to grab when Space pressed while not panning', () => {
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Space' }));
 
       expect(canvas.style.cursor).toBe('grab');
       input.destroy();
@@ -324,14 +324,10 @@ describe('InputManager', () => {
       // This is a boundary test.
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Space' }));
       expect(canvas.style.cursor).toBe('grab');
 
-      capturedWindowListeners.get('keyup')?.[0]!(
-        new KeyboardEvent('keyup', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keyup')?.[0]!(new KeyboardEvent('keyup', { code: 'Space' }));
       expect(canvas.style.cursor).toBe('');
 
       input.destroy();
@@ -546,9 +542,7 @@ describe('InputManager', () => {
       input.onTabNext = tabSpy;
       input.selectedModuleIdProvider = () => 'mod1';
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Tab' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Tab' }));
 
       expect(tabSpy).toHaveBeenCalledTimes(1);
       input.destroy();
@@ -561,9 +555,7 @@ describe('InputManager', () => {
       // selectedModuleIdProvider returns null → no selection
       input.selectedModuleIdProvider = () => null;
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Tab' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Tab' }));
 
       expect(tabSpy).not.toHaveBeenCalled();
       input.destroy();
@@ -575,9 +567,7 @@ describe('InputManager', () => {
       input.onTabNext = tabSpy;
       // selectedModuleIdProvider is null by default
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Tab' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Tab' }));
 
       expect(tabSpy).not.toHaveBeenCalled();
       input.destroy();
@@ -589,9 +579,7 @@ describe('InputManager', () => {
       input.onModulePlaceAtCenter = placeSpy;
       input.selectedModuleIdProvider = () => 'mod1';
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Enter' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Enter' }));
 
       // Did NOT place — went into editing mode instead
       expect(placeSpy).not.toHaveBeenCalled();
@@ -815,9 +803,7 @@ describe('InputManager', () => {
       const input = new InputManager(canvas as unknown as HTMLCanvasElement, mockVM);
 
       // Start panning
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Space' }));
       dispatchMouseEvent(canvas, 'mousedown', 0, 400, 300);
       expect(canvas.style.cursor).toBe('grabbing');
 
@@ -826,9 +812,7 @@ describe('InputManager', () => {
       expect(canvas.style.cursor).toBe('');
 
       // After blur, Space up should not affect anything (spaceHeld already false)
-      capturedWindowListeners.get('keyup')?.[0]!(
-        new KeyboardEvent('keyup', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keyup')?.[0]!(new KeyboardEvent('keyup', { code: 'Space' }));
       // Cursor should remain empty (not toggle to grab)
       expect(canvas.style.cursor).toBe('');
 
@@ -840,56 +824,32 @@ describe('InputManager', () => {
 
   describe('pointToSegmentDistance (Story 3.7)', () => {
     it('returns 0 when point is on the segment', () => {
-      const dist = pointToSegmentDistance(
-        vec2(50, 50),
-        vec2(0, 0),
-        vec2(100, 100),
-      );
+      const dist = pointToSegmentDistance(vec2(50, 50), vec2(0, 0), vec2(100, 100));
       expect(dist).toBe(0);
     });
 
     it('returns perpendicular distance when point is off the segment', () => {
-      const dist = pointToSegmentDistance(
-        vec2(50, 60),
-        vec2(0, 50),
-        vec2(100, 50),
-      );
+      const dist = pointToSegmentDistance(vec2(50, 60), vec2(0, 50), vec2(100, 50));
       expect(dist).toBe(10);
     });
 
     it('returns distance to endpoint when projection falls before segment', () => {
-      const dist = pointToSegmentDistance(
-        vec2(-10, 0),
-        vec2(0, 0),
-        vec2(100, 0),
-      );
+      const dist = pointToSegmentDistance(vec2(-10, 0), vec2(0, 0), vec2(100, 0));
       expect(dist).toBe(10);
     });
 
     it('returns distance to endpoint when projection falls after segment', () => {
-      const dist = pointToSegmentDistance(
-        vec2(110, 0),
-        vec2(0, 0),
-        vec2(100, 0),
-      );
+      const dist = pointToSegmentDistance(vec2(110, 0), vec2(0, 0), vec2(100, 0));
       expect(dist).toBe(10);
     });
 
     it('handles degenerate segment (zero-length) — point distance', () => {
-      const dist = pointToSegmentDistance(
-        vec2(3, 4),
-        vec2(0, 0),
-        vec2(0, 0),
-      );
+      const dist = pointToSegmentDistance(vec2(3, 4), vec2(0, 0), vec2(0, 0));
       expect(dist).toBe(5);
     });
 
     it('handles vertical segment', () => {
-      const dist = pointToSegmentDistance(
-        vec2(10, 50),
-        vec2(0, 0),
-        vec2(0, 100),
-      );
+      const dist = pointToSegmentDistance(vec2(10, 50), vec2(0, 0), vec2(0, 100));
       expect(dist).toBe(10);
     });
   });
@@ -922,11 +882,32 @@ describe('InputManager', () => {
         mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
       };
       // Bottom midpoint world (200, 230) → screen (600, 530)
-      expect(hitTestConnectionPoint(vm.worldToScreen(vec2(200, 230), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', edge: 'bottom' });
+      expect(
+        hitTestConnectionPoint(
+          vm.worldToScreen(vec2(200, 230), canvasCenter),
+          nodes,
+          vm,
+          canvasCenter,
+        ),
+      ).toEqual({ moduleId: 'mod1', edge: 'bottom' });
       // Left midpoint world (150, 200) → screen (550, 500)
-      expect(hitTestConnectionPoint(vm.worldToScreen(vec2(150, 200), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', edge: 'left' });
+      expect(
+        hitTestConnectionPoint(
+          vm.worldToScreen(vec2(150, 200), canvasCenter),
+          nodes,
+          vm,
+          canvasCenter,
+        ),
+      ).toEqual({ moduleId: 'mod1', edge: 'left' });
       // Right midpoint world (250, 200) → screen (650, 500)
-      expect(hitTestConnectionPoint(vm.worldToScreen(vec2(250, 200), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', edge: 'right' });
+      expect(
+        hitTestConnectionPoint(
+          vm.worldToScreen(vec2(250, 200), canvasCenter),
+          nodes,
+          vm,
+          canvasCenter,
+        ),
+      ).toEqual({ moduleId: 'mod1', edge: 'right' });
     });
 
     it('works at non-zero viewport offset', () => {
@@ -1012,10 +993,38 @@ describe('InputManager', () => {
         mod1: { id: 'mod1', type: 'stock', position: vec2(200, 200), width: 100, height: 60 },
       };
       // nw(150,170)→(550,470), ne(250,170)→(650,470), sw(150,230)→(550,530), se(250,230)→(650,530)
-      expect(hitTestResizeHandle(vm.worldToScreen(vec2(150, 170), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'nw' });
-      expect(hitTestResizeHandle(vm.worldToScreen(vec2(250, 170), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'ne' });
-      expect(hitTestResizeHandle(vm.worldToScreen(vec2(150, 230), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'sw' });
-      expect(hitTestResizeHandle(vm.worldToScreen(vec2(250, 230), canvasCenter), nodes, vm, canvasCenter)).toEqual({ moduleId: 'mod1', corner: 'se' });
+      expect(
+        hitTestResizeHandle(
+          vm.worldToScreen(vec2(150, 170), canvasCenter),
+          nodes,
+          vm,
+          canvasCenter,
+        ),
+      ).toEqual({ moduleId: 'mod1', corner: 'nw' });
+      expect(
+        hitTestResizeHandle(
+          vm.worldToScreen(vec2(250, 170), canvasCenter),
+          nodes,
+          vm,
+          canvasCenter,
+        ),
+      ).toEqual({ moduleId: 'mod1', corner: 'ne' });
+      expect(
+        hitTestResizeHandle(
+          vm.worldToScreen(vec2(150, 230), canvasCenter),
+          nodes,
+          vm,
+          canvasCenter,
+        ),
+      ).toEqual({ moduleId: 'mod1', corner: 'sw' });
+      expect(
+        hitTestResizeHandle(
+          vm.worldToScreen(vec2(250, 230), canvasCenter),
+          nodes,
+          vm,
+          canvasCenter,
+        ),
+      ).toEqual({ moduleId: 'mod1', corner: 'se' });
     });
 
     it('hit radius is zoom-independent at 0.5× zoom (AC3)', () => {
@@ -1276,7 +1285,7 @@ describe('InputManager', () => {
       expect(selectSpy).toHaveBeenCalledTimes(1);
 
       // Wait >300ms
-      await new Promise(resolve => setTimeout(resolve, 350));
+      await new Promise((resolve) => setTimeout(resolve, 350));
 
       // Second click — should NOT be double-click due to time threshold
       dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
@@ -1571,11 +1580,19 @@ describe('InputManager', () => {
 
       // jsdom lacks DragEvent/DataTransfer — build a minimal mock
       const dataStore: Record<string, string> = { 'application/x-sdone-module': 'stock' };
-      const mockDT = { getData: (k: string) => dataStore[k] ?? '', setData: (k: string, v: string) => { dataStore[k] = v; }, dropEffect: '' };
+      const mockDT = {
+        getData: (k: string) => dataStore[k] ?? '',
+        setData: (k: string, v: string) => {
+          dataStore[k] = v;
+        },
+        dropEffect: '',
+      };
       const dropEvent = new Event('drop', { cancelable: true }) as DragEvent;
       Object.defineProperties(dropEvent, {
-        clientX: { value: 400 }, clientY: { value: 300 },
-        dataTransfer: { value: mockDT }, preventDefault: { value: () => {} },
+        clientX: { value: 400 },
+        clientY: { value: 300 },
+        dataTransfer: { value: mockDT },
+        preventDefault: { value: () => {} },
       });
 
       const dropListeners = canvas._listeners.get('drop') ?? [];
@@ -1596,11 +1613,19 @@ describe('InputManager', () => {
       input.onModuleDrop = dropSpy;
 
       const dataStore: Record<string, string> = { 'application/x-sdone-module': 'source' };
-      const mockDT = { getData: (k: string) => dataStore[k] ?? '', setData: (k: string, v: string) => { dataStore[k] = v; }, dropEffect: '' };
+      const mockDT = {
+        getData: (k: string) => dataStore[k] ?? '',
+        setData: (k: string, v: string) => {
+          dataStore[k] = v;
+        },
+        dropEffect: '',
+      };
       const dropEvent = new Event('drop', { cancelable: true }) as DragEvent;
       Object.defineProperties(dropEvent, {
-        clientX: { value: 400 }, clientY: { value: 300 },
-        dataTransfer: { value: mockDT }, preventDefault: { value: () => {} },
+        clientX: { value: 400 },
+        clientY: { value: 300 },
+        dataTransfer: { value: mockDT },
+        preventDefault: { value: () => {} },
       });
 
       const dropListeners = canvas._listeners.get('drop') ?? [];
@@ -1620,11 +1645,19 @@ describe('InputManager', () => {
       input.onModuleDrop = dropSpy;
 
       const dataStore: Record<string, string> = { 'application/x-sdone-module': 'invalid_type' };
-      const mockDT = { getData: (k: string) => dataStore[k] ?? '', setData: (k: string, v: string) => { dataStore[k] = v; }, dropEffect: '' };
+      const mockDT = {
+        getData: (k: string) => dataStore[k] ?? '',
+        setData: (k: string, v: string) => {
+          dataStore[k] = v;
+        },
+        dropEffect: '',
+      };
       const dropEvent = new Event('drop', { cancelable: true }) as DragEvent;
       Object.defineProperties(dropEvent, {
-        clientX: { value: 400 }, clientY: { value: 300 },
-        dataTransfer: { value: mockDT }, preventDefault: { value: () => {} },
+        clientX: { value: 400 },
+        clientY: { value: 300 },
+        dataTransfer: { value: mockDT },
+        preventDefault: { value: () => {} },
       });
 
       const dropListeners = canvas._listeners.get('drop') ?? [];
@@ -1826,14 +1859,16 @@ describe('InputManager', () => {
  * Create a minimal mock ModuleNode for hit-testing / drag tests.
  * position in world coordinates; dimensions default to 120×80.
  */
-function makeModuleNode(overrides: {
-  id?: string;
-  type?: ModuleType;
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
-} = {}) {
+function makeModuleNode(
+  overrides: {
+    id?: string;
+    type?: ModuleType;
+    x?: number;
+    y?: number;
+    w?: number;
+    h?: number;
+  } = {},
+) {
   return {
     id: overrides.id ?? 'mod1',
     type: (overrides.type ?? 'stock') as ModuleType,
@@ -2286,9 +2321,7 @@ describe('Story 8.5 — Diamond Drag (Connection Points)', () => {
       });
 
       // Press Space
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Space' }));
 
       expect(canvas.style.cursor).toBe('grab');
 
@@ -2448,9 +2481,7 @@ describe('Story 8.5 — Resize Drag (Corner Handles)', () => {
 
       // 3rd arg should be se anchor = (260, 240)
       expect(resizeStartSpy).toHaveBeenCalled();
-      expect(resizeStartSpy.mock.calls[0][2]).toEqual(
-        expect.objectContaining({ x: 260, y: 240 }),
-      );
+      expect(resizeStartSpy.mock.calls[0][2]).toEqual(expect.objectContaining({ x: 260, y: 240 }));
 
       input.destroy();
     });
@@ -2765,9 +2796,7 @@ describe('Story 8.5 — Resize Drag (Corner Handles)', () => {
         mod1: makeModuleNode({ x: 200, y: 200, w: 120, h: 80 }),
       });
 
-      capturedWindowListeners.get('keydown')?.[0]!(
-        new KeyboardEvent('keydown', { code: 'Space' }),
-      );
+      capturedWindowListeners.get('keydown')?.[0]!(new KeyboardEvent('keydown', { code: 'Space' }));
       expect(canvas.style.cursor).toBe('grab');
 
       const moveFn = capturedWindowListeners.get('mousemove')?.[0]!;
@@ -2986,7 +3015,9 @@ describe('Story 8.5 — Resize Drag (Corner Handles)', () => {
         expect(args.length).toBe(3);
         expect(args[0]).toBe('mod1');
         expect(args[1]).toBe('se');
-        expect(args[2]).toEqual(expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }));
+        expect(args[2]).toEqual(
+          expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
+        );
       }
 
       input.destroy();

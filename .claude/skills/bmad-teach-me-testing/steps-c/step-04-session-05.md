@@ -1,13 +1,13 @@
 ---
-name: 'step-04-session-05'
-description: 'Session 5: ATDD & Automate - TDD red-green approach, generate tests (60 min)'
+name: "step-04-session-05"
+description: "Session 5: ATDD & Automate - TDD red-green approach, generate tests (60 min)"
 
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
-sessionNotesTemplate: '../templates/session-notes-template.md'
-sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-05-notes.md'
-nextStepFile: '{skill-root}/steps-c/step-03-session-menu.md'
-advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
+sessionNotesTemplate: "../templates/session-notes-template.md"
+sessionNotesFile: "{test_artifacts}/tea-academy/{user_name}/session-05-notes.md"
+nextStepFile: "{skill-root}/steps-c/step-03-session-menu.md"
+advancedElicitationTask: "{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Session 5 - ATDD & Automate
@@ -126,7 +126,7 @@ Save the updated progress file.
 
 ```typescript
 // RED: Test fails (function doesn't exist)
-test('calculates total price', () => {
+test("calculates total price", () => {
   expect(calculateTotal([10, 20])).toBe(30);
 });
 
@@ -156,8 +156,8 @@ function calculateTotal(prices) {
 **Pattern:**
 
 ```typescript
-test('GET /users returns user list', async ({ request }) => {
-  const response = await request.get('/api/users');
+test("GET /users returns user list", async ({ request }) => {
+  const response = await request.get("/api/users");
   expect(response.ok()).toBeTruthy();
   const users = await response.json();
   expect(users).toHaveLength(10);

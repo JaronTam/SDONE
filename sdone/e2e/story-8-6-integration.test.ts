@@ -349,7 +349,9 @@ test.describe('Story 8.6 — Color Dot → Popover (AC8-10)', () => {
 
   // ── AC10: Double-click no longer opens color picker ────────────────
 
-  test('[P2] AC10 — Double-click on module does NOT open color picker popover', async ({ page }) => {
+  test('[P2] AC10 — Double-click on module does NOT open color picker popover', async ({
+    page,
+  }) => {
     await createModule(page, 'stock', CANVAS_CENTER.x, CANVAS_CENTER.y);
 
     const { x, y } = worldToScreen(CANVAS_CENTER.x, CANVAS_CENTER.y);
@@ -402,7 +404,9 @@ test.describe('Story 8.6 — Selection Overlay (AC11)', () => {
     await page.screenshot({ path: 'test-artifacts/ac11-resize-handles.png' });
   });
 
-  test('[P3] AC11 — Selection overlay shows diamond handles when connections exist', async ({ page }) => {
+  test('[P3] AC11 — Selection overlay shows diamond handles when connections exist', async ({
+    page,
+  }) => {
     // Create two connected modules
     await createModule(page, 'stock', 200, 100); // port is on edge
     // Diamond handles should appear when module has valid connection ports
@@ -540,7 +544,9 @@ test.describe('Story 8.6 — Keyboard Guard e2e (AC15)', () => {
     await setupPage(page);
   });
 
-  test('[P1] AC15 — Escape is two-key: first closes popover, second deselects', async ({ page }) => {
+  test('[P1] AC15 — Escape is two-key: first closes popover, second deselects', async ({
+    page,
+  }) => {
     // Code review 2026-06-21 (decision 1A): use 'source' — color dot is hidden for
     // stock (AC8 scope). Assertions rewritten to the two-key Escape design defined
     // in the story Dev Notes ("Escape Handling Coordination"):
@@ -648,7 +654,9 @@ test.describe('Story 8.6 — HMR Cleanup (AC18)', () => {
     await page.screenshot({ path: 'test-artifacts/ac18-hmr-cleanup.png' });
   });
 
-  test('[P2] AC18 — ToolbarController instance is properly destroyed on dispose', async ({ page }) => {
+  test('[P2] AC18 — ToolbarController instance is properly destroyed on dispose', async ({
+    page,
+  }) => {
     await createModule(page, 'stock', CANVAS_CENTER.x, CANVAS_CENTER.y);
     const toolbar = page.locator('.toolbar');
     await expect(toolbar).toBeVisible();

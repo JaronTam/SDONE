@@ -1,10 +1,10 @@
 ---
-name: 'step-05-completion'
-description: 'Generate completion certificate, final progress update, congratulate learner'
+name: "step-05-completion"
+description: "Generate completion certificate, final progress update, congratulate learner"
 
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
-certificateTemplate: '../templates/certificate-template.md'
-certificateFile: '{test_artifacts}/tea-academy/{user_name}/tea-completion-certificate.md'
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
+certificateTemplate: "../templates/certificate-template.md"
+certificateFile: "{test_artifacts}/tea-academy/{user_name}/tea-completion-certificate.md"
 ---
 
 # Step 5: Completion & Certificate Generation

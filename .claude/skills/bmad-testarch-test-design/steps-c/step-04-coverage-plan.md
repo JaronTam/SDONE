@@ -1,8 +1,8 @@
 ---
-name: 'step-04-coverage-plan'
-description: 'Design test coverage, priorities, execution strategy, and estimates'
-nextStepFile: '{skill-root}/steps-c/step-05-generate-output.md'
-outputFile: '{test_artifacts}/test-design-progress.md'
+name: "step-04-coverage-plan"
+description: "Design test coverage, priorities, execution strategy, and estimates"
+nextStepFile: "{skill-root}/steps-c/step-05-generate-output.md"
+outputFile: "{test_artifacts}/test-design-progress.md"
 ---
 
 # Step 4: Coverage Plan & Execution Strategy
@@ -111,12 +111,12 @@ Define thresholds:
 
   ```yaml
   ---
-  workflowStatus: 'in-progress'
+  workflowStatus: "in-progress"
   totalSteps: 5
-  stepsCompleted: ['step-04-coverage-plan']
-  lastStep: 'step-04-coverage-plan'
-  nextStep: '{nextStepFile}'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-04-coverage-plan"]
+  lastStep: "step-04-coverage-plan"
+  nextStep: "{nextStepFile}"
+  lastSaved: "{date}"
   ---
   ```
 

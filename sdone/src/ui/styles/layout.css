@@ -19,22 +19,26 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
 }
 
 /* ---- z-Index Custom Properties ---- */
 :root {
   /* Base layers (0–3): DOM layout stack */
-  --z-canvas: 0;         /* Main scene canvas — base layer */
-  --z-panel: 1;          /* Left + Right panels */
-  --z-control-bar: 2;    /* Top control bar — above panels */
-  --z-minimap: 3;        /* Minimap overlay — above control bar */
-  --z-toolbar: 100;      /* Module toolbar — above minimap, below modal (Story 8.4) */
+  --z-canvas: 0; /* Main scene canvas — base layer */
+  --z-panel: 1; /* Left + Right panels */
+  --z-control-bar: 2; /* Top control bar — above panels */
+  --z-minimap: 3; /* Minimap overlay — above control bar */
+  --z-toolbar: 100; /* Module toolbar — above minimap, below modal (Story 8.4) */
 
   /* Overlay layers (200+): fixed-position UI on top of base layers */
-  --z-modal: 200;        /* Modal dialog backdrop — above minimap, below popover/toast */
-  --z-popover: 1000;     /* Color picker popover — above modal */
-  --z-toast: 1001;       /* Achievement toast — topmost UI layer */
+  --z-modal: 200; /* Modal dialog backdrop — above minimap, below popover/toast */
+  --z-popover: 1000; /* Color picker popover — above modal */
+  --z-toast: 1001; /* Achievement toast — topmost UI layer */
 }
 
 /* ---- App Root Container ---- */
@@ -56,7 +60,7 @@ body {
 }
 
 .layer-canvas canvas {
-  display: block;        /* Remove inline gap below canvas */
+  display: block; /* Remove inline gap below canvas */
   width: 100%;
   height: 100%;
 }
@@ -66,12 +70,12 @@ body {
    ========================================================================= */
 .layer-panel-left {
   position: absolute;
-  top: 40px;             /* Below control bar */
+  top: 40px; /* Below control bar */
   left: 0;
   bottom: 0;
   width: 240px;
   z-index: var(--z-panel);
-  pointer-events: none;  /* Allow clicks through empty areas to canvas */
+  pointer-events: none; /* Allow clicks through empty areas to canvas */
   /* Future: panels will have pointer-events: auto on their interactive children */
 }
 
@@ -80,7 +84,7 @@ body {
    ========================================================================= */
 .layer-panel-right {
   position: absolute;
-  top: 40px;             /* Below control bar */
+  top: 40px; /* Below control bar */
   right: 0;
   bottom: 0;
   width: 280px;
@@ -116,7 +120,7 @@ body {
   padding: 4px 14px;
   font-size: 13px;
   font-weight: 600;
-  cursor: default;       /* Placeholder — not functional yet */
+  cursor: default; /* Placeholder — not functional yet */
   user-select: none;
 }
 
@@ -136,7 +140,11 @@ body {
   background: #1e1e2e;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
   /* pointer-events: auto by default — minimap can receive events */
-  transition: right 0.25s ease, left 0.25s ease, top 0.25s ease, bottom 0.25s ease;
+  transition:
+    right 0.25s ease,
+    left 0.25s ease,
+    top 0.25s ease,
+    bottom 0.25s ease;
 }
 
 /* ── Story 7.7+ — UX-DR13: Minimap configurable corner positions ── */
@@ -185,7 +193,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;       /* Story 6.6 AC6 — scrollable content */
+  overflow-y: auto; /* Story 6.6 AC6 — scrollable content */
   overflow-x: hidden;
   transition: transform 300ms ease;
 }
@@ -222,7 +230,9 @@ body {
   padding: 2px 4px;
   border-radius: 4px;
   color: #6c7086;
-  transition: color 200ms ease, text-shadow 200ms ease;
+  transition:
+    color 200ms ease,
+    text-shadow 200ms ease;
   line-height: 1;
 }
 
@@ -290,7 +300,10 @@ body {
   color: #a6adc8;
   font-size: 13px;
   cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 }
 
 .btn-clear-canvas:hover {

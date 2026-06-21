@@ -10,13 +10,13 @@
 
 ## 关键数字
 
-| 维度 | 值 |
-|---|---|
-| Round 2 原始 findings | 11 条 |
-| 主代理修正前 triage | 1 patch / 2 decision / 2 defer / 6 dismiss |
+| 维度                    | 值                                             |
+| ----------------------- | ---------------------------------------------- |
+| Round 2 原始 findings   | 11 条                                          |
+| 主代理修正前 triage     | 1 patch / 2 decision / 2 defer / 6 dismiss     |
 | **元审计修正后 triage** | **0 patch / 0 decision / 2 defer / 5 dismiss** |
-| 严重偏差等级 | 🟠 中等偏严重 (4/10) |
-| 源代码改动 | 0 行（无新缺陷） |
+| 严重偏差等级            | 🟠 中等偏严重 (4/10)                           |
+| 源代码改动              | 0 行（无新缺陷）                               |
 
 ## 4 类认知偏差（防再犯清单）
 
@@ -27,11 +27,11 @@
 
 ## 3 条 dismissed high finding 关键事实
 
-| Finding | 主代理校验时找到的关键事实 | 教训 |
-|---|---|---|
-| EC1 手动 PAUSE 污染 | `pause()` clearInterval 后 onTick 立即停止，无新 SNAPSHOT | 混淆静态代码顺序与动态事件可达性 |
-| EC2 `_prevCountdownMap` 残留 | `main.ts:449` 每次都 `set()` 覆盖 prev 值 | subagent 漏读邻近写入语句 |
-| BH2 `_cumulativeOverflow` 不清零 | spec line 297-302 显式说明 "monotonic by design" | 主代理 triage 漏做 spec 交叉验证 |
+| Finding                          | 主代理校验时找到的关键事实                                | 教训                             |
+| -------------------------------- | --------------------------------------------------------- | -------------------------------- |
+| EC1 手动 PAUSE 污染              | `pause()` clearInterval 后 onTick 立即停止，无新 SNAPSHOT | 混淆静态代码顺序与动态事件可达性 |
+| EC2 `_prevCountdownMap` 残留     | `main.ts:449` 每次都 `set()` 覆盖 prev 值                 | subagent 漏读邻近写入语句        |
+| BH2 `_cumulativeOverflow` 不清零 | spec line 297-302 显式说明 "monotonic by design"          | 主代理 triage 漏做 spec 交叉验证 |
 
 ## 4 条流程教训（Epic 7 retro 候选）
 
@@ -42,10 +42,10 @@
 
 ## 2 条 defer 归属
 
-| Defer | 归属 |
-|---|---|
-| BH1 自动暂停 CSS 类差异化 | Epic 8 polish |
-| AA3 commit 边界泄漏 | Epic 7 retrospective lessons-learned |
+| Defer                     | 归属                                 |
+| ------------------------- | ------------------------------------ |
+| BH1 自动暂停 CSS 类差异化 | Epic 8 polish                        |
+| AA3 commit 边界泄漏       | Epic 7 retrospective lessons-learned |
 
 ## 关联文档
 

@@ -45,9 +45,9 @@ export const SIDEBAR_LEFT_X = 120;
  *     → icon item height ≈ 102px, inter-icon gap 12px
  */
 export const ICON_Y = {
-  source: 138,   // 40(ctrl bar) + 40(header) + 16(pad) + 10(icon pad) + 32(half canvas)
-  stock: 252,    // 138 + 102(icon height) + 12(gap)
-  sink: 366,     // 252 + 102 + 12
+  source: 138, // 40(ctrl bar) + 40(header) + 16(pad) + 10(icon pad) + 32(half canvas)
+  stock: 252, // 138 + 102(icon height) + 12(gap)
+  sink: 366, // 252 + 102 + 12
 } as const;
 
 // ── CSS Selectors ─────────────────────────────────────────────────────────
@@ -127,7 +127,10 @@ export function screenToWorld(screenX: number, screenY: number): { x: number; y:
  * Click an icon in the module panel to highlight it for click-to-place.
  * @param type - 'source', 'stock', or 'sink'
  */
-export async function highlightModuleType(page: Page, type: 'source' | 'stock' | 'sink'): Promise<void> {
+export async function highlightModuleType(
+  page: Page,
+  type: 'source' | 'stock' | 'sink',
+): Promise<void> {
   const y = ICON_Y[type];
   await page.mouse.click(SIDEBAR_LEFT_X, y);
 
@@ -303,10 +306,7 @@ export async function createConnection(
   const steps = 8;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
-    await page.mouse.move(
-      startX + (endX - startX) * t,
-      startY + (endY - startY) * t,
-    );
+    await page.mouse.move(startX + (endX - startX) * t, startY + (endY - startY) * t);
     await page.waitForTimeout(25);
   }
   await page.mouse.up();
@@ -318,7 +318,12 @@ export async function createConnection(
 /**
  * Press a key combination. Defaults to no modifiers.
  */
-export async function pressKey(page: Page, key: string, ctrlKey = false, shiftKey = false): Promise<void> {
+export async function pressKey(
+  page: Page,
+  key: string,
+  ctrlKey = false,
+  shiftKey = false,
+): Promise<void> {
   const modifiers: string[] = [];
   if (ctrlKey) modifiers.push('Control');
   if (shiftKey) modifiers.push('Shift');
@@ -359,7 +364,10 @@ export async function pressEnter(page: Page): Promise<void> {
 /**
  * Press an arrow key (for nudging selected module).
  */
-export async function nudgeArrow(page: Page, direction: 'Up' | 'Down' | 'Left' | 'Right'): Promise<void> {
+export async function nudgeArrow(
+  page: Page,
+  direction: 'Up' | 'Down' | 'Left' | 'Right',
+): Promise<void> {
   await page.keyboard.press(`Arrow${direction}`);
 }
 
@@ -408,7 +416,9 @@ export async function clickRewindCheckpoint(page: Page): Promise<void> {
 export async function confirmModal(page: Page): Promise<void> {
   await page.locator(SELECTORS.modalConfirmBtn).click();
   // Wait for modal to close
-  await page.waitForSelector(SELECTORS.modalBackdrop, { state: 'detached', timeout: 3000 }).catch(() => {});
+  await page
+    .waitForSelector(SELECTORS.modalBackdrop, { state: 'detached', timeout: 3000 })
+    .catch(() => {});
 }
 
 /**
@@ -416,7 +426,9 @@ export async function confirmModal(page: Page): Promise<void> {
  */
 export async function cancelModal(page: Page): Promise<void> {
   await page.locator(SELECTORS.modalCancelBtn).click();
-  await page.waitForSelector(SELECTORS.modalBackdrop, { state: 'detached', timeout: 3000 }).catch(() => {});
+  await page
+    .waitForSelector(SELECTORS.modalBackdrop, { state: 'detached', timeout: 3000 })
+    .catch(() => {});
 }
 
 // ── Panel & UI Helpers ────────────────────────────────────────────────────

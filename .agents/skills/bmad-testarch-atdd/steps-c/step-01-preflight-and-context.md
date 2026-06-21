@@ -1,9 +1,9 @@
 ---
-name: 'step-01-preflight-and-context'
-description: 'Verify prerequisites and load story, framework, and knowledge base'
-outputFile: '{test_artifacts}/atdd-checklist-{story_key}.md'
-nextStepFile: '{skill-root}/steps-c/step-02-generation-mode.md'
-knowledgeIndex: './resources/tea-index.csv'
+name: "step-01-preflight-and-context"
+description: "Verify prerequisites and load story, framework, and knowledge base"
+outputFile: "{test_artifacts}/atdd-checklist-{story_key}.md"
+nextStepFile: "{skill-root}/steps-c/step-02-generation-mode.md"
+knowledgeIndex: "./resources/tea-index.csv"
 ---
 
 # Step 1: Preflight & Context Loading
@@ -207,9 +207,9 @@ Summarize loaded inputs and confirm with the user. Then proceed.
 
   ```yaml
   ---
-  stepsCompleted: ['step-01-preflight-and-context']
-  lastStep: 'step-01-preflight-and-context'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-01-preflight-and-context"]
+  lastStep: "step-01-preflight-and-context"
+  lastSaved: "{date}"
   ---
   ```
 

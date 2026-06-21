@@ -1,8 +1,8 @@
 ---
-name: 'step-01-preflight'
-description: 'Verify prerequisites and detect CI platform'
-nextStepFile: '{skill-root}/steps-c/step-02-generate-pipeline.md'
-outputFile: '{test_artifacts}/ci-pipeline-progress.md'
+name: "step-01-preflight"
+description: "Verify prerequisites and detect CI platform"
+nextStepFile: "{skill-root}/steps-c/step-02-generate-pipeline.md"
+outputFile: "{test_artifacts}/ci-pipeline-progress.md"
 ---
 
 # Step 1: Preflight Checks
@@ -130,9 +130,9 @@ Record detected `ci_platform` in step output.
 
   ```yaml
   ---
-  stepsCompleted: ['step-01-preflight']
-  lastStep: 'step-01-preflight'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-01-preflight"]
+  lastStep: "step-01-preflight"
+  lastSaved: "{date}"
   ---
   ```
 

@@ -1,8 +1,8 @@
 ---
-name: 'step-03-gather-evidence'
-description: 'Collect evidence for each NFR category'
-nextStepFile: '{skill-root}/steps-c/step-04-evaluate-and-score.md'
-outputFile: '{test_artifacts}/nfr-assessment.md'
+name: "step-03-gather-evidence"
+description: "Collect evidence for each NFR category"
+nextStepFile: "{skill-root}/steps-c/step-04-evaluate-and-score.md"
+outputFile: "{test_artifacts}/nfr-assessment.md"
 ---
 
 # Step 3: Gather Evidence
@@ -80,9 +80,9 @@ If evidence is missing for a category, mark that category as **CONCERNS**.
 
   ```yaml
   ---
-  stepsCompleted: ['step-03-gather-evidence']
-  lastStep: 'step-03-gather-evidence'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-03-gather-evidence"]
+  lastStep: "step-03-gather-evidence"
+  lastSaved: "{date}"
   ---
   ```
 

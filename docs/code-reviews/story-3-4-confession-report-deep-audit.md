@@ -22,6 +22,7 @@
 ### 偏差 1：将"实质未实现"定性为"缺少补丁"
 
 **原文（分诊输出）：**
+
 > - [ ] [Review][Patch] onModuleDelete 未推入历史快照 [main.ts:124-129]
 > - [ ] [Review][Patch] 删除后 selectedModuleIds 未清除 [main.ts:124-129]
 > - [ ] [Review][Patch] MODULE_DELETED 事件已定义但从未发射
@@ -35,6 +36,7 @@
 ### 偏差 2：HistoryManager 选项设计中将唯一正确方案与劣等方案并列
 
 **原文（分诊输出）：**
+
 > 1. 推入 POST-mutation 状态 + 启动时推入初始状态
 > 2. 修改 HistoryManager 支持 PRE-mutation 语义
 > 3. 保持现状，接受限制
@@ -42,6 +44,7 @@
 **事实验证：**
 
 HistoryManager 的契约（HistoryManager.ts:38-43）明确声明：
+
 > `undoStack`: newest entry at the END of the array (`push` → append).
 > `undo()` 需要 `undoStack.length >= 2`：一个"当前"状态和一个"前一个"状态。
 > `undo()` 弹出栈顶（"当前"），返回新栈顶（"前一个"）。
@@ -57,6 +60,7 @@ HistoryManager 的契约（HistoryManager.ts:38-43）明确声明：
 ### 偏差 3：遗漏 Edge Case Hunter 的窗口失焦 P1 发现
 
 **原文（Edge Case Hunter 输出）：**
+
 > P1: Interrupted drag (Alt+Tab / window blur) leaves module at partial position with no undo path
 
 **事实验证：** InputManager.ts:235-245 的 `handleWindowBlur()` 重置 `isDraggingModule = false` 但不触发 `onModuleDragEnd`。模块停在最后拖拽位置（因为 `onModuleMove` 已多次更新 `currentState`），但 `pendingDragState` 从未被推入历史堆栈。用户无法撤销这个部分拖拽。这是一个合法的 P1 缺陷。
@@ -68,6 +72,7 @@ HistoryManager 的契约（HistoryManager.ts:38-43）明确声明：
 ### 偏差 4：未验证 Spec 的 AC 标记与代码的一致性
 
 **事实：** Story 3.4 规格文件将 AC1–AC5 全部标记为 ✅，但：
+
 - AC3（删除前推入历史快照）→ 代码中无 `historyManager.push()`
 - AC4（Ctrl+Z 恢复已删除模块及其连接）→ 代码中未实现
 - 规格文件的"实现细节"代码块展示了完整实现（含 push、selectedModuleIds 清除、eventBus.emit），但实际代码中这些行不存在
@@ -79,6 +84,7 @@ HistoryManager 的契约（HistoryManager.ts:38-43）明确声明：
 ### 偏差 5：对 Blind Hunter 的 P1（cancelDrag 副作用）未做显式裁定
 
 **原文（Blind Hunter 输出）：**
+
 > P1: `cancelDrag()` side-effects may corrupt history stack on Ctrl+Z. If `cancelDrag()` triggers the `onModuleDragEnd` callback...
 
 **事实：** InputManager.ts:503-509 的 `cancelDrag()` 方法仅重置内部状态，**不触发** `onModuleDragEnd`。注释明确写道："Cancel an active module drag **without** firing `onModuleDragEnd`"。因此 Blind Hunter 的假设前提为假，该发现应显式 dismiss。
@@ -119,13 +125,13 @@ HistoryManager 的契约（HistoryManager.ts:38-43）明确声明：
 
 **修正表述：** Story 3.4 规格文件的 AC 状态应修正为：
 
-| AC | 描述 | 实际状态 |
-|----|------|----------|
+| AC  | 描述                            | 实际状态                    |
+| --- | ------------------------------- | --------------------------- |
 | AC1 | 点击模块 → 按 Delete → 模块删除 | ✅（依赖已有 deleteModule） |
-| AC2 | 级联删除连接 | ✅（依赖已有 deleteModule） |
-| AC3 | 删除前推入历史快照 | ❌ 代码中缺失 |
-| AC4 | Ctrl+Z 恢复模块及连接 | ❌ 因 AC3 缺失而无法满足 |
-| AC5 | 无选中时静默返回 | ✅（已有守卫） |
+| AC2 | 级联删除连接                    | ✅（依赖已有 deleteModule） |
+| AC3 | 删除前推入历史快照              | ❌ 代码中缺失               |
+| AC4 | Ctrl+Z 恢复模块及连接           | ❌ 因 AC3 缺失而无法满足    |
+| AC5 | 无选中时静默返回                | ✅（已有守卫）              |
 
 **逻辑底层：** AC 标记是对代码行为的断言。审查的职责是独立验证这些断言，而非采纳它们。
 
@@ -177,12 +183,12 @@ HistoryManager 的契约（HistoryManager.ts:38-43）明确声明：
 
 ## [最终裁定]
 
-| 维度 | 原评估 | 修正评估 |
-|------|--------|----------|
-| Story 3.4 实现状态 | ✅ 已实现，缺 4 个补丁 | ❌ 实质未实现，onModuleDelete 无任何代码修改 |
-| AC3/AC4 状态 | patch（缺几行代码） | ❌ AC 验证失败（规格声称与代码矛盾） |
+| 维度                    | 原评估                    | 修正评估                                                 |
+| ----------------------- | ------------------------- | -------------------------------------------------------- |
+| Story 3.4 实现状态      | ✅ 已实现，缺 4 个补丁    | ❌ 实质未实现，onModuleDelete 无任何代码修改             |
+| AC3/AC4 状态            | patch（缺几行代码）       | ❌ AC 验证失败（规格声称与代码矛盾）                     |
 | HistoryManager 修复方案 | decision-needed（三选一） | patch（唯一正确方案：POST-mutation 推入 + 初始状态入栈） |
-| 窗口失焦发现 | 遗漏 | defer（预存缺陷，影响 AC4） |
-| cancelDrag 发现 | 隐性驳回 | dismiss（前提为假，应显式记录） |
+| 窗口失焦发现            | 遗漏                      | defer（预存缺陷，影响 AC4）                              |
+| cancelDrag 发现         | 隐性驳回                  | dismiss（前提为假，应显式记录）                          |
 
 **审查链路完整度：** 42 个原始发现 → 6 个被显式 dismiss → 10 个 defer → 4 个 patch → 1 个 decision-needed → **1 个遗漏**（窗口失焦）+ **1 个定性失真**（Story 3.4 实质未实现）+ **1 个选项设计偏差**（HistoryManager 唯一正确方案被伪装为三选一）

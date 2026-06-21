@@ -9,24 +9,24 @@ Build typed templates with `webhookTemplate()` and compose matchers using `match
 Define template factories as pure functions that accept a test-scoped ID. This is the key pattern for parallel isolation — each factory call produces a template bound to a specific entity:
 
 ```typescript
-import { webhookTemplate } from '@seontechnologies/playwright-utils/webhook';
+import { webhookTemplate } from "@seontechnologies/playwright-utils/webhook";
 
 // Template factories for movie webhooks
 // 15s timeout: the Kafka → HTTP webhook delivery pipeline can back up under
 // high CI concurrency (burn-in with many parallel workers). 10s was occasionally
 // not enough; 15s gives the pipeline headroom without slowing normal runs.
 const movieCreated = (movieId: number) =>
-  webhookTemplate<{ event: string; data: { id: number } }>('movie.created')
-    .matchField('event', 'movie.created')
-    .matchField('data.id', movieId)
+  webhookTemplate<{ event: string; data: { id: number } }>("movie.created")
+    .matchField("event", "movie.created")
+    .matchField("data.id", movieId)
     .withTimeout(15_000)
     .withInterval(500)
     .build();
 
 const movieDeleted = (movieId: number) =>
-  webhookTemplate<{ event: string; data: { id: number } }>('movie.deleted')
-    .matchField('event', 'movie.deleted')
-    .matchField('data.id', movieId)
+  webhookTemplate<{ event: string; data: { id: number } }>("movie.deleted")
+    .matchField("event", "movie.deleted")
+    .matchField("data.id", movieId)
     .withTimeout(15_000)
     .withInterval(500)
     .build();
@@ -41,10 +41,10 @@ The ID parameter scopes each template to a specific entity, preventing parallel 
 Traverses dot-notation paths into the payload. Never throws if the path is missing — a missing path evaluates as non-matching.
 
 ```typescript
-webhookTemplate('order.created')
-  .matchField('event', 'order.created') // top-level field
-  .matchField('data.id', orderId) // nested path
-  .matchField('data.status', 'pending') // nested string value
+webhookTemplate("order.created")
+  .matchField("event", "order.created") // top-level field
+  .matchField("data.id", orderId) // nested path
+  .matchField("data.status", "pending") // nested string value
   .build();
 ```
 
@@ -58,8 +58,8 @@ Checks that the expected object is a subset of the received payload. Extra field
 const partialTemplate = webhookTemplate<{
   event: string;
   data: { id: number; name: string };
-}>('movie.created.partial')
-  .matchPartial({ event: 'movie.created', data: { id: movieId } })
+}>("movie.created.partial")
+  .matchPartial({ event: "movie.created", data: { id: movieId } })
   .withTimeout(10_000)
   .withInterval(500)
   .build();
@@ -77,9 +77,12 @@ Accepts any `(payload: T) => boolean` function. Always requires a human-readable
 const batchTemplate = webhookTemplate<{
   event: string;
   data: { id: number };
-}>('movie.created.batch')
-  .matchField('event', 'movie.created')
-  .matchPredicate(`data.id is ${id1} or ${id2}`, (p) => p.data.id === id1 || p.data.id === id2)
+}>("movie.created.batch")
+  .matchField("event", "movie.created")
+  .matchPredicate(
+    `data.id is ${id1} or ${id2}`,
+    (p) => p.data.id === id1 || p.data.id === id2,
+  )
   .withTimeout(15_000)
   .withInterval(500)
   .build();
@@ -91,9 +94,12 @@ const batchTemplate = webhookTemplate<{
 const highRatingTemplate = webhookTemplate<{
   event: string;
   data: { id: number; rating: number };
-}>('movie.created.high-rating')
-  .matchField('event', 'movie.created')
-  .matchPredicate(`data.id is ${movieId} and data.rating >= 9`, (p) => p.data.id === movieId && p.data.rating >= 9)
+}>("movie.created.high-rating")
+  .matchField("event", "movie.created")
+  .matchPredicate(
+    `data.id is ${movieId} and data.rating >= 9`,
+    (p) => p.data.id === movieId && p.data.rating >= 9,
+  )
   .withTimeout(10_000)
   .withInterval(500)
   .build();
@@ -110,8 +116,8 @@ All matchers use AND semantics — all must pass for the webhook to match:
 const updateTemplate = webhookTemplate<{
   event: string;
   data: { id: number; name: string };
-}>('movie.updated')
-  .matchField('event', 'movie.updated')
+}>("movie.updated")
+  .matchField("event", "movie.updated")
   .matchPartial({ data: { id: movieId, name: nameUpdate.name } })
   .withTimeout(10_000)
   .withInterval(500)
@@ -123,8 +129,8 @@ const updateTemplate = webhookTemplate<{
 Override the registry defaults on a per-template basis:
 
 ```typescript
-webhookTemplate('slow.pipeline.event')
-  .matchField('event', 'slow.pipeline.event')
+webhookTemplate("slow.pipeline.event")
+  .matchField("event", "slow.pipeline.event")
   .withTimeout(60_000) // 60s for slow delivery pipelines
   .withInterval(2_000) // poll every 2s
   .build();
@@ -135,10 +141,13 @@ webhookTemplate('slow.pipeline.event')
 > **Note**: `clone()` is available on the builder but is not used in the playwright-utils E2E suite. Use it when multiple tests share the same base template with slight field variations.
 
 ```typescript
-const base = webhookTemplate<OrderPayload>('order').matchField('event', 'order.completed');
+const base = webhookTemplate<OrderPayload>("order").matchField(
+  "event",
+  "order.completed",
+);
 
-const forOrderA = base.clone().matchField('data.orderId', 'A').build();
-const forOrderB = base.clone().matchField('data.orderId', 'B').build();
+const forOrderA = base.clone().matchField("data.orderId", "A").build();
+const forOrderB = base.clone().matchField("data.orderId", "B").build();
 ```
 
 ## Builder API Summary

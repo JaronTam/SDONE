@@ -24,18 +24,21 @@ Use `createRequestFilter` and `noOpRequestFilter` from `@seontechnologies/pactjs
 ### Example 1: Basic Auth Injection
 
 ```typescript
-import { buildVerifierOptions, createRequestFilter } from '@seontechnologies/pactjs-utils';
+import {
+  buildVerifierOptions,
+  createRequestFilter,
+} from "@seontechnologies/pactjs-utils";
 
 const opts = buildVerifierOptions({
-  provider: 'SampleMoviesAPI',
-  port: '3001',
+  provider: "SampleMoviesAPI",
+  port: "3001",
   includeMainAndDeployed: true,
   stateHandlers: {
     /* ... */
   },
   requestFilter: createRequestFilter({
     // tokenGenerator returns raw token — filter adds "Bearer " prefix
-    tokenGenerator: () => 'test-auth-token-123',
+    tokenGenerator: () => "test-auth-token-123",
   }),
 });
 
@@ -52,15 +55,15 @@ const opts = buildVerifierOptions({
 ### Example 2: Dynamic Token (Pre-resolved)
 
 ```typescript
-import { createRequestFilter } from '@seontechnologies/pactjs-utils';
+import { createRequestFilter } from "@seontechnologies/pactjs-utils";
 
 // Since tokenGenerator is synchronous, fetch the token before creating the filter
 let cachedToken: string;
 
 async function setupRequestFilter() {
-  const response = await fetch('http://localhost:8080/auth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const response = await fetch("http://localhost:8080/auth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       clientId: process.env.TEST_CLIENT_ID,
       clientSecret: process.env.TEST_CLIENT_SECRET,
@@ -75,8 +78,8 @@ const requestFilter = createRequestFilter({
 });
 
 const opts = buildVerifierOptions({
-  provider: 'SecureAPI',
-  port: '3001',
+  provider: "SecureAPI",
+  port: "3001",
   includeMainAndDeployed: true,
   stateHandlers: {
     /* ... */
@@ -88,12 +91,15 @@ const opts = buildVerifierOptions({
 ### Example 3: No-Auth Provider
 
 ```typescript
-import { buildVerifierOptions, noOpRequestFilter } from '@seontechnologies/pactjs-utils';
+import {
+  buildVerifierOptions,
+  noOpRequestFilter,
+} from "@seontechnologies/pactjs-utils";
 
 // For providers that don't require authentication
 const opts = buildVerifierOptions({
-  provider: 'PublicAPI',
-  port: '3001',
+  provider: "PublicAPI",
+  port: "3001",
   includeMainAndDeployed: true,
   stateHandlers: {
     /* ... */
@@ -107,32 +113,35 @@ const opts = buildVerifierOptions({
 ### Example 4: Integration with buildVerifierOptions
 
 ```typescript
-import { buildVerifierOptions, createRequestFilter } from '@seontechnologies/pactjs-utils';
-import type { StateHandlers } from '@seontechnologies/pactjs-utils';
+import {
+  buildVerifierOptions,
+  createRequestFilter,
+} from "@seontechnologies/pactjs-utils";
+import type { StateHandlers } from "@seontechnologies/pactjs-utils";
 
 // Complete provider verification setup
 const stateHandlers: StateHandlers = {
-  'user is authenticated': async () => {
+  "user is authenticated": async () => {
     // Auth state is handled by the request filter, not state handler
   },
-  'movie exists': {
+  "movie exists": {
     setup: async (params) => {
       await db.seed({ movies: [{ id: params?.id }] });
     },
     teardown: async () => {
-      await db.clean('movies');
+      await db.clean("movies");
     },
   },
 };
 
 const requestFilter = createRequestFilter({
-  tokenGenerator: () => process.env.TEST_AUTH_TOKEN ?? 'fallback-token',
+  tokenGenerator: () => process.env.TEST_AUTH_TOKEN ?? "fallback-token",
 });
 
 const opts = buildVerifierOptions({
-  provider: 'SampleMoviesAPI',
-  port: process.env.PORT ?? '3001',
-  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== 'true',
+  provider: "SampleMoviesAPI",
+  port: process.env.PORT ?? "3001",
+  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== "true",
   stateHandlers,
   requestFilter,
 });
@@ -163,7 +172,7 @@ await new Verifier(opts).verifyProvider();
 // ❌ Risk of double-prefix: "Bearer Bearer token"
 requestFilter: (req, res, next) => {
   const token = getToken(); // What if getToken() returns "Bearer abc123"?
-  req.headers['authorization'] = `Bearer ${token}`;
+  req.headers["authorization"] = `Bearer ${token}`;
   next();
 };
 ```
@@ -182,13 +191,13 @@ requestFilter: createRequestFilter({
 ```typescript
 // ❌ Auth logic mixed with verifier config
 const opts: VerifierOptions = {
-  provider: 'my-api',
-  providerBaseUrl: 'http://localhost:3001',
+  provider: "my-api",
+  providerBaseUrl: "http://localhost:3001",
   requestFilter: (req, res, next) => {
     const clientId = process.env.CLIENT_ID;
     const clientSecret = process.env.CLIENT_SECRET;
     // 10 lines of token fetching logic...
-    req.headers['authorization'] = `Bearer ${token}`;
+    req.headers["authorization"] = `Bearer ${token}`;
     next();
   },
   // ... rest of config
@@ -207,8 +216,8 @@ async function setupVerifierOptions() {
   });
 
   return buildVerifierOptions({
-    provider: 'my-api',
-    port: '3001',
+    provider: "my-api",
+    port: "3001",
     includeMainAndDeployed: true,
     requestFilter,
     stateHandlers: {

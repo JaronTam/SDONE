@@ -1,10 +1,10 @@
 ---
-workflowStatus: ''
+workflowStatus: ""
 totalSteps: 5
 stepsCompleted: []
-lastStep: ''
-nextStep: ''
-lastSaved: ''
+lastStep: ""
+nextStep: ""
+lastSaved: ""
 ---
 
 # Test Design: Epic {epic_num} - {epic_title}

@@ -32,17 +32,17 @@ The `apiRequest` utility provides:
 **Implementation**:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
+import { test } from "@seontechnologies/playwright-utils/api-request/fixtures";
 
-test('should fetch user data', async ({ apiRequest }) => {
+test("should fetch user data", async ({ apiRequest }) => {
   const { status, body } = await apiRequest<User>({
-    method: 'GET',
-    path: '/api/users/123',
-    headers: { Authorization: 'Bearer token' },
+    method: "GET",
+    path: "/api/users/123",
+    headers: { Authorization: "Bearer token" },
   });
 
   expect(status).toBe(200);
-  expect(body.name).toBe('John Doe'); // TypeScript knows body is User
+  expect(body.name).toBe("John Doe"); // TypeScript knows body is User
 });
 ```
 
@@ -60,21 +60,23 @@ test('should fetch user data', async ({ apiRequest }) => {
 **Implementation**:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
-import { z } from 'zod';
+import { test } from "@seontechnologies/playwright-utils/api-request/fixtures";
+import { z } from "zod";
 
 // JSON Schema validation
-test('should validate response schema (JSON Schema)', async ({ apiRequest }) => {
+test("should validate response schema (JSON Schema)", async ({
+  apiRequest,
+}) => {
   const { status, body } = await apiRequest({
-    method: 'GET',
-    path: '/api/users/123',
+    method: "GET",
+    path: "/api/users/123",
     validateSchema: {
-      type: 'object',
-      required: ['id', 'name', 'email'],
+      type: "object",
+      required: ["id", "name", "email"],
       properties: {
-        id: { type: 'string' },
-        name: { type: 'string' },
-        email: { type: 'string', format: 'email' },
+        id: { type: "string" },
+        name: { type: "string" },
+        email: { type: "string", format: "email" },
       },
     },
   });
@@ -89,15 +91,15 @@ const UserSchema = z.object({
   email: z.string().email(),
 });
 
-test('should validate response schema (Zod)', async ({ apiRequest }) => {
+test("should validate response schema (Zod)", async ({ apiRequest }) => {
   const { status, body } = await apiRequest({
-    method: 'GET',
-    path: '/api/users/123',
+    method: "GET",
+    path: "/api/users/123",
     validateSchema: UserSchema,
   });
   // Response body is type-safe AND validated
   expect(status).toBe(200);
-  expect(body.email).toContain('@');
+  expect(body.email).toContain("@");
 });
 ```
 
@@ -115,17 +117,17 @@ test('should validate response schema (Zod)', async ({ apiRequest }) => {
 **Implementation**:
 
 ```typescript
-test('should create user', async ({ apiRequest }) => {
+test("should create user", async ({ apiRequest }) => {
   const newUser = {
-    name: 'Jane Doe',
-    email: 'jane@example.com',
+    name: "Jane Doe",
+    email: "jane@example.com",
   };
 
   const { status, body } = await apiRequest({
-    method: 'POST',
-    path: '/api/users',
+    method: "POST",
+    path: "/api/users",
     body: newUser, // Automatically sent as JSON
-    headers: { Authorization: 'Bearer token' },
+    headers: { Authorization: "Bearer token" },
   });
 
   expect(status).toBe(201);
@@ -133,14 +135,14 @@ test('should create user', async ({ apiRequest }) => {
 });
 
 // Disable retry for error testing
-test('should handle 500 errors', async ({ apiRequest }) => {
+test("should handle 500 errors", async ({ apiRequest }) => {
   await expect(
     apiRequest({
-      method: 'GET',
-      path: '/api/error',
+      method: "GET",
+      path: "/api/error",
       retryConfig: { maxRetries: 0 }, // Disable retry
     }),
-  ).rejects.toThrow('Request failed with status 500');
+  ).rejects.toThrow("Request failed with status 500");
 });
 ```
 
@@ -160,20 +162,20 @@ test('should handle 500 errors', async ({ apiRequest }) => {
 ```typescript
 // Strategy 1: Explicit baseUrl (highest priority)
 await apiRequest({
-  method: 'GET',
-  path: '/users',
-  baseUrl: 'https://api.example.com', // Uses https://api.example.com/users
+  method: "GET",
+  path: "/users",
+  baseUrl: "https://api.example.com", // Uses https://api.example.com/users
 });
 
 // Strategy 2: Config baseURL (from fixture)
-import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
+import { test } from "@seontechnologies/playwright-utils/api-request/fixtures";
 
-test.use({ configBaseUrl: 'https://staging-api.example.com' });
+test.use({ configBaseUrl: "https://staging-api.example.com" });
 
-test('uses config baseURL', async ({ apiRequest }) => {
+test("uses config baseURL", async ({ apiRequest }) => {
   await apiRequest({
-    method: 'GET',
-    path: '/users', // Uses https://staging-api.example.com/users
+    method: "GET",
+    path: "/users", // Uses https://staging-api.example.com/users
   });
 });
 
@@ -181,21 +183,21 @@ test('uses config baseURL', async ({ apiRequest }) => {
 // playwright.config.ts
 export default defineConfig({
   use: {
-    baseURL: 'https://api.example.com',
+    baseURL: "https://api.example.com",
   },
 });
 
-test('uses Playwright baseURL', async ({ apiRequest }) => {
+test("uses Playwright baseURL", async ({ apiRequest }) => {
   await apiRequest({
-    method: 'GET',
-    path: '/users', // Uses https://api.example.com/users
+    method: "GET",
+    path: "/users", // Uses https://api.example.com/users
   });
 });
 
 // Strategy 4: Direct path (full URL)
 await apiRequest({
-  method: 'GET',
-  path: 'https://api.example.com/users', // Full URL works too
+  method: "GET",
+  path: "https://api.example.com/users", // Full URL works too
 });
 ```
 
@@ -212,22 +214,22 @@ await apiRequest({
 **Implementation**:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/fixtures';
+import { test } from "@seontechnologies/playwright-utils/fixtures";
 
-test('should poll until job completes', async ({ apiRequest, recurse }) => {
+test("should poll until job completes", async ({ apiRequest, recurse }) => {
   // Create job
   const { body } = await apiRequest({
-    method: 'POST',
-    path: '/api/jobs',
-    body: { type: 'export' },
+    method: "POST",
+    path: "/api/jobs",
+    body: { type: "export" },
   });
 
   const jobId = body.id;
 
   // Poll until ready
   const completedJob = await recurse(
-    () => apiRequest({ method: 'GET', path: `/api/jobs/${jobId}` }),
-    (response) => response.body.status === 'completed',
+    () => apiRequest({ method: "GET", path: `/api/jobs/${jobId}` }),
+    (response) => response.body.status === "completed",
     { timeout: 60000, interval: 2000 },
   );
 
@@ -248,29 +250,29 @@ test('should poll until job completes', async ({ apiRequest, recurse }) => {
 **Implementation**:
 
 ```typescript
-import { test, expect } from '@seontechnologies/playwright-utils/fixtures';
+import { test, expect } from "@seontechnologies/playwright-utils/fixtures";
 
-const USER_SERVICE = process.env.USER_SERVICE_URL || 'http://localhost:3001';
-const ORDER_SERVICE = process.env.ORDER_SERVICE_URL || 'http://localhost:3002';
+const USER_SERVICE = process.env.USER_SERVICE_URL || "http://localhost:3001";
+const ORDER_SERVICE = process.env.ORDER_SERVICE_URL || "http://localhost:3002";
 
-test.describe('Microservice Integration', () => {
-  test('should validate cross-service user lookup', async ({ apiRequest }) => {
+test.describe("Microservice Integration", () => {
+  test("should validate cross-service user lookup", async ({ apiRequest }) => {
     // Create user in user-service
     const { body: user } = await apiRequest({
-      method: 'POST',
-      path: '/api/users',
+      method: "POST",
+      path: "/api/users",
       baseUrl: USER_SERVICE,
-      body: { name: 'Test User', email: 'test@example.com' },
+      body: { name: "Test User", email: "test@example.com" },
     });
 
     // Create order in order-service (validates user via user-service)
     const { status, body: order } = await apiRequest({
-      method: 'POST',
-      path: '/api/orders',
+      method: "POST",
+      path: "/api/orders",
       baseUrl: ORDER_SERVICE,
       body: {
         userId: user.id,
-        items: [{ productId: 'prod-1', quantity: 2 }],
+        items: [{ productId: "prod-1", quantity: 2 }],
       },
     });
 
@@ -278,19 +280,19 @@ test.describe('Microservice Integration', () => {
     expect(order.userId).toBe(user.id);
   });
 
-  test('should reject order for invalid user', async ({ apiRequest }) => {
+  test("should reject order for invalid user", async ({ apiRequest }) => {
     const { status, body } = await apiRequest({
-      method: 'POST',
-      path: '/api/orders',
+      method: "POST",
+      path: "/api/orders",
       baseUrl: ORDER_SERVICE,
       body: {
-        userId: 'non-existent-user',
-        items: [{ productId: 'prod-1', quantity: 1 }],
+        userId: "non-existent-user",
+        items: [{ productId: "prod-1", quantity: 1 }],
       },
     });
 
     expect(status).toBe(400);
-    expect(body.code).toBe('INVALID_USER');
+    expect(body.code).toBe("INVALID_USER");
   });
 });
 ```
@@ -309,10 +311,10 @@ test.describe('Microservice Integration', () => {
 **Implementation**:
 
 ```typescript
-test.describe('GraphQL API', () => {
-  const GRAPHQL_ENDPOINT = '/graphql';
+test.describe("GraphQL API", () => {
+  const GRAPHQL_ENDPOINT = "/graphql";
 
-  test('should query users via GraphQL', async ({ apiRequest }) => {
+  test("should query users via GraphQL", async ({ apiRequest }) => {
     const query = `
       query GetUsers($limit: Int) {
         users(limit: $limit) {
@@ -324,7 +326,7 @@ test.describe('GraphQL API', () => {
     `;
 
     const { status, body } = await apiRequest({
-      method: 'POST',
+      method: "POST",
       path: GRAPHQL_ENDPOINT,
       body: {
         query,
@@ -337,7 +339,7 @@ test.describe('GraphQL API', () => {
     expect(body.data.users).toHaveLength(10);
   });
 
-  test('should create user via mutation', async ({ apiRequest }) => {
+  test("should create user via mutation", async ({ apiRequest }) => {
     const mutation = `
       mutation CreateUser($input: CreateUserInput!) {
         createUser(input: $input) {
@@ -348,12 +350,12 @@ test.describe('GraphQL API', () => {
     `;
 
     const { status, body } = await apiRequest({
-      method: 'POST',
+      method: "POST",
       path: GRAPHQL_ENDPOINT,
       body: {
         query: mutation,
         variables: {
-          input: { name: 'GraphQL User', email: 'gql@example.com' },
+          input: { name: "GraphQL User", email: "gql@example.com" },
         },
       },
     });
@@ -381,10 +383,13 @@ test.describe('GraphQL API', () => {
 // Generated operation definition — structural typing, no import from playwright-utils needed
 // type OperationShape = { path: string; method: 'POST'|'GET'|'PUT'|'DELETE'|'PATCH'|'HEAD'; response: unknown; request: unknown; query?: unknown }
 
-import { test, expect } from '@seontechnologies/playwright-utils/api-request/fixtures';
+import {
+  test,
+  expect,
+} from "@seontechnologies/playwright-utils/api-request/fixtures";
 
 // --- Basic usage: operation replaces method + path ---
-test('should upsert person via operation overload', async ({ apiRequest }) => {
+test("should upsert person via operation overload", async ({ apiRequest }) => {
   const { status, body } = await apiRequest({
     operation: upsertPersonv2({ customerId }),
     headers: getHeaders(customerId),
@@ -396,7 +401,7 @@ test('should upsert person via operation overload', async ({ apiRequest }) => {
 });
 
 // --- Typed query parameters (replaces string concatenation) ---
-test('should list people with typed query', async ({ apiRequest }) => {
+test("should list people with typed query", async ({ apiRequest }) => {
   const { body } = await apiRequest({
     operation: getPeoplev2({ customerId }),
     headers: getHeaders(customerId),
@@ -407,13 +412,13 @@ test('should list people with typed query', async ({ apiRequest }) => {
 });
 
 // --- Params escape hatch (pre-formatted query strings) ---
-test('should fetch billing history with raw params', async ({ apiRequest }) => {
+test("should fetch billing history with raw params", async ({ apiRequest }) => {
   const { body } = await apiRequest({
     operation: getBillingHistoryv2({ customerId }),
     headers: getHeaders(customerId),
     params: {
-      'filters[start_date]': getThisMonthTimestamp(),
-      'filters[date_type]': 'MONTH',
+      "filters[start_date]": getThisMonthTimestamp(),
+      "filters[date_type]": "MONTH",
     },
   });
 
@@ -421,7 +426,10 @@ test('should fetch billing history with raw params', async ({ apiRequest }) => {
 });
 
 // --- Works with recurse (polling) ---
-test('should poll until person is reviewed', async ({ apiRequest, recurse }) => {
+test("should poll until person is reviewed", async ({
+  apiRequest,
+  recurse,
+}) => {
   await recurse(
     async () =>
       apiRequest({
@@ -430,14 +438,14 @@ test('should poll until person is reviewed', async ({ apiRequest, recurse }) => 
       }),
     (res) => {
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe('REVIEWED');
+      expect(res.body.status).toBe("REVIEWED");
     },
     { timeout: 30000, interval: 1000 },
   );
 });
 
 // --- Schema validation chains work identically ---
-test('should create movie with schema validation', async ({ apiRequest }) => {
+test("should create movie with schema validation", async ({ apiRequest }) => {
   const { body } = await apiRequest({
     operation: createMovieOp,
     headers: commonHeaders(authToken),
@@ -506,7 +514,7 @@ test('should create movie with schema validation', async ({ apiRequest }) => {
 
 ```typescript
 try {
-  await apiRequest({ method: 'GET', path: '/api/unstable' });
+  await apiRequest({ method: "GET", path: "/api/unstable" });
 } catch {
   // Silent failure - loses retry information
 }
@@ -515,19 +523,21 @@ try {
 **✅ Let retries happen, handle final failure:**
 
 ```typescript
-await expect(apiRequest({ method: 'GET', path: '/api/unstable' })).rejects.toThrow(); // Retries happen automatically, then final error caught
+await expect(
+  apiRequest({ method: "GET", path: "/api/unstable" }),
+).rejects.toThrow(); // Retries happen automatically, then final error caught
 ```
 
 **❌ Disabling TypeScript benefits:**
 
 ```typescript
-const response: any = await apiRequest({ method: 'GET', path: '/users' });
+const response: any = await apiRequest({ method: "GET", path: "/users" });
 ```
 
 **✅ Use generic types:**
 
 ```typescript
-const { body } = await apiRequest<User[]>({ method: 'GET', path: '/users' });
+const { body } = await apiRequest<User[]>({ method: "GET", path: "/users" });
 // body is typed as User[]
 ```
 
@@ -557,7 +567,7 @@ const { body } = await apiRequest({
 // Compile error — operation and method/path are mutually exclusive
 await apiRequest({
   operation: getPersonv2({ customerId }),
-  method: 'GET', // Error: method?: never
-  path: '/api/person', // Error: path?: never
+  method: "GET", // Error: method?: never
+  path: "/api/person", // Error: path?: never
 });
 ```

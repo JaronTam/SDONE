@@ -148,7 +148,7 @@ Pick one of these (in increasing order of investment):
 name: pact-staleness-check
 on:
   schedule:
-    - cron: '0 9 * * 1-5' # weekdays 09:00 UTC
+    - cron: "0 9 * * 1-5" # weekdays 09:00 UTC
   workflow_dispatch:
 jobs:
   check:

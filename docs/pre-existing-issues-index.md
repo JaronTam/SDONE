@@ -8,11 +8,11 @@
 
 ## 📊 概览
 
-| 分类 | 数量 | 状态 |
-|------|------|------|
+| 分类           | 数量     | 状态      |
+| -------------- | -------- | --------- |
 | Flaky 性能测试 | 3 个文件 | 🔴 未解决 |
-| 代码健壮性 | 1 项 | 🔴 未解决 |
-| **合计** | **4 项** | |
+| 代码健壮性     | 1 项     | 🔴 未解决 |
+| **合计**       | **4 项** |           |
 
 ---
 
@@ -22,39 +22,39 @@
 
 ### 1. `ModulePlaceLatency.test.ts` — NFR-P3 模块放置延迟
 
-| 属性 | 值 |
-|------|-----|
-| **文件** | `sdone/src/state/ModulePlaceLatency.test.ts` |
-| **引入 Story** | Story 7.x（NFR-P3） |
-| **失败测试** | `stock <5ms x100`、`source+palette <5ms`、`populated state <5ms` |
-| **失败原因** | 测量真实执行时间并与 5ms 阈值比较，环境负载波动导致偶尔超限 |
-| **发现于** | Story 8.3 代码审查（2026-06-18） |
-| **建议修复** | 改用 mock 时间，或将阈值放宽并标记为 `skip` 在 CI 中 |
-| **状态** | 🔴 未解决 |
+| 属性           | 值                                                               |
+| -------------- | ---------------------------------------------------------------- |
+| **文件**       | `sdone/src/state/ModulePlaceLatency.test.ts`                     |
+| **引入 Story** | Story 7.x（NFR-P3）                                              |
+| **失败测试**   | `stock <5ms x100`、`source+palette <5ms`、`populated state <5ms` |
+| **失败原因**   | 测量真实执行时间并与 5ms 阈值比较，环境负载波动导致偶尔超限      |
+| **发现于**     | Story 8.3 代码审查（2026-06-18）                                 |
+| **建议修复**   | 改用 mock 时间，或将阈值放宽并标记为 `skip` 在 CI 中             |
+| **状态**       | 🔴 未解决                                                        |
 
 ### 2. `SimulationEngine.integration.test.ts` — NFR-P4 运行/暂停延迟
 
-| 属性 | 值 |
-|------|-----|
-| **文件** | `sdone/src/simulation/SimulationEngine.integration.test.ts` |
-| **引入 Story** | Story 7.7（NFR-P4） |
-| **失败测试** | `emit RUN to first SNAPSHOT_EMITTED ≤ 120ms (setInterval ≥100ms + jitter)` |
-| **失败原因** | setInterval 抖动 + 环境负载导致偶尔超过 120ms 阈值 |
-| **发现于** | Story 8.3 代码审查（2026-06-18） |
-| **建议修复** | 改用 mock 时间，或放宽阈值至 150ms |
-| **状态** | 🔴 未解决 |
+| 属性           | 值                                                                         |
+| -------------- | -------------------------------------------------------------------------- |
+| **文件**       | `sdone/src/simulation/SimulationEngine.integration.test.ts`                |
+| **引入 Story** | Story 7.7（NFR-P4）                                                        |
+| **失败测试**   | `emit RUN to first SNAPSHOT_EMITTED ≤ 120ms (setInterval ≥100ms + jitter)` |
+| **失败原因**   | setInterval 抖动 + 环境负载导致偶尔超过 120ms 阈值                         |
+| **发现于**     | Story 8.3 代码审查（2026-06-18）                                           |
+| **建议修复**   | 改用 mock 时间，或放宽阈值至 150ms                                         |
+| **状态**       | 🔴 未解决                                                                  |
 
 ### 3. `PerformanceMonitor.test.ts` — 性能预算断言
 
-| 属性 | 值 |
-|------|-----|
-| **文件** | `sdone/src/canvas/PerformanceMonitor.test.ts` |
-| **引入 Story** | Story 7.5 |
-| **失败测试** | L104: `expect(ts[ts.length-1]).toBeLessThan(SYNC_BUDGET_MS)` |
-| **失败原因** | 性能测试测量真实执行时间并与预算阈值比较，环境负载波动导致偶尔超限 |
-| **发现于** | Story 8.3 代码审查（2026-06-18） |
-| **建议修复** | 改用 mock 时间而非真实时间 |
-| **状态** | 🔴 未解决 |
+| 属性           | 值                                                                 |
+| -------------- | ------------------------------------------------------------------ |
+| **文件**       | `sdone/src/canvas/PerformanceMonitor.test.ts`                      |
+| **引入 Story** | Story 7.5                                                          |
+| **失败测试**   | L104: `expect(ts[ts.length-1]).toBeLessThan(SYNC_BUDGET_MS)`       |
+| **失败原因**   | 性能测试测量真实执行时间并与预算阈值比较，环境负载波动导致偶尔超限 |
+| **发现于**     | Story 8.3 代码审查（2026-06-18）                                   |
+| **建议修复**   | 改用 mock 时间而非真实时间                                         |
+| **状态**       | 🔴 未解决                                                          |
 
 ---
 
@@ -62,15 +62,15 @@
 
 ### 4. ViewportManager 构造函数不 clamp zoom
 
-| 属性 | 值 |
-|------|-----|
-| **文件** | `sdone/src/canvas/Viewport.ts:46-51` |
-| **引入版本** | V1.0（Story 2.2） |
+| 属性         | 值                                                                                                    |
+| ------------ | ----------------------------------------------------------------------------------------------------- |
+| **文件**     | `sdone/src/canvas/Viewport.ts:46-51`                                                                  |
+| **引入版本** | V1.0（Story 2.2）                                                                                     |
 | **问题描述** | ViewportManager 构造函数直接赋值 `zoom` 未调用 `clampZoom()`，传入越界值（zoom:0/-1/100）会被原样存储 |
-| **影响** | 低 — `worldToScreen` 用乘法不用除法，zoom=0 不会崩溃；但违反了 zoom 应在 [0.1, 5.0] 范围内的不变量 |
-| **发现于** | Story 8.3 代码审查（2026-06-18） |
-| **建议修复** | 在构造函数中调用 `clampZoom()` 或添加输入验证 |
-| **状态** | 🔴 未解决（已记录在 `deferred-work.md`） |
+| **影响**     | 低 — `worldToScreen` 用乘法不用除法，zoom=0 不会崩溃；但违反了 zoom 应在 [0.1, 5.0] 范围内的不变量    |
+| **发现于**   | Story 8.3 代码审查（2026-06-18）                                                                      |
+| **建议修复** | 在构造函数中调用 `clampZoom()` 或添加输入验证                                                         |
+| **状态**     | 🔴 未解决（已记录在 `deferred-work.md`）                                                              |
 
 ---
 

@@ -1,9 +1,9 @@
 ---
-name: 'step-01-load-context'
-description: 'Resolve coverage oracle, load knowledge base, and gather related artifacts'
-nextStepFile: '{skill-root}/steps-c/step-02-discover-tests.md'
-knowledgeIndex: './resources/tea-index.csv'
-outputFile: '{test_artifacts}/traceability-matrix.md'
+name: "step-01-load-context"
+description: "Resolve coverage oracle, load knowledge base, and gather related artifacts"
+nextStepFile: "{skill-root}/steps-c/step-02-discover-tests.md"
+knowledgeIndex: "./resources/tea-index.csv"
+outputFile: "{test_artifacts}/traceability-matrix.md"
 ---
 
 # Step 1: Resolve Coverage Oracle & Load Knowledge Base
@@ -128,14 +128,14 @@ Summarize what was found and explicitly state the resolved oracle, its confidenc
 
   ```yaml
   ---
-  stepsCompleted: ['step-01-load-context']
-  lastStep: 'step-01-load-context'
-  lastSaved: '{date}'
-  coverageBasis: '{resolved coverage_basis}'
-  oracleConfidence: '{resolved oracle_confidence}'
-  oracleResolutionMode: '{resolved oracle_resolution_mode}'
-  oracleSources: ['{resolved oracle source 1}', '{resolved oracle source 2}']
-  externalPointerStatus: '{resolved external_pointer_status}'
+  stepsCompleted: ["step-01-load-context"]
+  lastStep: "step-01-load-context"
+  lastSaved: "{date}"
+  coverageBasis: "{resolved coverage_basis}"
+  oracleConfidence: "{resolved oracle_confidence}"
+  oracleResolutionMode: "{resolved oracle_resolution_mode}"
+  oracleSources: ["{resolved oracle source 1}", "{resolved oracle source 2}"]
+  externalPointerStatus: "{resolved external_pointer_status}"
   ---
   ```
 

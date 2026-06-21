@@ -1,11 +1,11 @@
 ---
-name: 'step-01-init'
-description: 'Initialize TEA Academy - check for existing progress and route to continuation or new assessment'
+name: "step-01-init"
+description: "Initialize TEA Academy - check for existing progress and route to continuation or new assessment"
 
-nextStepFile: '{skill-root}/steps-c/step-02-assess.md'
-continueFile: './step-01b-continue.md'
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
-progressTemplate: '../templates/progress-template.yaml'
+nextStepFile: "{skill-root}/steps-c/step-02-assess.md"
+continueFile: "./step-01b-continue.md"
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
+progressTemplate: "../templates/progress-template.yaml"
 ---
 
 # Step 1: Initialize TEA Academy
@@ -119,8 +119,8 @@ last_session_date: { current_date }
 
 sessions:
   - id: session-01-quickstart
-    name: 'Quick Start'
-    duration: '30 min'
+    name: "Quick Start"
+    duration: "30 min"
     status: not-started
     started_date: null
     completed_date: null
@@ -128,8 +128,8 @@ sessions:
     notes_artifact: null
 
   - id: session-02-concepts
-    name: 'Core Concepts'
-    duration: '45 min'
+    name: "Core Concepts"
+    duration: "45 min"
     status: not-started
     started_date: null
     completed_date: null
@@ -137,8 +137,8 @@ sessions:
     notes_artifact: null
 
   - id: session-03-architecture
-    name: 'Architecture & Patterns'
-    duration: '60 min'
+    name: "Architecture & Patterns"
+    duration: "60 min"
     status: not-started
     started_date: null
     completed_date: null
@@ -146,8 +146,8 @@ sessions:
     notes_artifact: null
 
   - id: session-04-test-design
-    name: 'Test Design'
-    duration: '60 min'
+    name: "Test Design"
+    duration: "60 min"
     status: not-started
     started_date: null
     completed_date: null
@@ -155,8 +155,8 @@ sessions:
     notes_artifact: null
 
   - id: session-05-atdd-automate
-    name: 'ATDD & Automate'
-    duration: '60 min'
+    name: "ATDD & Automate"
+    duration: "60 min"
     status: not-started
     started_date: null
     completed_date: null
@@ -164,8 +164,8 @@ sessions:
     notes_artifact: null
 
   - id: session-06-quality-trace
-    name: 'Quality & Trace'
-    duration: '45 min'
+    name: "Quality & Trace"
+    duration: "45 min"
     status: not-started
     started_date: null
     completed_date: null
@@ -173,8 +173,8 @@ sessions:
     notes_artifact: null
 
   - id: session-07-advanced
-    name: 'Advanced Patterns'
-    duration: 'ongoing'
+    name: "Advanced Patterns"
+    duration: "ongoing"
     status: not-started
     started_date: null
     completed_date: null
@@ -186,8 +186,8 @@ total_sessions: 7
 completion_percentage: 0
 next_recommended: session-01-quickstart
 
-stepsCompleted: ['step-01-init']
-lastStep: 'step-01-init'
+stepsCompleted: ["step-01-init"]
+lastStep: "step-01-init"
 lastContinued: { current_date }
 
 certificate_generated: false

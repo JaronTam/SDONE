@@ -66,12 +66,16 @@ test.describe('Module Lifecycle', () => {
   test('[P1] clicking a different icon switches highlight to that type', async ({ page }) => {
     // Click source icon to highlight
     await page.mouse.click(SIDEBAR_LEFT_X, ICON_Y.source);
-    const sourceHighlighted = page.locator('.module-panel__icon-list .module-icon[data-module-type="source"][data-highlighted="true"]');
+    const sourceHighlighted = page.locator(
+      '.module-panel__icon-list .module-icon[data-module-type="source"][data-highlighted="true"]',
+    );
     await expect(sourceHighlighted).toBeVisible({ timeout: 1000 });
 
     // Click stock icon — should switch highlight from source to stock
     await page.mouse.click(SIDEBAR_LEFT_X, ICON_Y.stock);
-    const stockHighlighted = page.locator('.module-panel__icon-list .module-icon[data-module-type="stock"][data-highlighted="true"]');
+    const stockHighlighted = page.locator(
+      '.module-panel__icon-list .module-icon[data-module-type="stock"][data-highlighted="true"]',
+    );
     await expect(stockHighlighted).toBeVisible({ timeout: 1000 });
     // Source should no longer be highlighted
     await expect(sourceHighlighted).toBeHidden({ timeout: 1000 });
@@ -109,7 +113,9 @@ test.describe('Module Lifecycle', () => {
 
   // ── AC3: Enter-to-Place at center ──────────────────────────────
 
-  test('[P1] Enter key places module at viewport center when type is highlighted', async ({ page }) => {
+  test('[P1] Enter key places module at viewport center when type is highlighted', async ({
+    page,
+  }) => {
     await highlightModuleType(page, 'stock');
     await pressEnter(page);
 
@@ -208,7 +214,10 @@ test.describe('Module Lifecycle', () => {
     // After a few tabs we should eventually land on the stock, showing analytics
     // Tab through until we hit the stock (max 3 tabs)
     for (let i = 0; i < 3; i++) {
-      const analyticsVisible = await page.locator('.analytics-panel__data').isVisible({ timeout: 500 }).catch(() => false);
+      const analyticsVisible = await page
+        .locator('.analytics-panel__data')
+        .isVisible({ timeout: 500 })
+        .catch(() => false);
       if (analyticsVisible) break;
       await pressTab(page);
       await page.waitForTimeout(200);

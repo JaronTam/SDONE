@@ -1,6 +1,6 @@
 ---
 name: bmad-validate-prd
-description: 'DEPRECATED — consolidated into bmad-prd validate intent - this skill will be removed in v7 in favor of `bmad-prd`.'
+description: "DEPRECATED — consolidated into bmad-prd validate intent - this skill will be removed in v7 in favor of `bmad-prd`."
 ---
 
 # DEPRECATED — forwards to bmad-prd (validate intent)

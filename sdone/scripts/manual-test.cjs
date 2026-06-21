@@ -16,7 +16,7 @@ const puppeteer = require('puppeteer');
   if (stockBtn) {
     await stockBtn.click();
     await page.waitForTimeout(500);
-    
+
     // Click on canvas to place stock
     const canvas = await page.$('canvas');
     if (canvas) {
@@ -27,7 +27,7 @@ const puppeteer = require('puppeteer');
       }
     }
   }
-  
+
   // Screenshot 2: After placing stock (should show capacity popover or stock on canvas)
   await page.screenshot({ path: 'test-manual-2-stock-placed.png' });
   console.log('✅ Screenshot 2: Stock placed');
@@ -44,7 +44,7 @@ const puppeteer = require('puppeteer');
       await page.waitForTimeout(500);
     }
   }
-  
+
   // Screenshot 3: After capacity input
   await page.screenshot({ path: 'test-manual-3-capacity-set.png' });
   console.log('✅ Screenshot 3: Capacity set');
@@ -58,7 +58,7 @@ const puppeteer = require('puppeteer');
       await page.waitForTimeout(500);
     }
   }
-  
+
   // Screenshot 4: Stock selected with analytics panel
   await page.screenshot({ path: 'test-manual-4-selected.png' });
   console.log('✅ Screenshot 4: Stock selected');
@@ -77,7 +77,7 @@ const puppeteer = require('puppeteer');
     await capInput.type('0');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(300);
-    
+
     const afterZero = await page.evaluate(() => {
       const el = document.querySelector('.analytics-panel__field-value--capacity');
       return el ? el.value : null;
@@ -91,4 +91,4 @@ const puppeteer = require('puppeteer');
 
   await browser.close();
   console.log('\n✅ Manual test complete!');
-})().catch(e => console.error('❌ Error:', e));
+})().catch((e) => console.error('❌ Error:', e));

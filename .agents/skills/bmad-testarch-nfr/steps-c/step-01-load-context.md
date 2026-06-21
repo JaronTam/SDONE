@@ -1,9 +1,9 @@
 ---
-name: 'step-01-load-context'
-description: 'Load NFR requirements, evidence sources, and knowledge base'
-nextStepFile: '{skill-root}/steps-c/step-02-define-thresholds.md'
-knowledgeIndex: './resources/tea-index.csv'
-outputFile: '{test_artifacts}/nfr-assessment.md'
+name: "step-01-load-context"
+description: "Load NFR requirements, evidence sources, and knowledge base"
+nextStepFile: "{skill-root}/steps-c/step-02-define-thresholds.md"
+knowledgeIndex: "./resources/tea-index.csv"
+outputFile: "{test_artifacts}/nfr-assessment.md"
 ---
 
 # Step 1: Load Context & Knowledge Base
@@ -108,9 +108,9 @@ Summarize loaded NFR sources and evidence availability.
 
   ```yaml
   ---
-  stepsCompleted: ['step-01-load-context']
-  lastStep: 'step-01-load-context'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-01-load-context"]
+  lastStep: "step-01-load-context"
+  lastSaved: "{date}"
   ---
   ```
 

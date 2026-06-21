@@ -1,11 +1,11 @@
 ---
-workflowStatus: ''
+workflowStatus: ""
 totalSteps: 5
 stepsCompleted: []
-lastStep: ''
-nextStep: ''
-lastSaved: ''
-workflowType: 'testarch-test-design'
+lastStep: ""
+nextStep: ""
+lastSaved: ""
+workflowType: "testarch-test-design"
 inputDocuments: []
 ---
 

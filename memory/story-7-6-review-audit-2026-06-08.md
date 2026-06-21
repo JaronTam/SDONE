@@ -50,17 +50,17 @@
 
 ## [逐项复核：此前判断的正确性]
 
-| # | 发现 | 此前分类 | 复核结果 | 理由 |
-|---|------|----------|----------|------|
-| 1 | `expect.any(String) as string` | dismiss | ✅ 正确 | Gate 1 通过：运行时行为正确，`as string` 是 TS 编译期样式 |
-| 2 | `toMatchObject` 部分匹配 | dismiss | ✅ 正确 | Gate 1 通过：Spec 明确要求 `toMatchObject()`，非脆弱快照的正确选择 |
-| 3 | Acceptance Auditor: 测试失败 | dismiss | ✅ 正确 | 实测 750/750 通过，Auditor 的推理基于假设环境而非实际验证 |
-| 4 | 缺少 no-op 状态机测试 | dismiss | ✅ 正确 | Gate 1 通过：AC2 仅要求 RUN/PAUSE/snapshot 事件测试 |
-| 5 | `as StockNode` 无运行时守卫 | defer | ✅ 正确 | 预存模式，非 Story 7.6 引入 |
-| 6 | `addFeedbackConnection` 零覆盖 | defer | ✅ 正确 | 预存问题，Story 7.6 scope 不包含 |
-| 7 | `updateFormula` 零覆盖 | defer | ✅ 正确 | 同上 |
-| 8 | 反馈集成路径未测试 | defer | ✅ 正确 | 同上 |
-| 9 | `makeSink` 死代码 | patch | ✅ 正确（来源标注需修正） | 确实未使用，应删除 |
+| #   | 发现                           | 此前分类 | 复核结果                  | 理由                                                               |
+| --- | ------------------------------ | -------- | ------------------------- | ------------------------------------------------------------------ |
+| 1   | `expect.any(String) as string` | dismiss  | ✅ 正确                   | Gate 1 通过：运行时行为正确，`as string` 是 TS 编译期样式          |
+| 2   | `toMatchObject` 部分匹配       | dismiss  | ✅ 正确                   | Gate 1 通过：Spec 明确要求 `toMatchObject()`，非脆弱快照的正确选择 |
+| 3   | Acceptance Auditor: 测试失败   | dismiss  | ✅ 正确                   | 实测 750/750 通过，Auditor 的推理基于假设环境而非实际验证          |
+| 4   | 缺少 no-op 状态机测试          | dismiss  | ✅ 正确                   | Gate 1 通过：AC2 仅要求 RUN/PAUSE/snapshot 事件测试                |
+| 5   | `as StockNode` 无运行时守卫    | defer    | ✅ 正确                   | 预存模式，非 Story 7.6 引入                                        |
+| 6   | `addFeedbackConnection` 零覆盖 | defer    | ✅ 正确                   | 预存问题，Story 7.6 scope 不包含                                   |
+| 7   | `updateFormula` 零覆盖         | defer    | ✅ 正确                   | 同上                                                               |
+| 8   | 反馈集成路径未测试             | defer    | ✅ 正确                   | 同上                                                               |
+| 9   | `makeSink` 死代码              | patch    | ✅ 正确（来源标注需修正） | 确实未使用，应删除                                                 |
 
 ---
 
@@ -71,6 +71,7 @@
 **文件：** `SimulationEngine.integration.test.ts:104-106`
 
 **当前代码：**
+
 ```typescript
 afterEach(() => {
   vi.useRealTimers();
@@ -78,6 +79,7 @@ afterEach(() => {
 ```
 
 **应修改为：**
+
 ```typescript
 afterEach(() => {
   engine.reset();
@@ -107,6 +109,7 @@ afterEach(() => {
 "测试清理完整性"是一个**横切关注点**，需要专门的检查维度。此前的审查流程缺少"Test Quality"审查层。
 
 **改进建议：** 在未来的代码审查中，对测试文件 diff 额外检查：
+
 1. `afterEach`/`afterAll` 是否完整清理所有副作用
 2. 测试间是否存在隐式依赖（通过共享可变状态）
 3. fake timers/mocks 是否在 cleanup 中正确恢复
@@ -121,13 +124,13 @@ afterEach(() => {
 
 ## [最终修正后的发现清单]
 
-| # | 来源 | 标题 | 分类 | 严重度 |
-|---|------|------|------|--------|
-| P1 | audit | Dead code: unused `makeSink` function and `SinkNode` import | patch | 🟢 Low |
-| P2 | audit | `afterEach` cleanup incomplete — engine not reset before restoring real timers | patch | 🟡 Medium |
-| D1 | edge | `addFeedbackConnection` 零测试覆盖 | defer | 🟠 High |
-| D2 | edge | `updateFormula` 零测试覆盖 | defer | 🟡 Medium |
-| D3 | edge | 反馈连接集成路径未测试 | defer | 🟠 High |
-| D4 | blind | 不安全的 `as StockNode` 类型断言无运行时守卫 | defer | 🟢 Low |
+| #   | 来源  | 标题                                                                           | 分类  | 严重度    |
+| --- | ----- | ------------------------------------------------------------------------------ | ----- | --------- |
+| P1  | audit | Dead code: unused `makeSink` function and `SinkNode` import                    | patch | 🟢 Low    |
+| P2  | audit | `afterEach` cleanup incomplete — engine not reset before restoring real timers | patch | 🟡 Medium |
+| D1  | edge  | `addFeedbackConnection` 零测试覆盖                                             | defer | 🟠 High   |
+| D2  | edge  | `updateFormula` 零测试覆盖                                                     | defer | 🟡 Medium |
+| D3  | edge  | 反馈连接集成路径未测试                                                         | defer | 🟠 High   |
+| D4  | blind | 不安全的 `as StockNode` 类型断言无运行时守卫                                   | defer | 🟢 Low    |
 
 **Dismiss: 6 项**（与此前一致，无变化）

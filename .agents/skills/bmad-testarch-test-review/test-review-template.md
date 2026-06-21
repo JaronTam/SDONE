@@ -1,8 +1,8 @@
 ---
 stepsCompleted: []
-lastStep: ''
-lastSaved: ''
-workflowType: 'testarch-test-review'
+lastStep: ""
+lastSaved: ""
+workflowType: "testarch-test-review"
 inputDocuments: []
 ---
 

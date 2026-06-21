@@ -93,21 +93,21 @@ Is this a monorepo (consumer + provider in same repo)?
 ### Example 1: Minimal Consumer Test
 
 ```typescript
-import { PactV3 } from '@pact-foundation/pact';
-import { createProviderState } from '@seontechnologies/pactjs-utils';
+import { PactV3 } from "@pact-foundation/pact";
+import { createProviderState } from "@seontechnologies/pactjs-utils";
 
 const provider = new PactV3({
-  consumer: 'my-frontend',
-  provider: 'my-api',
-  dir: './pacts',
+  consumer: "my-frontend",
+  provider: "my-api",
+  dir: "./pacts",
 });
 
-it('should get user by id', async () => {
+it("should get user by id", async () => {
   await provider
-    .given(...createProviderState({ name: 'user exists', params: { id: 1 } }))
-    .uponReceiving('a request for user 1')
-    .withRequest({ method: 'GET', path: '/users/1' })
-    .willRespondWith({ status: 200, body: { id: 1, name: 'John' } })
+    .given(...createProviderState({ name: "user exists", params: { id: 1 } }))
+    .uponReceiving("a request for user 1")
+    .withRequest({ method: "GET", path: "/users/1" })
+    .willRespondWith({ status: 200, body: { id: 1, name: "John" } })
     .executeTest(async (mockServer) => {
       const res = await fetch(`${mockServer.url}/users/1`);
       expect(res.status).toBe(200);
@@ -118,20 +118,23 @@ it('should get user by id', async () => {
 ### Example 2: Minimal Provider Verification
 
 ```typescript
-import { Verifier } from '@pact-foundation/pact';
-import { buildVerifierOptions, createRequestFilter } from '@seontechnologies/pactjs-utils';
+import { Verifier } from "@pact-foundation/pact";
+import {
+  buildVerifierOptions,
+  createRequestFilter,
+} from "@seontechnologies/pactjs-utils";
 
 const opts = buildVerifierOptions({
-  provider: 'my-api',
-  port: '3001',
+  provider: "my-api",
+  port: "3001",
   includeMainAndDeployed: true,
   stateHandlers: {
-    'user exists': async (params) => {
+    "user exists": async (params) => {
       await db.seed({ users: [{ id: params?.id }] });
     },
   },
   requestFilter: createRequestFilter({
-    tokenGenerator: () => 'test-token-123',
+    tokenGenerator: () => "test-token-123",
   }),
 });
 
@@ -163,13 +166,16 @@ await new Verifier(opts).verifyProvider();
 ```typescript
 // ❌ Don't assemble VerifierOptions manually
 const opts: VerifierOptions = {
-  provider: 'my-api',
-  providerBaseUrl: 'http://localhost:3001',
+  provider: "my-api",
+  providerBaseUrl: "http://localhost:3001",
   pactBrokerUrl: process.env.PACT_BROKER_BASE_URL,
   pactBrokerToken: process.env.PACT_BROKER_TOKEN,
-  publishVerificationResult: process.env.CI === 'true',
-  providerVersion: process.env.GIT_SHA || 'dev',
-  consumerVersionSelectors: [{ mainBranch: true }, { deployedOrReleased: true }],
+  publishVerificationResult: process.env.CI === "true",
+  providerVersion: process.env.GIT_SHA || "dev",
+  consumerVersionSelectors: [
+    { mainBranch: true },
+    { deployedOrReleased: true },
+  ],
   stateHandlers: {
     /* ... */
   },
@@ -185,13 +191,13 @@ const opts: VerifierOptions = {
 ```typescript
 // ✅ Single call handles all configuration
 const opts = buildVerifierOptions({
-  provider: 'my-api',
-  port: '3001',
+  provider: "my-api",
+  port: "3001",
   includeMainAndDeployed: true,
   stateHandlers: {
     /* ... */
   },
-  requestFilter: createRequestFilter({ tokenGenerator: () => 'token' }),
+  requestFilter: createRequestFilter({ tokenGenerator: () => "token" }),
 });
 ```
 
@@ -199,18 +205,20 @@ const opts = buildVerifierOptions({
 
 ```typescript
 // ❌ Manual JsonMap casting
-import type { JsonMap } from '@pact-foundation/pact';
+import type { JsonMap } from "@pact-foundation/pact";
 
-provider.given('user exists', { id: 1 as unknown as JsonMap['id'] });
+provider.given("user exists", { id: 1 as unknown as JsonMap["id"] });
 ```
 
 ### Right: Use createProviderState
 
 ```typescript
 // ✅ Automatic type conversion
-import { createProviderState } from '@seontechnologies/pactjs-utils';
+import { createProviderState } from "@seontechnologies/pactjs-utils";
 
-provider.given(...createProviderState({ name: 'user exists', params: { id: 1 } }));
+provider.given(
+  ...createProviderState({ name: "user exists", params: { id: 1 } }),
+);
 ```
 
 _Source: @seontechnologies/pactjs-utils library, pactjs-utils README, pact-js-example-provider workflows_

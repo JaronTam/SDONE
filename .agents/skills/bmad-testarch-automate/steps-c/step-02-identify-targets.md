@@ -1,8 +1,8 @@
 ---
-name: 'step-02-identify-targets'
-description: 'Identify automation targets and create coverage plan'
-outputFile: '{test_artifacts}/automation-summary.md'
-nextStepFile: '{skill-root}/steps-c/step-03-generate-tests.md'
+name: "step-02-identify-targets"
+description: "Identify automation targets and create coverage plan"
+outputFile: "{test_artifacts}/automation-summary.md"
+nextStepFile: "{skill-root}/steps-c/step-03-generate-tests.md"
 ---
 
 # Step 2: Identify Automation Targets
@@ -141,9 +141,9 @@ Produce a concise coverage plan:
 
   ```yaml
   ---
-  stepsCompleted: ['step-02-identify-targets']
-  lastStep: 'step-02-identify-targets'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-02-identify-targets"]
+  lastStep: "step-02-identify-targets"
+  lastSaved: "{date}"
   ---
   ```
 

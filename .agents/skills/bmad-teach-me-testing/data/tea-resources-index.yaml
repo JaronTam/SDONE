@@ -362,11 +362,17 @@ session_to_resources:
     fragments: []
 
   session-02:
-    primary_docs: ["testing-as-engineering", "risk-based-testing", "test-quality-standards"]
+    primary_docs:
+      ["testing-as-engineering", "risk-based-testing", "test-quality-standards"]
     fragments: ["test-quality", "probability-impact"]
 
   session-03:
-    primary_docs: ["fixture-architecture", "network-first-patterns", "step-file-architecture"]
+    primary_docs:
+      [
+        "fixture-architecture",
+        "network-first-patterns",
+        "step-file-architecture",
+      ]
     fragments: ["fixture-architecture", "network-first", "data-factories"]
 
   session-04:

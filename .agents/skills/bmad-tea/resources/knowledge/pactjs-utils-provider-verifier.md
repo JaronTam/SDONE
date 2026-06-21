@@ -26,21 +26,24 @@ Use `buildVerifierOptions`, `buildMessageVerifierOptions`, `handlePactBrokerUrlA
 ### Example 1: HTTP Provider Verification (Remote Flow)
 
 ```typescript
-import { Verifier } from '@pact-foundation/pact';
-import { buildVerifierOptions, createRequestFilter } from '@seontechnologies/pactjs-utils';
-import type { StateHandlers } from '@seontechnologies/pactjs-utils';
+import { Verifier } from "@pact-foundation/pact";
+import {
+  buildVerifierOptions,
+  createRequestFilter,
+} from "@seontechnologies/pactjs-utils";
+import type { StateHandlers } from "@seontechnologies/pactjs-utils";
 
 const stateHandlers: StateHandlers = {
-  'movie with id 1 exists': {
+  "movie with id 1 exists": {
     setup: async (params) => {
-      await db.seed({ movies: [{ id: params?.id ?? 1, name: 'Inception' }] });
+      await db.seed({ movies: [{ id: params?.id ?? 1, name: "Inception" }] });
     },
     teardown: async () => {
-      await db.clean('movies');
+      await db.clean("movies");
     },
   },
-  'no movies exist': async () => {
-    await db.clean('movies');
+  "no movies exist": async () => {
+    await db.clean("movies");
   },
 };
 
@@ -53,12 +56,12 @@ const stateHandlers: StateHandlers = {
 // - CI (publish verification results if "true")
 
 const opts = buildVerifierOptions({
-  provider: 'SampleMoviesAPI',
-  port: '3001',
-  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== 'true',
+  provider: "SampleMoviesAPI",
+  port: "3001",
+  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== "true",
   stateHandlers,
   requestFilter: createRequestFilter({
-    tokenGenerator: () => process.env.TEST_AUTH_TOKEN ?? 'test-token',
+    tokenGenerator: () => process.env.TEST_AUTH_TOKEN ?? "test-token",
   }),
 });
 
@@ -77,19 +80,19 @@ await new Verifier(opts).verifyProvider();
 ### Example 2: Local Flow (Monorepo, No Broker)
 
 ```typescript
-import { Verifier } from '@pact-foundation/pact';
-import { buildVerifierOptions } from '@seontechnologies/pactjs-utils';
+import { Verifier } from "@pact-foundation/pact";
+import { buildVerifierOptions } from "@seontechnologies/pactjs-utils";
 
 // When PACT_BROKER_BASE_URL is NOT set, buildVerifierOptions
 // falls back to local pact file verification
 const opts = buildVerifierOptions({
-  provider: 'SampleMoviesAPI',
-  port: '3001',
+  provider: "SampleMoviesAPI",
+  port: "3001",
   includeMainAndDeployed: true,
   // Specify local pact files directly — skips broker entirely
-  pactUrls: ['./pacts/movie-web-SampleMoviesAPI.json'],
+  pactUrls: ["./pacts/movie-web-SampleMoviesAPI.json"],
   stateHandlers: {
-    'movie exists': async (params) => {
+    "movie exists": async (params) => {
       await db.seed({ movies: [{ id: params?.id }] });
     },
   },
@@ -101,28 +104,28 @@ await new Verifier(opts).verifyProvider();
 ### Example 3: Message Provider Verification (Kafka/Async)
 
 ```typescript
-import { Verifier } from '@pact-foundation/pact';
-import { buildMessageVerifierOptions } from '@seontechnologies/pactjs-utils';
+import { Verifier } from "@pact-foundation/pact";
+import { buildMessageVerifierOptions } from "@seontechnologies/pactjs-utils";
 
 const opts = buildMessageVerifierOptions({
-  provider: 'OrderEventsProducer',
-  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== 'true',
+  provider: "OrderEventsProducer",
+  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== "true",
   // Message handlers return the message content that the provider would produce
   messageProviders: {
-    'an order created event': async () => ({
-      orderId: 'order-123',
-      userId: 'user-456',
-      items: [{ productId: 'prod-789', quantity: 2 }],
+    "an order created event": async () => ({
+      orderId: "order-123",
+      userId: "user-456",
+      items: [{ productId: "prod-789", quantity: 2 }],
       createdAt: new Date().toISOString(),
     }),
-    'an order cancelled event': async () => ({
-      orderId: 'order-123',
-      reason: 'customer_request',
+    "an order cancelled event": async () => ({
+      orderId: "order-123",
+      reason: "customer_request",
       cancelledAt: new Date().toISOString(),
     }),
   },
   stateHandlers: {
-    'order exists': async (params) => {
+    "order exists": async (params) => {
       await db.seed({ orders: [{ id: params?.orderId }] });
     },
   },
@@ -155,11 +158,11 @@ await new Verifier(opts).verifyProvider();
 //   PACT_BREAKING_CHANGE: 'true'
 
 // Your provider test code reads the env var:
-const isBreakingChange = process.env.PACT_BREAKING_CHANGE === 'true';
+const isBreakingChange = process.env.PACT_BREAKING_CHANGE === "true";
 
 const opts = buildVerifierOptions({
-  provider: 'SampleMoviesAPI',
-  port: '3001',
+  provider: "SampleMoviesAPI",
+  port: "3001",
   includeMainAndDeployed: !isBreakingChange, // false during breaking changes
   stateHandlers: {
     /* ... */
@@ -174,13 +177,13 @@ const opts = buildVerifierOptions({
 ### Example 5: handlePactBrokerUrlAndSelectors (Advanced)
 
 ```typescript
-import { handlePactBrokerUrlAndSelectors } from '@seontechnologies/pactjs-utils';
-import type { VerifierOptions } from '@pact-foundation/pact';
+import { handlePactBrokerUrlAndSelectors } from "@seontechnologies/pactjs-utils";
+import type { VerifierOptions } from "@pact-foundation/pact";
 
 // For advanced use cases — mutates the options object in-place (returns void)
 const options: VerifierOptions = {
-  provider: 'SampleMoviesAPI',
-  providerBaseUrl: 'http://localhost:3001',
+  provider: "SampleMoviesAPI",
+  providerBaseUrl: "http://localhost:3001",
 };
 
 handlePactBrokerUrlAndSelectors({
@@ -202,7 +205,7 @@ handlePactBrokerUrlAndSelectors({
 ### Example 6: getProviderVersionTags
 
 ```typescript
-import { getProviderVersionTags } from '@seontechnologies/pactjs-utils';
+import { getProviderVersionTags } from "@seontechnologies/pactjs-utils";
 
 // Extracts version tags from CI environment
 const tags = getProviderVersionTags();
@@ -228,19 +231,19 @@ const tags = getProviderVersionTags();
 
 ```typescript
 // vitest.config.contract.ts — provider verification config
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'node',
-    include: ['tests/contract/**/*.spec.ts'],
+    environment: "node",
+    include: ["tests/contract/**/*.spec.ts"],
     testTimeout: 60000,
     // MANDATORY for multi-file provider verification.
     // The Pact Rust FFI backing the Verifier holds process-wide state; parallel workers corrupt it
     // and produce flaky verification results / "Unable to get the MessageHandle" errors.
     // This is especially important for message providers (Kafka/async) where verifier construction
     // allocates native handles per file — singleFork keeps them in one process so state is coherent.
-    pool: 'forks',
+    pool: "forks",
     poolOptions: {
       forks: {
         singleFork: true,
@@ -307,23 +310,30 @@ export default defineConfig({
 ```typescript
 // ❌ Manual environment variable handling
 const opts: VerifierOptions = {
-  provider: 'my-api',
-  providerBaseUrl: 'http://localhost:3001',
+  provider: "my-api",
+  providerBaseUrl: "http://localhost:3001",
   pactBrokerUrl: process.env.PACT_BROKER_BASE_URL,
   pactBrokerToken: process.env.PACT_BROKER_TOKEN,
-  publishVerificationResult: process.env.CI === 'true',
-  providerVersion: process.env.GIT_SHA || process.env.GITHUB_SHA || 'dev',
-  providerVersionBranch: process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME,
+  publishVerificationResult: process.env.CI === "true",
+  providerVersion: process.env.GIT_SHA || process.env.GITHUB_SHA || "dev",
+  providerVersionBranch:
+    process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME,
   consumerVersionSelectors:
-    process.env.PACT_BREAKING_CHANGE === 'true'
+    process.env.PACT_BREAKING_CHANGE === "true"
       ? [{ matchingBranch: true }]
-      : [{ matchingBranch: true }, { mainBranch: true }, { deployedOrReleased: true }],
-  pactUrls: process.env.PACT_PAYLOAD_URL ? [process.env.PACT_PAYLOAD_URL] : undefined,
+      : [
+          { matchingBranch: true },
+          { mainBranch: true },
+          { deployedOrReleased: true },
+        ],
+  pactUrls: process.env.PACT_PAYLOAD_URL
+    ? [process.env.PACT_PAYLOAD_URL]
+    : undefined,
   stateHandlers: {
     /* ... */
   },
   requestFilter: (req, res, next) => {
-    req.headers['authorization'] = `Bearer ${process.env.TEST_TOKEN}`;
+    req.headers["authorization"] = `Bearer ${process.env.TEST_TOKEN}`;
     next();
   },
 };
@@ -334,14 +344,14 @@ const opts: VerifierOptions = {
 ```typescript
 // ✅ All env var logic handled internally
 const opts = buildVerifierOptions({
-  provider: 'my-api',
-  port: '3001',
-  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== 'true',
+  provider: "my-api",
+  port: "3001",
+  includeMainAndDeployed: process.env.PACT_BREAKING_CHANGE !== "true",
   stateHandlers: {
     /* ... */
   },
   requestFilter: createRequestFilter({
-    tokenGenerator: () => process.env.TEST_TOKEN ?? 'test-token',
+    tokenGenerator: () => process.env.TEST_TOKEN ?? "test-token",
   }),
 });
 ```
@@ -367,11 +377,11 @@ const opts = buildVerifierOptions({
 
 ```typescript
 // ❌ vitest.config.contract.ts — uses default parallel workers
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
-    environment: 'node',
-    include: ['tests/contract/**/*.spec.ts'],
+    environment: "node",
+    include: ["tests/contract/**/*.spec.ts"],
     // NO pool/singleFork config — defaults to parallel file workers
   },
 });
@@ -383,12 +393,12 @@ export default defineConfig({
 
 ```typescript
 // ✅ vitest.config.contract.ts — serializes provider verification files
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
-    environment: 'node',
-    include: ['tests/contract/**/*.spec.ts'],
-    pool: 'forks',
+    environment: "node",
+    include: ["tests/contract/**/*.spec.ts"],
+    pool: "forks",
     poolOptions: { forks: { singleFork: true } },
   },
 });

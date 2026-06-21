@@ -24,15 +24,15 @@ The `log` utility provides:
 ## Quick Start
 
 ```typescript
-import { log } from '@seontechnologies/playwright-utils';
+import { log } from "@seontechnologies/playwright-utils";
 
 // Basic logging
-await log.info('Starting test');
-await log.step('Test step shown in Playwright UI');
-await log.success('Operation completed');
-await log.warning('Something to note');
-await log.error('Something went wrong');
-await log.debug('Debug information');
+await log.info("Starting test");
+await log.step("Test step shown in Playwright UI");
+await log.success("Operation completed");
+await log.warning("Something to note");
+await log.error("Something went wrong");
+await log.debug("Debug information");
 ```
 
 ## Pattern Examples
@@ -44,26 +44,26 @@ await log.debug('Debug information');
 **Implementation**:
 
 ```typescript
-import { log } from '@seontechnologies/playwright-utils';
+import { log } from "@seontechnologies/playwright-utils";
 
-test('logging demo', async ({ page }) => {
-  await log.step('Navigate to login page');
-  await page.goto('/login');
+test("logging demo", async ({ page }) => {
+  await log.step("Navigate to login page");
+  await page.goto("/login");
 
-  await log.info('Entering credentials');
-  await page.fill('#username', 'testuser');
+  await log.info("Entering credentials");
+  await page.fill("#username", "testuser");
 
-  await log.success('Login successful');
+  await log.success("Login successful");
 
-  await log.warning('Rate limit approaching');
+  await log.warning("Rate limit approaching");
 
-  await log.debug({ userId: '123', sessionId: 'abc' });
+  await log.debug({ userId: "123", sessionId: "abc" });
 
   // Errors still throw but get logged first
   try {
-    await page.click('#nonexistent');
+    await page.click("#nonexistent");
   } catch (error) {
-    await log.error('Click failed', false); // false = no console output
+    await log.error("Click failed", false); // false = no console output
     throw error;
   }
 });
@@ -84,10 +84,10 @@ test('logging demo', async ({ page }) => {
 **Implementation**:
 
 ```typescript
-test('object logging', async ({ apiRequest }) => {
+test("object logging", async ({ apiRequest }) => {
   const { body } = await apiRequest({
-    method: 'GET',
-    path: '/api/users',
+    method: "GET",
+    path: "/api/users",
   });
 
   // Log array of objects
@@ -103,8 +103,8 @@ test('object logging', async ({ apiRequest }) => {
   // Complex nested structures
   await log.debug({
     request: {
-      method: 'GET',
-      path: '/api/users',
+      method: "GET",
+      path: "/api/users",
       timestamp: Date.now(),
     },
     response: {
@@ -129,22 +129,22 @@ test('object logging', async ({ apiRequest }) => {
 **Implementation**:
 
 ```typescript
-test('organized with steps', async ({ page, apiRequest }) => {
-  await log.step('ARRANGE: Setup test data');
+test("organized with steps", async ({ page, apiRequest }) => {
+  await log.step("ARRANGE: Setup test data");
   const { body: user } = await apiRequest({
-    method: 'POST',
-    path: '/api/users',
-    body: { name: 'Test User' },
+    method: "POST",
+    path: "/api/users",
+    body: { name: "Test User" },
   });
 
-  await log.step('ACT: Perform user action');
+  await log.step("ACT: Perform user action");
   await page.goto(`/users/${user.id}`);
-  await page.click('#edit');
-  await page.fill('#name', 'Updated Name');
-  await page.click('#save');
+  await page.click("#edit");
+  await page.fill("#name", "Updated Name");
+  await page.click("#save");
 
-  await log.step('ASSERT: Verify changes');
-  await expect(page.getByText('Updated Name')).toBeVisible();
+  await log.step("ASSERT: Verify changes");
+  await expect(page.getByText("Updated Name")).toBeVisible();
 
   // In Playwright UI, each step is collapsible
 });
@@ -164,29 +164,29 @@ test('organized with steps', async ({ page, apiRequest }) => {
 **Page Object Methods with @methodTestStep:**
 
 ```typescript
-import { methodTestStep } from '@seontechnologies/playwright-utils';
+import { methodTestStep } from "@seontechnologies/playwright-utils";
 
 class TodoPage {
   constructor(private page: Page) {
-    this.name = 'TodoPage';
+    this.name = "TodoPage";
   }
 
   readonly name: string;
 
-  @methodTestStep('Add todo item')
+  @methodTestStep("Add todo item")
   async addTodo(text: string) {
     await log.info(`Adding todo: ${text}`);
-    const newTodo = this.page.getByPlaceholder('What needs to be done?');
+    const newTodo = this.page.getByPlaceholder("What needs to be done?");
     await newTodo.fill(text);
-    await newTodo.press('Enter');
-    await log.step('step within a decorator');
+    await newTodo.press("Enter");
+    await log.step("step within a decorator");
     await log.success(`Added todo: ${text}`);
   }
 
-  @methodTestStep('Get all todos')
+  @methodTestStep("Get all todos")
   async getTodos() {
-    await log.info('Getting all todos');
-    return this.page.getByTestId('todo-title');
+    await log.info("Getting all todos");
+    return this.page.getByTestId("todo-title");
   }
 }
 ```
@@ -194,29 +194,38 @@ class TodoPage {
 **Function Helpers with functionTestStep:**
 
 ```typescript
-import { functionTestStep } from '@seontechnologies/playwright-utils';
+import { functionTestStep } from "@seontechnologies/playwright-utils";
 
 // Define todo items for the test
-const TODO_ITEMS = ['buy groceries', 'pay bills', 'schedule meeting'];
+const TODO_ITEMS = ["buy groceries", "pay bills", "schedule meeting"];
 
-const createDefaultTodos = functionTestStep('Create default todos', async (page: Page) => {
-  await log.info('Creating default todos');
-  await log.step('step within a functionWrapper');
-  const todoPage = new TodoPage(page);
+const createDefaultTodos = functionTestStep(
+  "Create default todos",
+  async (page: Page) => {
+    await log.info("Creating default todos");
+    await log.step("step within a functionWrapper");
+    const todoPage = new TodoPage(page);
 
-  for (const item of TODO_ITEMS) {
-    await todoPage.addTodo(item);
-  }
+    for (const item of TODO_ITEMS) {
+      await todoPage.addTodo(item);
+    }
 
-  await log.success('Created all default todos');
-});
+    await log.success("Created all default todos");
+  },
+);
 
-const checkNumberOfTodosInLocalStorage = functionTestStep('Check total todos count fn-step', async (page: Page, expected: number) => {
-  await log.info(`Verifying todo count: ${expected}`);
-  const result = await page.waitForFunction((e) => JSON.parse(localStorage['react-todos']).length === e, expected);
-  await log.success(`Verified todo count: ${expected}`);
-  return result;
-});
+const checkNumberOfTodosInLocalStorage = functionTestStep(
+  "Check total todos count fn-step",
+  async (page: Page, expected: number) => {
+    await log.info(`Verifying todo count: ${expected}`);
+    const result = await page.waitForFunction(
+      (e) => JSON.parse(localStorage["react-todos"]).length === e,
+      expected,
+    );
+    await log.success(`Verified todo count: ${expected}`);
+    return result;
+  },
+);
 ```
 
 ### Example 5: File Logging
@@ -227,14 +236,14 @@ const checkNumberOfTodosInLocalStorage = functionTestStep('Check total todos cou
 
 ```typescript
 // playwright/support/fixtures.ts
-import { test as base } from '@playwright/test';
-import { log, captureTestContext } from '@seontechnologies/playwright-utils';
+import { test as base } from "@playwright/test";
+import { log, captureTestContext } from "@seontechnologies/playwright-utils";
 
 // Configure file logging globally
 log.configure({
   fileLogging: {
     enabled: true,
-    outputDir: 'playwright-logs/organized-logs',
+    outputDir: "playwright-logs/organized-logs",
     forceConsolidated: false, // One file per test
   },
 });
@@ -259,21 +268,21 @@ export const test = base.extend({
 **Implementation**:
 
 ```typescript
-import { test } from '@seontechnologies/playwright-utils/fixtures';
+import { test } from "@seontechnologies/playwright-utils/fixtures";
 
 // Helper to create safe token preview
 function createTokenPreview(token: string): string {
-  if (!token || token.length < 10) return '[invalid]';
+  if (!token || token.length < 10) return "[invalid]";
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
 }
 
-test('should log auth flow', async ({ authToken, apiRequest }) => {
+test("should log auth flow", async ({ authToken, apiRequest }) => {
   await log.info(`Using token: ${createTokenPreview(authToken)}`);
 
-  await log.step('Fetch protected resource');
+  await log.step("Fetch protected resource");
   const { status, body } = await apiRequest({
-    method: 'GET',
-    path: '/api/protected',
+    method: "GET",
+    path: "/api/protected",
     headers: { Authorization: `Bearer ${authToken}` },
   });
 
@@ -285,7 +294,7 @@ test('should log auth flow', async ({ authToken, apiRequest }) => {
     },
   });
 
-  await log.success('Protected resource accessed successfully');
+  await log.success("Protected resource accessed successfully");
 });
 ```
 
@@ -306,13 +315,13 @@ log.configure({
   console: true, // default
   fileLogging: {
     enabled: true,
-    outputDir: 'playwright-logs',
+    outputDir: "playwright-logs",
     forceConsolidated: false, // One file per test
   },
 });
 
 // Per-test override
-await log.info('Message', {
+await log.info("Message", {
   console: { enabled: false },
   fileLogging: { enabled: true },
 });
@@ -335,7 +344,7 @@ DISABLE_CONSOLE_LOGS=true
 
 ```typescript
 log.configure({
-  level: 'warning', // Only warning, error levels will show
+  level: "warning", // Only warning, error levels will show
 });
 
 // Available levels (in priority order):
@@ -348,9 +357,9 @@ For non-test contexts (global setup, utility functions):
 
 ```typescript
 // Use sync methods when async/await isn't available
-log.infoSync('Initializing configuration');
-log.successSync('Environment configured');
-log.errorSync('Setup failed');
+log.infoSync("Initializing configuration");
+log.successSync("Environment configured");
+log.errorSync("Setup failed");
 ```
 
 ## Log Levels Guide
@@ -386,14 +395,14 @@ log.errorSync('Setup failed');
 **DON'T log objects in steps:**
 
 ```typescript
-await log.step({ user: 'test', action: 'create' }); // Shows empty in UI
+await log.step({ user: "test", action: "create" }); // Shows empty in UI
 ```
 
 **DO use strings for steps, objects for debug:**
 
 ```typescript
-await log.step('Creating user: test'); // Readable in UI
-await log.debug({ user: 'test', action: 'create' }); // Detailed data
+await log.step("Creating user: test"); // Readable in UI
+await log.debug({ user: "test", action: "create" }); // Detailed data
 ```
 
 **DON'T log sensitive data:**
@@ -406,8 +415,8 @@ await log.info(`Token: ${authToken}`); // Full token exposed!
 **DO use previews or omit sensitive data:**
 
 ```typescript
-await log.info('User authenticated successfully'); // No sensitive data
-await log.debug({ tokenPreview: token.slice(0, 6) + '...' });
+await log.info("User authenticated successfully"); // No sensitive data
+await log.debug({ tokenPreview: token.slice(0, 6) + "..." });
 ```
 
 **DON'T log excessively in loops:**

@@ -1,8 +1,8 @@
 ---
-name: 'step-03c-aggregate'
-description: 'Aggregate subagent outputs and complete test infrastructure'
-outputFile: '{test_artifacts}/automation-summary.md'
-nextStepFile: '{skill-root}/steps-c/step-04-validate-and-summarize.md'
+name: "step-03c-aggregate"
+description: "Aggregate subagent outputs and complete test infrastructure"
+outputFile: "{test_artifacts}/automation-summary.md"
+nextStepFile: "{skill-root}/steps-c/step-04-validate-and-summarize.md"
 ---
 
 # Step 3C: Aggregate Test Generation Results
@@ -49,17 +49,17 @@ Read outputs from parallel subagents (API + E2E and/or Backend test generation b
 **Read API test subagent output (always):**
 
 ```javascript
-const apiTestsPath = '/tmp/tea-automate-api-tests-{{timestamp}}.json';
-const apiTestsOutput = JSON.parse(fs.readFileSync(apiTestsPath, 'utf8'));
+const apiTestsPath = "/tmp/tea-automate-api-tests-{{timestamp}}.json";
+const apiTestsOutput = JSON.parse(fs.readFileSync(apiTestsPath, "utf8"));
 ```
 
 **Read E2E test subagent output (if {detected_stack} is `frontend` or `fullstack`):**
 
 ```javascript
 let e2eTestsOutput = null;
-if (detected_stack === 'frontend' || detected_stack === 'fullstack') {
-  const e2eTestsPath = '/tmp/tea-automate-e2e-tests-{{timestamp}}.json';
-  e2eTestsOutput = JSON.parse(fs.readFileSync(e2eTestsPath, 'utf8'));
+if (detected_stack === "frontend" || detected_stack === "fullstack") {
+  const e2eTestsPath = "/tmp/tea-automate-e2e-tests-{{timestamp}}.json";
+  e2eTestsOutput = JSON.parse(fs.readFileSync(e2eTestsPath, "utf8"));
 }
 ```
 
@@ -67,9 +67,9 @@ if (detected_stack === 'frontend' || detected_stack === 'fullstack') {
 
 ```javascript
 let backendTestsOutput = null;
-if (detected_stack === 'backend' || detected_stack === 'fullstack') {
-  const backendTestsPath = '/tmp/tea-automate-backend-tests-{{timestamp}}.json';
-  backendTestsOutput = JSON.parse(fs.readFileSync(backendTestsPath, 'utf8'));
+if (detected_stack === "backend" || detected_stack === "fullstack") {
+  const backendTestsPath = "/tmp/tea-automate-backend-tests-{{timestamp}}.json";
+  backendTestsOutput = JSON.parse(fs.readFileSync(backendTestsPath, "utf8"));
 }
 ```
 
@@ -88,7 +88,7 @@ if (detected_stack === 'backend' || detected_stack === 'fullstack') {
 
 ```javascript
 apiTestsOutput.tests.forEach((test) => {
-  fs.writeFileSync(test.file, test.content, 'utf8');
+  fs.writeFileSync(test.file, test.content, "utf8");
   console.log(`✅ Created: ${test.file}`);
 });
 ```
@@ -98,7 +98,7 @@ apiTestsOutput.tests.forEach((test) => {
 ```javascript
 if (e2eTestsOutput) {
   e2eTestsOutput.tests.forEach((test) => {
-    fs.writeFileSync(test.file, test.content, 'utf8');
+    fs.writeFileSync(test.file, test.content, "utf8");
     console.log(`✅ Created: ${test.file}`);
   });
 }
@@ -109,7 +109,7 @@ if (e2eTestsOutput) {
 ```javascript
 if (backendTestsOutput) {
   backendTestsOutput.testsGenerated.forEach((test) => {
-    fs.writeFileSync(test.file, test.content, 'utf8');
+    fs.writeFileSync(test.file, test.content, "utf8");
     console.log(`✅ Created: ${test.file}`);
   });
 }
@@ -125,7 +125,9 @@ if (backendTestsOutput) {
 const allFixtureNeeds = [
   ...apiTestsOutput.fixture_needs,
   ...(e2eTestsOutput ? e2eTestsOutput.fixture_needs : []),
-  ...(backendTestsOutput ? backendTestsOutput.coverageSummary?.fixtureNeeds || [] : []),
+  ...(backendTestsOutput
+    ? backendTestsOutput.coverageSummary?.fixtureNeeds || []
+    : []),
 ];
 
 // Remove duplicates
@@ -148,24 +150,24 @@ const uniqueFixtures = [...new Set(allFixtureNeeds)];
 **A) Authentication Fixtures** (`tests/fixtures/auth.ts`):
 
 ```typescript
-import { test as base } from '@playwright/test';
+import { test as base } from "@playwright/test";
 
 export const test = base.extend({
   authenticatedUser: async ({ page }, use) => {
     // Login logic
-    await page.goto('/login');
-    await page.fill('[name="email"]', 'test@example.com');
-    await page.fill('[name="password"]', 'password');
+    await page.goto("/login");
+    await page.fill('[name="email"]', "test@example.com");
+    await page.fill('[name="password"]', "password");
     await page.click('button[type="submit"]');
-    await page.waitForURL('/dashboard');
+    await page.waitForURL("/dashboard");
 
     await use(page);
   },
 
   authToken: async ({ request }, use) => {
     // Get auth token for API tests
-    const response = await request.post('/api/auth/login', {
-      data: { email: 'test@example.com', password: 'password' },
+    const response = await request.post("/api/auth/login", {
+      data: { email: "test@example.com", password: "password" },
     });
     const { token } = await response.json();
 
@@ -177,7 +179,7 @@ export const test = base.extend({
 **B) Data Factories** (`tests/fixtures/data-factories.ts`):
 
 ```typescript
-import { faker } from '@faker-js/faker';
+import { faker } from "@faker-js/faker";
 
 export const createUserData = (overrides = {}) => ({
   name: faker.person.fullName(),
@@ -195,13 +197,13 @@ export const createProductData = (overrides = {}) => ({
 **C) Network Mocks** (`tests/fixtures/network-mocks.ts`):
 
 ```typescript
-import { Page } from '@playwright/test';
+import { Page } from "@playwright/test";
 
 export const mockPaymentSuccess = async (page: Page) => {
-  await page.route('/api/payment/**', (route) => {
+  await page.route("/api/payment/**", (route) => {
     route.fulfill({
       status: 200,
-      body: JSON.stringify({ success: true, transactionId: '12345' }),
+      body: JSON.stringify({ success: true, transactionId: "12345" }),
     });
   });
 };
@@ -210,10 +212,14 @@ export const mockPaymentSuccess = async (page: Page) => {
 **D) Helper Utilities** (`tests/fixtures/helpers.ts`):
 
 ```typescript
-import { Page } from '@playwright/test';
-import { interceptNetworkCall } from '@seontechnologies/playwright-utils/intercept-network-call';
+import { Page } from "@playwright/test";
+import { interceptNetworkCall } from "@seontechnologies/playwright-utils/intercept-network-call";
 
-export const observeApiCall = (page: Page, urlPattern: string, method: string = 'GET') => {
+export const observeApiCall = (
+  page: Page,
+  urlPattern: string,
+  method: string = "GET",
+) => {
   return interceptNetworkCall({
     page,
     method,
@@ -230,26 +236,28 @@ export const observeApiCall = (page: Page, urlPattern: string, method: string = 
 
 ```javascript
 const e2eCount = e2eTestsOutput ? e2eTestsOutput.test_count : 0;
-const backendCount = backendTestsOutput ? (backendTestsOutput.coverageSummary?.totalTests ?? 0) : 0;
+const backendCount = backendTestsOutput
+  ? (backendTestsOutput.coverageSummary?.totalTests ?? 0)
+  : 0;
 
 const resolvedMode = subagentContext?.execution?.resolvedMode;
 const subagentExecutionLabel =
-  resolvedMode === 'sequential'
-    ? 'SEQUENTIAL (API then dependent workers)'
-    : resolvedMode === 'agent-team'
-      ? 'AGENT-TEAM (parallel worker squad)'
-      : resolvedMode === 'subagent'
-        ? 'SUBAGENT (parallel subagents)'
+  resolvedMode === "sequential"
+    ? "SEQUENTIAL (API then dependent workers)"
+    : resolvedMode === "agent-team"
+      ? "AGENT-TEAM (parallel worker squad)"
+      : resolvedMode === "subagent"
+        ? "SUBAGENT (parallel subagents)"
         : `PARALLEL (based on ${detected_stack})`;
 const performanceGainLabel =
-  resolvedMode === 'sequential'
-    ? 'baseline (no parallel speedup)'
-    : resolvedMode === 'agent-team' || resolvedMode === 'subagent'
-      ? '~40-70% faster than sequential'
-      : 'mode-dependent';
+  resolvedMode === "sequential"
+    ? "baseline (no parallel speedup)"
+    : resolvedMode === "agent-team" || resolvedMode === "subagent"
+      ? "~40-70% faster than sequential"
+      : "mode-dependent";
 
 const summary = {
-  detected_stack: '{detected_stack}',
+  detected_stack: "{detected_stack}",
   total_tests: apiTestsOutput.test_count + e2eCount + backendCount,
   api_tests: apiTestsOutput.test_count,
   e2e_tests: e2eCount,
@@ -257,29 +265,45 @@ const summary = {
   fixtures_created: uniqueFixtures.length,
   api_test_files: apiTestsOutput.tests.length,
   e2e_test_files: e2eTestsOutput ? e2eTestsOutput.tests.length : 0,
-  backend_test_files: backendTestsOutput ? backendTestsOutput.testsGenerated.length : 0,
+  backend_test_files: backendTestsOutput
+    ? backendTestsOutput.testsGenerated.length
+    : 0,
   priority_coverage: {
     P0:
       (apiTestsOutput.priority_coverage?.P0 ?? 0) +
       (e2eTestsOutput?.priority_coverage?.P0 ?? 0) +
-      (backendTestsOutput?.testsGenerated?.reduce((sum, t) => sum + (t.priority_coverage?.P0 ?? 0), 0) ?? 0),
+      (backendTestsOutput?.testsGenerated?.reduce(
+        (sum, t) => sum + (t.priority_coverage?.P0 ?? 0),
+        0,
+      ) ?? 0),
     P1:
       (apiTestsOutput.priority_coverage?.P1 ?? 0) +
       (e2eTestsOutput?.priority_coverage?.P1 ?? 0) +
-      (backendTestsOutput?.testsGenerated?.reduce((sum, t) => sum + (t.priority_coverage?.P1 ?? 0), 0) ?? 0),
+      (backendTestsOutput?.testsGenerated?.reduce(
+        (sum, t) => sum + (t.priority_coverage?.P1 ?? 0),
+        0,
+      ) ?? 0),
     P2:
       (apiTestsOutput.priority_coverage?.P2 ?? 0) +
       (e2eTestsOutput?.priority_coverage?.P2 ?? 0) +
-      (backendTestsOutput?.testsGenerated?.reduce((sum, t) => sum + (t.priority_coverage?.P2 ?? 0), 0) ?? 0),
+      (backendTestsOutput?.testsGenerated?.reduce(
+        (sum, t) => sum + (t.priority_coverage?.P2 ?? 0),
+        0,
+      ) ?? 0),
     P3:
       (apiTestsOutput.priority_coverage?.P3 ?? 0) +
       (e2eTestsOutput?.priority_coverage?.P3 ?? 0) +
-      (backendTestsOutput?.testsGenerated?.reduce((sum, t) => sum + (t.priority_coverage?.P3 ?? 0), 0) ?? 0),
+      (backendTestsOutput?.testsGenerated?.reduce(
+        (sum, t) => sum + (t.priority_coverage?.P3 ?? 0),
+        0,
+      ) ?? 0),
   },
   knowledge_fragments_used: [
     ...apiTestsOutput.knowledge_fragments_used,
     ...(e2eTestsOutput ? e2eTestsOutput.knowledge_fragments_used : []),
-    ...(backendTestsOutput ? backendTestsOutput.knowledge_fragments_used || [] : []),
+    ...(backendTestsOutput
+      ? backendTestsOutput.knowledge_fragments_used || []
+      : []),
   ],
   subagent_execution: subagentExecutionLabel,
   performance_gain: performanceGainLabel,
@@ -290,7 +314,11 @@ const summary = {
 Save summary to temp file for validation step:
 
 ```javascript
-fs.writeFileSync('/tmp/tea-automate-summary-{{timestamp}}.json', JSON.stringify(summary, null, 2), 'utf8');
+fs.writeFileSync(
+  "/tmp/tea-automate-summary-{{timestamp}}.json",
+  JSON.stringify(summary, null, 2),
+  "utf8",
+);
 ```
 
 ---
@@ -301,9 +329,11 @@ fs.writeFileSync('/tmp/tea-automate-summary-{{timestamp}}.json', JSON.stringify(
 
 ```javascript
 fs.unlinkSync(apiTestsPath);
-if (e2eTestsOutput) fs.unlinkSync('/tmp/tea-automate-e2e-tests-{{timestamp}}.json');
-if (backendTestsOutput) fs.unlinkSync('/tmp/tea-automate-backend-tests-{{timestamp}}.json');
-console.log('✅ Subagent temp files cleaned up');
+if (e2eTestsOutput)
+  fs.unlinkSync("/tmp/tea-automate-e2e-tests-{{timestamp}}.json");
+if (backendTestsOutput)
+  fs.unlinkSync("/tmp/tea-automate-backend-tests-{{timestamp}}.json");
+console.log("✅ Subagent temp files cleaned up");
 ```
 
 ---
@@ -361,9 +391,9 @@ Proceed to Step 4 when:
 
   ```yaml
   ---
-  stepsCompleted: ['step-03c-aggregate']
-  lastStep: 'step-03c-aggregate'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-03c-aggregate"]
+  lastStep: "step-03c-aggregate"
+  lastSaved: "{date}"
   ---
   ```
 

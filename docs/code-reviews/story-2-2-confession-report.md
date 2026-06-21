@@ -24,10 +24,12 @@
 **原报告行：** 第 69-87 行（P0 分区）
 
 **原报告原文（关键句）：**
+
 > `state.nodes[id]` 返回 `undefined`，`getModuleBoundingRadius(node)` 将因 `node` 为 `undefined` 而抛出 `TypeError`，导致渲染循环崩溃。
 
 **源码事实：**
 `SceneRenderer.ts` 第 212-225 行：
+
 ```typescript
 for (const id of selectedIds) {
   const node = state.nodes[id];
@@ -37,6 +39,7 @@ for (const id of selectedIds) {
   ...
 }
 ```
+
 第 214 行的 `if (!node) continue;` 已明确处理 `undefined` 节点——跳过该条目，不对 `getModuleBoundingRadius` 进行调用。
 
 **偏差类型：** 事实错误（误报崩溃）。  
@@ -50,9 +53,11 @@ for (const id of selectedIds) {
 **原报告行：** 第 119-127 行（P2 分区）
 
 **原报告原文（关键句）：**
+
 > zoom = 0.1 时，在 1920px 画布上视口范围约为 ±9600 世界单位，每轴生成约 192 条线（总计 384 条路径线段）。目前不太可能造成性能问题，但存在无限缩放极限下潜在的性能下降风险。
 
 **源码事实：**
+
 - 计算正确：`halfW = 960/0.1 = 9600`，范围 19200 世界单位，间距 100 → ~192 条线/轴。
 - Canvas 2D 在 60fps 下可轻松处理数千条线段（单次 stroke 调用，而非逐条渲染）。
 - 即使在 zoom=0.05 时（范围 ±19200，~384 条线/轴），总计 ~768 条线，远低于 Canvas 2D 的性能阈值（通常在 ~10,000+ 个路径命令后才需关注）。
@@ -82,11 +87,13 @@ for (const id of selectedIds) {
 **第一性原理溯源：**
 
 `deleteModule` 的契约是"从图中移除模块及其所有关联连接"。该契约的完整语义包括所有引用该模块的状态槽位：
+
 - `nodes[id]` — ✅ 已清理
 - `connections[*] where fromId===id or toId===id` — ✅ 已清理
 - `selectedModuleIds` — ❌ 未清理（遗漏）
 
 **为何此前偏离逻辑原点：** 在扫描 `drawModules` 时，推理链为：
+
 1. 看到 `selectedIds` 遍历 → 2. 看到 `state.nodes[id]` 查找 → 3. 如果节点被删除，查找返回 `undefined` → 4. 跳到错误结论：将 `undefined` 传给 `getModuleBoundingRadius` → 崩溃。
 
 实际上第 3 步和第 4 步之间被第 214 行的守卫截断。推理跳过了至关重要的守卫声明——这是典型的"扫描式阅读"在向下遍历时未完成闭合循环的认知失误。
@@ -162,7 +169,7 @@ Canvas 2D 性能基准：
   观察到："192 条线 × 2 轴 = 384 条线"
   启发式触发："循环中调用 canvas API → 潜在性能问题"
   输出："目前不太可能造成性能问题，但存在潜在的性能下降风险"
-  
+
   ❌ 缺少与性能基线的比较
   ❌ 未考虑单次 stroke() 批处理
   ❌ 未验证 384 是否接近实际阈值
@@ -179,17 +186,18 @@ Canvas 2D 性能基准：
 
 ## 修正后的发现汇总
 
-| 位置 | 发现 | 原级别 | 修正级别 | 变更理由 |
-|------|------|--------|---------|---------|
-| `mutations.ts` deleteModule | selectedModuleIds 未清理 | P0 | P2 | 源码第 214 行有空值守卫，不会崩溃 |
-| `InputManager.ts` handleKeyDown | 全局键盘拦截无目标检查 | P1 | P1 | 事实正确，无变更 |
-| `main.ts` Ctrl+0 监听器 | 匿名函数泄漏，HMR 累积 | P1 | P1 | 事实正确，无变更 |
-| `main.ts` CanvasResizer | 实例丢弃，destroy 未调用 | P1 | P1 | 事实正确，无变更 |
-| `Viewport.ts` viewport | 公开可变，zoom=0 风险 | P2 | P2 | 事实正确，理论风险 |
-| `SceneRenderer.ts` drawGrid | "密集网格"性能担忧 | P2 | 移除/信息性 | 384 条线无性能影响 |
-| `mutations.ts` bump() | 浅拷贝引用语义 | P2 | P2 | 事实正确，命名建议 |
+| 位置                            | 发现                     | 原级别 | 修正级别    | 变更理由                          |
+| ------------------------------- | ------------------------ | ------ | ----------- | --------------------------------- |
+| `mutations.ts` deleteModule     | selectedModuleIds 未清理 | P0     | P2          | 源码第 214 行有空值守卫，不会崩溃 |
+| `InputManager.ts` handleKeyDown | 全局键盘拦截无目标检查   | P1     | P1          | 事实正确，无变更                  |
+| `main.ts` Ctrl+0 监听器         | 匿名函数泄漏，HMR 累积   | P1     | P1          | 事实正确，无变更                  |
+| `main.ts` CanvasResizer         | 实例丢弃，destroy 未调用 | P1     | P1          | 事实正确，无变更                  |
+| `Viewport.ts` viewport          | 公开可变，zoom=0 风险    | P2     | P2          | 事实正确，理论风险                |
+| `SceneRenderer.ts` drawGrid     | "密集网格"性能担忧       | P2     | 移除/信息性 | 384 条线无性能影响                |
+| `mutations.ts` bump()           | 浅拷贝引用语义           | P2     | P2          | 事实正确，命名建议                |
 
 **修正后统计：**
+
 - P0：0（原报告虚报 1 个）
 - P1：3（不变）
 - P2：3（新增 1 个从 P0 降级，移除 1 个）→ 净 3 个

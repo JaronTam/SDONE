@@ -1,13 +1,13 @@
 ---
-name: 'step-04-session-06'
-description: 'Session 6: Quality & Trace - Test review, traceability, quality metrics (45 min)'
+name: "step-04-session-06"
+description: "Session 6: Quality & Trace - Test review, traceability, quality metrics (45 min)"
 
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
-sessionNotesTemplate: '../templates/session-notes-template.md'
-sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-06-notes.md'
-nextStepFile: '{skill-root}/steps-c/step-03-session-menu.md'
-advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
+sessionNotesTemplate: "../templates/session-notes-template.md"
+sessionNotesFile: "{test_artifacts}/tea-academy/{user_name}/session-06-notes.md"
+nextStepFile: "{skill-root}/steps-c/step-03-session-menu.md"
+advancedElicitationTask: "{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Session 6 - Quality & Trace

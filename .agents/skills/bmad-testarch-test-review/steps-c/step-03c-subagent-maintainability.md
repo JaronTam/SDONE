@@ -1,8 +1,8 @@
 ---
-name: 'step-03c-subagent-maintainability'
-description: 'Subagent: Check test maintainability (readability, structure, DRY)'
+name: "step-03c-subagent-maintainability"
+description: "Subagent: Check test maintainability (readability, structure, DRY)"
 subagent: true
-outputFile: '/tmp/tea-test-review-maintainability-{{timestamp}}.json'
+outputFile: "/tmp/tea-test-review-maintainability-{{timestamp}}.json"
 ---
 
 # Subagent 3C: Maintainability Quality Check
@@ -52,7 +52,10 @@ This is an **isolated subagent** running in parallel with other quality dimensio
 
 ```javascript
 const severityWeights = { HIGH: 10, MEDIUM: 5, LOW: 2 };
-const totalPenalty = violations.reduce((sum, v) => sum + severityWeights[v.severity], 0);
+const totalPenalty = violations.reduce(
+  (sum, v) => sum + severityWeights[v.severity],
+  0,
+);
 const score = Math.max(0, 100 - totalPenalty);
 ```
 

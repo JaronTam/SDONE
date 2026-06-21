@@ -1,8 +1,8 @@
 ---
-name: 'step-01-detect-mode'
-description: 'Determine system-level vs epic-level mode and validate prerequisites'
-nextStepFile: '{skill-root}/steps-c/step-02-load-context.md'
-outputFile: '{test_artifacts}/test-design-progress.md'
+name: "step-01-detect-mode"
+description: "Determine system-level vs epic-level mode and validate prerequisites"
+nextStepFile: "{skill-root}/steps-c/step-02-load-context.md"
+outputFile: "{test_artifacts}/test-design-progress.md"
 ---
 
 # Step 1: Detect Mode & Prerequisites
@@ -106,12 +106,12 @@ State which mode you will use and why. Then proceed.
 
   ```yaml
   ---
-  workflowStatus: 'in-progress'
+  workflowStatus: "in-progress"
   totalSteps: 5
-  stepsCompleted: ['step-01-detect-mode']
-  lastStep: 'step-01-detect-mode'
-  nextStep: '{nextStepFile}'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-01-detect-mode"]
+  lastStep: "step-01-detect-mode"
+  nextStep: "{nextStepFile}"
+  lastSaved: "{date}"
   ---
   ```
 

@@ -1,7 +1,7 @@
 ---
-name: 'step-03-generate-tests'
-description: 'Orchestrate adaptive test generation (agent-team, subagent, or sequential)'
-nextStepFile: '{skill-root}/steps-c/step-03c-aggregate.md'
+name: "step-03-generate-tests"
+description: "Orchestrate adaptive test generation (agent-team, subagent, or sequential)"
+nextStepFile: "{skill-root}/steps-c/step-03c-aggregate.md"
 ---
 
 # Step 3: Orchestrate Adaptive Test Generation
@@ -46,7 +46,7 @@ Select execution mode deterministically, then generate tests using agent-team, s
 **Generate unique timestamp** for temp file naming:
 
 ```javascript
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 ```
 
 **Prepare input context for subagents:**
@@ -86,33 +86,56 @@ const subagentContext = {
 
 ```javascript
 const normalizeUserExecutionMode = (mode) => {
-  if (typeof mode !== 'string') return null;
-  const normalized = mode.trim().toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+  if (typeof mode !== "string") return null;
+  const normalized = mode
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ");
 
-  if (normalized === 'auto') return 'auto';
-  if (normalized === 'sequential') return 'sequential';
-  if (normalized === 'subagent' || normalized === 'sub agent' || normalized === 'subagents' || normalized === 'sub agents') {
-    return 'subagent';
+  if (normalized === "auto") return "auto";
+  if (normalized === "sequential") return "sequential";
+  if (
+    normalized === "subagent" ||
+    normalized === "sub agent" ||
+    normalized === "subagents" ||
+    normalized === "sub agents"
+  ) {
+    return "subagent";
   }
-  if (normalized === 'agent team' || normalized === 'agent teams' || normalized === 'agentteam') {
-    return 'agent-team';
+  if (
+    normalized === "agent team" ||
+    normalized === "agent teams" ||
+    normalized === "agentteam"
+  ) {
+    return "agent-team";
   }
 
   return null;
 };
 
 const normalizeConfigExecutionMode = (mode) => {
-  if (mode === 'subagent') return 'subagent';
-  if (mode === 'auto' || mode === 'sequential' || mode === 'subagent' || mode === 'agent-team') {
+  if (mode === "subagent") return "subagent";
+  if (
+    mode === "auto" ||
+    mode === "sequential" ||
+    mode === "subagent" ||
+    mode === "agent-team"
+  ) {
     return mode;
   }
   return null;
 };
 
 // Explicit user instruction in the active run takes priority over config.
-const explicitModeFromUser = normalizeUserExecutionMode(runtime.getExplicitExecutionModeHint?.() || null);
+const explicitModeFromUser = normalizeUserExecutionMode(
+  runtime.getExplicitExecutionModeHint?.() || null,
+);
 
-const requestedMode = explicitModeFromUser || normalizeConfigExecutionMode(subagentContext.config.execution_mode) || 'auto';
+const requestedMode =
+  explicitModeFromUser ||
+  normalizeConfigExecutionMode(subagentContext.config.execution_mode) ||
+  "auto";
 const probeEnabled = subagentContext.config.capability_probe;
 
 const supports = {
@@ -128,14 +151,18 @@ if (probeEnabled) {
 
 let resolvedMode = requestedMode;
 
-if (requestedMode === 'auto') {
-  if (supports.agentTeam) resolvedMode = 'agent-team';
-  else if (supports.subagent) resolvedMode = 'subagent';
-  else resolvedMode = 'sequential';
-} else if (probeEnabled && requestedMode === 'agent-team' && !supports.agentTeam) {
-  resolvedMode = supports.subagent ? 'subagent' : 'sequential';
-} else if (probeEnabled && requestedMode === 'subagent' && !supports.subagent) {
-  resolvedMode = 'sequential';
+if (requestedMode === "auto") {
+  if (supports.agentTeam) resolvedMode = "agent-team";
+  else if (supports.subagent) resolvedMode = "subagent";
+  else resolvedMode = "sequential";
+} else if (
+  probeEnabled &&
+  requestedMode === "agent-team" &&
+  !supports.agentTeam
+) {
+  resolvedMode = supports.subagent ? "subagent" : "sequential";
+} else if (probeEnabled && requestedMode === "subagent" && !supports.subagent) {
+  resolvedMode = "sequential";
 }
 
 subagentContext.execution = {
@@ -299,18 +326,24 @@ When `pact_mcp` is `"mcp"`, the subagent can use SmartBear MCP tools to fetch ex
 **Verify outputs exist (based on `{detected_stack}`):**
 
 ```javascript
-const apiOutputExists = fs.existsSync(`/tmp/tea-automate-api-tests-${timestamp}.json`);
+const apiOutputExists = fs.existsSync(
+  `/tmp/tea-automate-api-tests-${timestamp}.json`,
+);
 
 // Check based on detected_stack
-if (detected_stack === 'frontend' || detected_stack === 'fullstack') {
-  const e2eOutputExists = fs.existsSync(`/tmp/tea-automate-e2e-tests-${timestamp}.json`);
-  if (!e2eOutputExists) throw new Error('E2E subagent output missing!');
+if (detected_stack === "frontend" || detected_stack === "fullstack") {
+  const e2eOutputExists = fs.existsSync(
+    `/tmp/tea-automate-e2e-tests-${timestamp}.json`,
+  );
+  if (!e2eOutputExists) throw new Error("E2E subagent output missing!");
 }
-if (detected_stack === 'backend' || detected_stack === 'fullstack') {
-  const backendOutputExists = fs.existsSync(`/tmp/tea-automate-backend-tests-${timestamp}.json`);
-  if (!backendOutputExists) throw new Error('Backend subagent output missing!');
+if (detected_stack === "backend" || detected_stack === "fullstack") {
+  const backendOutputExists = fs.existsSync(
+    `/tmp/tea-automate-backend-tests-${timestamp}.json`,
+  );
+  if (!backendOutputExists) throw new Error("Backend subagent output missing!");
 }
-if (!apiOutputExists) throw new Error('API subagent output missing!');
+if (!apiOutputExists) throw new Error("API subagent output missing!");
 ```
 
 ---

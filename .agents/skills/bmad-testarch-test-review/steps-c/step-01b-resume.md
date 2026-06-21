@@ -1,7 +1,7 @@
 ---
-name: 'step-01b-resume'
-description: 'Resume interrupted workflow from last completed step'
-outputFile: '{test_artifacts}/test-review.md'
+name: "step-01b-resume"
+description: "Resume interrupted workflow from last completed step"
+outputFile: "{test_artifacts}/test-review.md"
 ---
 
 # Step 1b: Resume Workflow

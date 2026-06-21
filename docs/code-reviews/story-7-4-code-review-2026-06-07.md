@@ -15,13 +15,13 @@
 - **声明范围**：Story 7.4 的 9 个 Tasks（Tasks 1-9，含 deferred Task 7.1）
 - **实际 diff 范围**（`git diff HEAD --name-only` 全量枚举）：
 
-| 层 | 范畴 | 文件数 | 说明 |
-|---|---|---:|---|
-| A1 | Story 7.4 spec 声明范围 | 6 | `index.html`, `main.ts`, `control-bar.css`, `ControlBar.test.ts`, `.gitignore`, `checkpoint.test.ts`(新) |
-| A2 | Story 7.3 范围（spec 未声明） | 6 | `ControlBar.ts`, `SimulationEngine.ts`+test, `AnalyticsPanel.ts`+test, `analytics-panel.css` |
-| A3 | Story 7.1 deferred 范围 | 2 | `SceneRenderer.ts`+test |
-| B | 测试产物污染 | 5 | `test-output*.txt` × 4 入 git + `tsc-output.txt` 未跟踪 |
-| C | 工具链 drift（与 story 无关） | 数百 | `.agents/skills/*`、`.claude/skills/*`、`_bmad/*` 大规模 v6→v7 重命名 |
+| 层  | 范畴                          | 文件数 | 说明                                                                                                     |
+| --- | ----------------------------- | -----: | -------------------------------------------------------------------------------------------------------- |
+| A1  | Story 7.4 spec 声明范围       |      6 | `index.html`, `main.ts`, `control-bar.css`, `ControlBar.test.ts`, `.gitignore`, `checkpoint.test.ts`(新) |
+| A2  | Story 7.3 范围（spec 未声明） |      6 | `ControlBar.ts`, `SimulationEngine.ts`+test, `AnalyticsPanel.ts`+test, `analytics-panel.css`             |
+| A3  | Story 7.1 deferred 范围       |      2 | `SceneRenderer.ts`+test                                                                                  |
+| B   | 测试产物污染                  |      5 | `test-output*.txt` × 4 入 git + `tsc-output.txt` 未跟踪                                                  |
+| C   | 工具链 drift（与 story 无关） |   数百 | `.agents/skills/*`、`.claude/skills/*`、`_bmad/*` 大规模 v6→v7 重命名                                    |
 
 ⚠ **关键事实**：`sprint-status.yaml` 标 Story 7.3 = done，但 `git log --oneline` 显示从未独立 commit。Story 7.3 实现混入 Story 7.4 working copy，被本次 diff 一并捕获。
 
@@ -29,25 +29,25 @@
 
 ## 2. 三层 Review 执行 (Three-Layer Review)
 
-| 层 | 方法 | 状态 |
-|---|---|---|
-| **Blind Hunter** | 不看 spec/test，从代码反推意图 | ✅ 已执行 |
-| **Acceptance Auditor** | 逐条比对 AC1-AC7 + Tasks 1-9 实现 | ✅ 已执行 |
-| **Edge Case Hunter** | 穷举状态机分支与边界 | ✅ 已执行（subagent 失败，triage agent 手动补） |
+| 层                     | 方法                              | 状态                                            |
+| ---------------------- | --------------------------------- | ----------------------------------------------- |
+| **Blind Hunter**       | 不看 spec/test，从代码反推意图    | ✅ 已执行                                       |
+| **Acceptance Auditor** | 逐条比对 AC1-AC7 + Tasks 1-9 实现 | ✅ 已执行                                       |
+| **Edge Case Hunter**   | 穷举状态机分支与边界              | ✅ 已执行（subagent 失败，triage agent 手动补） |
 
 ---
 
 ## 3. Findings & Triage
 
-| ID | 类型 | 严重度 | 标题 | 状态 |
-|---|---|---|---|---|
-| **F1** | Decision | 🔴 High | Commit 范围三层污染（A 源码 / B 测试产物 / C 工具链 drift） | ✅ FIXED (方案 b) |
-| **F2** | Patch | 🔴 High | `checkpoint.test.ts` 20 个测试是 mirror test（测自己写的 helper） | ✅ FIXED |
-| **F3** | Patch | 🟡 Med | `checkpoint.test.ts` 未被 git 跟踪 | ✅ FIXED (被 F2 覆盖) |
-| **F4** | Patch | 🟡 Med | 4 个 `test-output*.txt` 已入 git | ✅ FIXED |
-| **F5** | Patch | 🟡 Med | Rewind handler 未取消活跃拖拽 | ✅ FIXED |
-| D1 | Defer | ⚪ Low | `structuredClone` 缺 try/catch | ✅ Deferred |
-| D2 | Defer | ⚪ Low | Story 7.3 缺独立 commit 追溯 | ✅ 归并到 F1 |
+| ID     | 类型     | 严重度  | 标题                                                              | 状态                  |
+| ------ | -------- | ------- | ----------------------------------------------------------------- | --------------------- |
+| **F1** | Decision | 🔴 High | Commit 范围三层污染（A 源码 / B 测试产物 / C 工具链 drift）       | ✅ FIXED (方案 b)     |
+| **F2** | Patch    | 🔴 High | `checkpoint.test.ts` 20 个测试是 mirror test（测自己写的 helper） | ✅ FIXED              |
+| **F3** | Patch    | 🟡 Med  | `checkpoint.test.ts` 未被 git 跟踪                                | ✅ FIXED (被 F2 覆盖) |
+| **F4** | Patch    | 🟡 Med  | 4 个 `test-output*.txt` 已入 git                                  | ✅ FIXED              |
+| **F5** | Patch    | 🟡 Med  | Rewind handler 未取消活跃拖拽                                     | ✅ FIXED              |
+| D1     | Defer    | ⚪ Low  | `structuredClone` 缺 try/catch                                    | ✅ Deferred           |
+| D2     | Defer    | ⚪ Low  | Story 7.3 缺独立 commit 追溯                                      | ✅ 归并到 F1          |
 
 ---
 
@@ -60,11 +60,13 @@
 **三方案**：
 
 #### 方案 (a) — 单 commit 全部合并 ❌ 不推荐
+
 违反 atomic commit；`git bisect` 困难；7.3 完成时间错误归 7.4。
 
 #### 方案 (b) — 按层拆 4 commit ✅ **用户选择 + 已执行**
 
 **实际执行结果**（`git log --oneline`）：
+
 ```
 3fffaf0 (HEAD -> main) chore: BMad framework tooling drift (PRD/UX v6 -> v7 rename)
 e4090e4 Story 7.4 review artifacts (4/5 findings fixed, F1 commit strategy = b)
@@ -109,6 +111,7 @@ git commit -m "chore: BMad framework tooling drift (PRD/UX v6 → v7 rename)"
 ```
 
 #### 方案 (c) — revert 7.3 + stash 工具链 ❌ 风险高
+
 丢失 7.3 实现；与 sprint-status 冲突；用户需重做 7.3。
 
 ---
@@ -134,6 +137,7 @@ git commit -m "chore: BMad framework tooling drift (PRD/UX v6 → v7 rename)"
 **证据**：`git ls-files | grep test-output` 显示 `test-output.txt` / `test-output2.txt` / `test-output3.txt` / `test-output4.txt` 共 **4 个**（初次 review 只报 1 个，AUDIT 修订）。
 
 **修复**：
+
 1. `.gitignore` 新增 `test-output*.txt` + `tsc-output.txt` 通配
 2. `git rm --cached test-output.txt test-output2.txt test-output3.txt test-output4.txt`
 3. 验证：`git status -s` 显示 `D test-output*.txt × 4`（已 staged 删除）
@@ -170,28 +174,28 @@ Spec Dev Notes 明确 "GraphState 是纯数据图，无 functions/DOM refs"，�
 
 ## 5. 验证证据
 
-| 验证项 | 命令 | 结果 |
-|---|---|---|
-| TypeScript 编译 | `cd sdone && npx tsc --noEmit` | ✅ 0 errors |
-| 测试套件（修复前） | `cd sdone && npx vitest run --reporter=dot` | ✅ 707 passed (30 files), 0 failed, 0 skipped |
-| 测试套件（4 commit 后实测复验） | 同上 | ✅ 707 passed (30 files), 0 failed, 0 skipped |
-| Git working tree | `git status` | ✅ **nothing to commit, working tree clean** |
-| Git commit 拓扑 | `git log --oneline` | ✅ 4 atomic commits ahead of origin/main |
-| .gitignore 防御验证 | 复测 vitest 生成 test-output.txt 后 git status | ✅ 被 `test-output*.txt` 通配正确忽略 |
+| 验证项                          | 命令                                           | 结果                                          |
+| ------------------------------- | ---------------------------------------------- | --------------------------------------------- |
+| TypeScript 编译                 | `cd sdone && npx tsc --noEmit`                 | ✅ 0 errors                                   |
+| 测试套件（修复前）              | `cd sdone && npx vitest run --reporter=dot`    | ✅ 707 passed (30 files), 0 failed, 0 skipped |
+| 测试套件（4 commit 后实测复验） | 同上                                           | ✅ 707 passed (30 files), 0 failed, 0 skipped |
+| Git working tree                | `git status`                                   | ✅ **nothing to commit, working tree clean**  |
+| Git commit 拓扑                 | `git log --oneline`                            | ✅ 4 atomic commits ahead of origin/main      |
+| .gitignore 防御验证             | 复测 vitest 生成 test-output.txt 后 git status | ✅ 被 `test-output*.txt` 通配正确忽略         |
 
 ---
 
 ## 6. 最终评级
 
-| 维度 | 评级 |
-|---|---|
-| Spec AC 实现完整性 | 🟢 A 级（AC1-AC7 全部实现） |
-| 事实层准确率 | 🟢 100%（F4 数量经 AUDIT 修订） |
-| 修复执行率 | 🟢 **5/5（100%）** |
-| 测试可信度 | 🟢 707 真测试 / 0 假绿（删除 20 mirror tests 后） |
-| TypeScript 编译 | 🟢 0 errors |
-| Commit 拓扑健康度 | 🟢 atomic, bisectable（4 commits 按层分离） |
-| 闭环完成度 | 🟢 **100%** |
+| 维度               | 评级                                              |
+| ------------------ | ------------------------------------------------- |
+| Spec AC 实现完整性 | 🟢 A 级（AC1-AC7 全部实现）                       |
+| 事实层准确率       | 🟢 100%（F4 数量经 AUDIT 修订）                   |
+| 修复执行率         | 🟢 **5/5（100%）**                                |
+| 测试可信度         | 🟢 707 真测试 / 0 假绿（删除 20 mirror tests 后） |
+| TypeScript 编译    | 🟢 0 errors                                       |
+| Commit 拓扑健康度  | 🟢 atomic, bisectable（4 commits 按层分离）       |
+| 闭环完成度         | 🟢 **100%**                                       |
 
 **结论**：Story 7.4 实施质量 A 级，所有 AC 完整实现，5 个发现全部修复（含 F1 commit 拆分按方案 b 执行完毕，working tree clean，707 测试实测复验通过）。Story status 可由 `review` → `done`，4 个 commits 待 `git push origin main`。
 
@@ -199,10 +203,10 @@ Spec Dev Notes 明确 "GraphState 是纯数据图，无 functions/DOM refs"，�
 
 ## 7. 关联产物
 
-| 产物 | 路径 |
-|---|---|
-| 一阶段 review 记录 | `memory/story-7-4-review-2026-06-07.md` |
-| 二阶段深度自审计 | `memory/story-7-4-review-AUDIT-2026-06-07.md` |
+| 产物                 | 路径                                                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 一阶段 review 记录   | `memory/story-7-4-review-2026-06-07.md`                                                                    |
+| 二阶段深度自审计     | `memory/story-7-4-review-AUDIT-2026-06-07.md`                                                              |
 | Spec Review Findings | `_bmad-output/implementation-artifacts/7-4-single-slot-save-point-and-time-rewind.md` (Review Findings 节) |
-| Deferred work 登记 | `_bmad-output/implementation-artifacts/deferred-work.md` |
-| 本报告 | `docs/code-reviews/story-7-4-code-review-2026-06-07.md` |
+| Deferred work 登记   | `_bmad-output/implementation-artifacts/deferred-work.md`                                                   |
+| 本报告               | `docs/code-reviews/story-7-4-code-review-2026-06-07.md`                                                    |

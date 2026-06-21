@@ -91,12 +91,12 @@ playwright-cli -s=tea-discover close
 
 ```typescript
 // Agent generates API tests using what it discovered, with playwright-utils
-import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
+import { test } from "@seontechnologies/playwright-utils/api-request/fixtures";
 
-test('GET /api/users returns user list', async ({ apiRequest }) => {
+test("GET /api/users returns user list", async ({ apiRequest }) => {
   const { status, body } = await apiRequest<User[]>({
-    method: 'GET',
-    path: '/api/users',
+    method: "GET",
+    path: "/api/users",
   });
   expect(status).toBe(200);
   expect(body.length).toBeGreaterThan(0);
@@ -226,7 +226,7 @@ Playwright 1.59 added `browser.bind()` — a programmatic API that makes a runni
 
 ```typescript
 // In a test or fixture: bind the browser so playwright-cli can attach
-const { endpoint } = await browser.bind('my-debug-session', {
+const { endpoint } = await browser.bind("my-debug-session", {
   workspaceDir: process.cwd(),
 });
 // Now: playwright-cli attach my-debug-session

@@ -34,8 +34,11 @@
 // mutations.ts — updateCapacity
 export function updateCapacity(state, stockId, capacity): GraphState {
   const node = state.nodes[stockId];
-  if (!node || node.type !== 'stock') return unchanged(state);
-  return { ...bump(state), nodes: { ...state.nodes, [stockId]: { ...node, capacity } } };
+  if (!node || node.type !== "stock") return unchanged(state);
+  return {
+    ...bump(state),
+    nodes: { ...state.nodes, [stockId]: { ...node, capacity } },
+  };
   // ⚠️ 无任何验证：capacity 可以是 0、-5、Infinity、NaN
 }
 ```
@@ -48,14 +51,14 @@ capacity: initialCapacity ?? 100,
 
 **JavaScript `??` 运算符实测:**
 
-| 输入 | `initialCapacity ?? 100` 结果 | 安全？ |
-|------|-------------------------------|--------|
-| `undefined` | `100` | ✅ |
-| `null` | `100` | ✅ |
-| `0` | **`0`** | ❌ 除零 |
-| `NaN` | **`NaN`** | ❌ 状态污染 |
-| `Infinity` | **`Infinity`** | ❌ 重新引入本修复要消除的 bug |
-| `-5` | **`-5`** | ❌ 语义错误 |
+| 输入        | `initialCapacity ?? 100` 结果 | 安全？                        |
+| ----------- | ----------------------------- | ----------------------------- |
+| `undefined` | `100`                         | ✅                            |
+| `null`      | `100`                         | ✅                            |
+| `0`         | **`0`**                       | ❌ 除零                       |
+| `NaN`       | **`NaN`**                     | ❌ 状态污染                   |
+| `Infinity`  | **`Infinity`**                | ❌ 重新引入本修复要消除的 bug |
+| `-5`        | **`-5`**                      | ❌ 语义错误                   |
 
 **下游影响链:**
 
@@ -95,6 +98,7 @@ capacity=Infinity → 重新引入 Infinity bug（本修复的目标）
 ### 偏差 #3: 🟡 误判 — R4-1 `this._inputEl` 引用分析错误
 
 **此前报告:**
+
 > 3. 旧 setTimeout 触发时，`this._inputEl` 指向**新** input 元素
 > 4. 错误地移除新 input 的 error class
 
@@ -103,6 +107,7 @@ capacity=Infinity → 重新引入 Infinity bug（本修复的目标）
 **但此前报告遗漏了关键上下文:** 新 input 在 `open()` 中刚创建，不可能已有 `--error` class。因此旧 timeout 的 `classList.remove(...)` 在新 input 上是**空操作 (no-op)**，不会产生可见影响。
 
 **修正:** R4-1 仍是一个真实的代码卫生问题（悬空 timeout），但其**实际影响为零**，因为：
+
 - 新 input 不可能有 `--error` class（刚创建）
 - 旧 input 已被 `close()` 从 DOM 移除，其 classList 操作无副作用
 
@@ -149,6 +154,7 @@ export function computeFillRatio(value: number, capacity: number): number {
 ```
 
 `Number.isFinite(value)` 在此处的保留是**正确且必要的**：
+
 - `value` 来自模拟引擎计算，可能产生 `NaN`/`Infinity`（如除零、溢出）
 - `capacity` 现在始终有限，但 `value` 不受此保证
 - 移除此 guard 会导致 `NaN / 100 = NaN` 传入渲染管线
@@ -167,26 +173,26 @@ export function computeFillRatio(value: number, capacity: number): number {
 
 ### 修正后的完整发现清单
 
-| ID | 严重性 | 类别 | 描述 | 原报告状态 |
-|----|--------|------|------|-----------|
-| D1 | 🔴 High | 遗漏 | `updateCapacity` 无输入验证（0/NaN/Infinity/-N） | **新增** |
-| D2 | 🔴 High | 遗漏 | `addModule` `initialCapacity ?? 100` 不保护 0/NaN/Infinity | **新增** |
-| D3 | 🟡 Medium | 遗漏 | `AnalyticsPanel.test.ts` 无交互测试覆盖 | = A3 |
-| D4 | 🟢 Low | 过判 | blur handler 缺失（降级 Medium→Low） | ↓ R2-1 |
-| D5 | 🟢 Low | 误判 | error timeout 影响为零（降级 Medium→Low） | ↓ R4-1 |
-| D6 | 🟢 Low | 遗漏 | `onModuleDrop` 注释过时 | **新增** |
-| D7 | 🟢 Low | 误判 | A1「统一 Number.isFinite 策略」建议错误 | **推翻** |
-| D8 | 🟢 Low | 保留 | R1-1 clearSelection 不一致 | = R1-1 |
-| D9 | 🟢 Low | 保留 | R1-2 open() 不触发 onCancel | = R1-2 |
-| D10 | 🟢 Low | 保留 | R2-2 setStock 覆盖编辑中 input | = R2-2 |
+| ID  | 严重性    | 类别 | 描述                                                       | 原报告状态 |
+| --- | --------- | ---- | ---------------------------------------------------------- | ---------- |
+| D1  | 🔴 High   | 遗漏 | `updateCapacity` 无输入验证（0/NaN/Infinity/-N）           | **新增**   |
+| D2  | 🔴 High   | 遗漏 | `addModule` `initialCapacity ?? 100` 不保护 0/NaN/Infinity | **新增**   |
+| D3  | 🟡 Medium | 遗漏 | `AnalyticsPanel.test.ts` 无交互测试覆盖                    | = A3       |
+| D4  | 🟢 Low    | 过判 | blur handler 缺失（降级 Medium→Low）                       | ↓ R2-1     |
+| D5  | 🟢 Low    | 误判 | error timeout 影响为零（降级 Medium→Low）                  | ↓ R4-1     |
+| D6  | 🟢 Low    | 遗漏 | `onModuleDrop` 注释过时                                    | **新增**   |
+| D7  | 🟢 Low    | 误判 | A1「统一 Number.isFinite 策略」建议错误                    | **推翻**   |
+| D8  | 🟢 Low    | 保留 | R1-1 clearSelection 不一致                                 | = R1-1     |
+| D9  | 🟢 Low    | 保留 | R1-2 open() 不触发 onCancel                                | = R1-2     |
+| D10 | 🟢 Low    | 保留 | R2-2 setStock 覆盖编辑中 input                             | = R2-2     |
 
 ### 修正后的结论
 
-| 等级 | 数量 | 明细 |
-|------|------|------|
-| 🔴 阻塞 | 2 | D1 (updateCapacity 无验证), D2 (addModule ?? 不保护) |
-| 🟡 建议修复 | 1 | D3 (测试覆盖缺口) |
-| 🟢 低优先级 | 7 | D4-D10 |
+| 等级        | 数量 | 明细                                                 |
+| ----------- | ---- | ---------------------------------------------------- |
+| 🔴 阻塞     | 2    | D1 (updateCapacity 无验证), D2 (addModule ?? 不保护) |
+| 🟡 建议修复 | 1    | D3 (测试覆盖缺口)                                    |
+| 🟢 低优先级 | 7    | D4-D10                                               |
 
 **修正后总体判定: ⚠️ 有条件通过 — 需修复 D1/D2 后方可合并**
 
@@ -260,22 +266,22 @@ capacity: (initialCapacity !== undefined && Number.isFinite(initialCapacity) && 
 
 ## 对原报告各部分的逐项裁定
 
-| 原报告部分 | 裁定 | 说明 |
-|-----------|------|------|
-| R1 闭包分析 | ✅ 正确 | 闭包捕获语义、3 路径合并逻辑分析无误 |
-| R1-1 clearSelection | ✅ 正确 | 观察有效，Low 定级合理 |
-| R1-2 onCancel 丢弃 | ✅ 正确 | 设计一致性观察有效 |
-| R2 状态机分析 | ✅ 正确 | 状态转换图准确 |
-| R2-1 blur handler | ⚠️ 过判 | 降级 Medium→Low，浏览器 type=number 已提供隐式验证 |
-| R2-2 setStock 覆盖 | ✅ 正确 | 有效观察 |
-| R3 Infinity 移除 | ✅ 正确 | 编号重映射、边界条件分析完整 |
-| R4 DOM 清理分析 | ✅ 正确 | 清理路径表格准确 |
-| R4-1 error timeout | ⚠️ 误判 | 降级 Medium→Low，实际影响为零（新 input 无 error class） |
-| R5 测试语义 | ✅ 正确 | 数学验证和语义等价性分析无误 |
-| A1 统一 isFinite | ❌ 错误 | value 和 capacity 不变量不同，不应统一处理 |
-| A2 analyticsPanel 刷新 | ✅ 正确 | 有效观察 |
-| A3 测试覆盖 | ✅ 正确 | 有效发现 |
-| **D1/D2 mutation 验证** | ❌ **遗漏** | **最严重偏差 — 完全忽略 mutation 层防御纵深** |
+| 原报告部分              | 裁定        | 说明                                                     |
+| ----------------------- | ----------- | -------------------------------------------------------- |
+| R1 闭包分析             | ✅ 正确     | 闭包捕获语义、3 路径合并逻辑分析无误                     |
+| R1-1 clearSelection     | ✅ 正确     | 观察有效，Low 定级合理                                   |
+| R1-2 onCancel 丢弃      | ✅ 正确     | 设计一致性观察有效                                       |
+| R2 状态机分析           | ✅ 正确     | 状态转换图准确                                           |
+| R2-1 blur handler       | ⚠️ 过判     | 降级 Medium→Low，浏览器 type=number 已提供隐式验证       |
+| R2-2 setStock 覆盖      | ✅ 正确     | 有效观察                                                 |
+| R3 Infinity 移除        | ✅ 正确     | 编号重映射、边界条件分析完整                             |
+| R4 DOM 清理分析         | ✅ 正确     | 清理路径表格准确                                         |
+| R4-1 error timeout      | ⚠️ 误判     | 降级 Medium→Low，实际影响为零（新 input 无 error class） |
+| R5 测试语义             | ✅ 正确     | 数学验证和语义等价性分析无误                             |
+| A1 统一 isFinite        | ❌ 错误     | value 和 capacity 不变量不同，不应统一处理               |
+| A2 analyticsPanel 刷新  | ✅ 正确     | 有效观察                                                 |
+| A3 测试覆盖             | ✅ 正确     | 有效发现                                                 |
+| **D1/D2 mutation 验证** | ❌ **遗漏** | **最严重偏差 — 完全忽略 mutation 层防御纵深**            |
 
 ---
 

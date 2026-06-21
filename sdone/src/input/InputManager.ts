@@ -3,7 +3,15 @@ import { vec2, distance } from '../shared/Vec2.js';
 import type { ViewportManager } from '../canvas/Viewport.js';
 import type { ModuleNode, Connection, StockNode } from '../state/GraphState.js';
 import { DEFAULT_MODULE_WIDTH, DEFAULT_MODULE_HEIGHT } from '../state/GraphState.js';
-import { getHitRadius, getVisualEdgeDistance, getEdgePoint, STOCK_WIDTH, STOCK_HEIGHT, FEEDBACK_HANDLE_RADIUS, FEEDBACK_ARC_OFFSET } from '../canvas/SceneRenderer.js';
+import {
+  getHitRadius,
+  getVisualEdgeDistance,
+  getEdgePoint,
+  STOCK_WIDTH,
+  STOCK_HEIGHT,
+  FEEDBACK_HANDLE_RADIUS,
+  FEEDBACK_ARC_OFFSET,
+} from '../canvas/SceneRenderer.js';
 
 /** Minimum screen-pixel distance before a mousedown becomes a drag. */
 const DRAG_THRESHOLD_PX = 4;
@@ -212,7 +220,8 @@ export class InputManager {
 
   // ── Story 8.2: Diamond & Handle hover tracking ─────────────────
   // DECISION-1 fix: use precise union types instead of widened `string`
-  public hoveredDiamond: { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null = null;
+  public hoveredDiamond: { moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' } | null =
+    null;
   public hoveredHandle: { moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' } | null = null;
 
   /** Story 8.2 — Reset all selection-scoped state on deselect.
@@ -276,14 +285,11 @@ export class InputManager {
   public onModuleDragStart: ((moduleId: string) => void) | null = null;
 
   /** Called every frame during a module drag. Passes world-space positions. */
-  public onModuleMove:
-    | ((moduleId: string, fromWorld: Vec2, toWorld: Vec2) => void)
-    | null = null;
+  public onModuleMove: ((moduleId: string, fromWorld: Vec2, toWorld: Vec2) => void) | null = null;
 
   /** Called when user finishes dragging a module. Passes world-space positions. */
-  public onModuleDragEnd:
-    | ((moduleId: string, fromWorld: Vec2, toWorld: Vec2) => void)
-    | null = null;
+  public onModuleDragEnd: ((moduleId: string, fromWorld: Vec2, toWorld: Vec2) => void) | null =
+    null;
 
   /** Called when user presses Delete and a module is selected. */
   public onModuleDelete: (() => void) | null = null;
@@ -313,7 +319,8 @@ export class InputManager {
   public onConnectionDragMove: ((sourceModuleId: string, worldCursor: Vec2) => void) | null = null;
 
   /** Called when user finishes connection drag over a valid target module. */
-  public onConnectionDragEnd: ((sourceModuleId: string, targetModuleId: string) => void) | null = null;
+  public onConnectionDragEnd: ((sourceModuleId: string, targetModuleId: string) => void) | null =
+    null;
 
   /** Called when connection drag is cancelled (Esc, window blur, no valid target). */
   public onConnectionDragCancel: (() => void) | null = null;
@@ -374,13 +381,12 @@ export class InputManager {
    *  @param moduleId Module being resized
    *  @param corner Which corner is being dragged ('nw'|'ne'|'sw'|'se')
    *  @param anchorWorld Opposite-corner world position (fixed during resize) */
-  public onResizeStart: ((moduleId: string, corner: string, anchorWorld: Vec2) => void) | null = null;
+  public onResizeStart: ((moduleId: string, corner: string, anchorWorld: Vec2) => void) | null =
+    null;
 
   /** Story 8.5 — Called every frame during resize handle drag.
    *  Passes world-space positions. */
-  public onResizeMove:
-    | ((moduleId: string, fromWorld: Vec2, toWorld: Vec2) => void)
-    | null = null;
+  public onResizeMove: ((moduleId: string, fromWorld: Vec2, toWorld: Vec2) => void) | null = null;
 
   /** Story 8.5 — Called when resize handle drag ends.
    *  Passes new dimensions (not Vec2 — dimensions use {width, height}). */
@@ -624,10 +630,7 @@ export class InputManager {
     // Check every module — last drawn = "top", so iterate values
     for (const node of Object.values(nodes)) {
       const worldPos = vec2(node.position.x, node.position.y);
-      const screenPosOfNode = this.viewportManager.worldToScreen(
-        worldPos,
-        canvasCenter,
-      );
+      const screenPosOfNode = this.viewportManager.worldToScreen(worldPos, canvasCenter);
       // Per-type hit radius, scaled by zoom
       const hitRadius = getHitRadius(node.type);
       const zoomedRadius = hitRadius * this.viewportManager.viewport.zoom;
@@ -729,7 +732,7 @@ export class InputManager {
 
       // Only stocks with incoming source connections have feedback handles
       const hasSourceInflow = Object.values(connections).some(
-        c => c.toId === stock.id && !c.isFeedback && nodes[c.fromId]?.type === 'source',
+        (c) => c.toId === stock.id && !c.isFeedback && nodes[c.fromId]?.type === 'source',
       );
       if (!hasSourceInflow) continue;
 
@@ -739,7 +742,8 @@ export class InputManager {
       const handleWorldX = stock.position.x + hw - FEEDBACK_HANDLE_RADIUS;
       const handleWorldY = stock.position.y + hh - FEEDBACK_HANDLE_RADIUS;
       const handleScreenPos = this.viewportManager.worldToScreen(
-        vec2(handleWorldX, handleWorldY), canvasCenter,
+        vec2(handleWorldX, handleWorldY),
+        canvasCenter,
       );
 
       if (distance(screenPos, handleScreenPos) <= FEEDBACK_HANDLE_HIT_RADIUS_PX) {
@@ -991,21 +995,15 @@ export class InputManager {
               const h = node.height ?? DEFAULT_MODULE_HEIGHT;
               this._resizeInitialDims = { width: w, height: h };
               // Compute anchor (opposite corner) per AC17
-              const cornerDirX =
-                handleHit.corner === 'ne' || handleHit.corner === 'se' ? +1 : -1;
-              const cornerDirY =
-                handleHit.corner === 'sw' || handleHit.corner === 'se' ? +1 : -1;
+              const cornerDirX = handleHit.corner === 'ne' || handleHit.corner === 'se' ? +1 : -1;
+              const cornerDirY = handleHit.corner === 'sw' || handleHit.corner === 'se' ? +1 : -1;
               this._resizeAnchorWorld = {
-                x: node.position.x - cornerDirX * w / 2,
-                y: node.position.y - cornerDirY * h / 2,
+                x: node.position.x - (cornerDirX * w) / 2,
+                y: node.position.y - (cornerDirY * h) / 2,
               };
               this._resizePrevCenter = vec2(node.position.x, node.position.y);
               this.mouseDownPos = screenPos;
-              this.onResizeStart?.(
-                handleHit.moduleId,
-                handleHit.corner,
-                this._resizeAnchorWorld,
-              );
+              this.onResizeStart?.(handleHit.moduleId, handleHit.corner, this._resizeAnchorWorld);
               e.preventDefault();
               e.stopPropagation();
               return;
@@ -1023,10 +1021,7 @@ export class InputManager {
           if (nodes) {
             const node = nodes[diamondHit.moduleId];
             if (node) {
-              this.connectionDragWorldPosition = vec2(
-                node.position.x,
-                node.position.y,
-              );
+              this.connectionDragWorldPosition = vec2(node.position.x, node.position.y);
             }
           }
           this.mouseDownPos = screenPos;
@@ -1134,16 +1129,13 @@ export class InputManager {
 
       // Determine corner direction
       const corner = this._resizeCorner!;
-      const cornerDirX =
-        corner === 'ne' || corner === 'se' ? +1 : -1;
-      const cornerDirY =
-        corner === 'sw' || corner === 'se' ? +1 : -1;
+      const cornerDirX = corner === 'ne' || corner === 'se' ? +1 : -1;
+      const cornerDirY = corner === 'sw' || corner === 'se' ? +1 : -1;
 
       // Aspect ratio from initial dimensions (AC19)
       const initW = this._resizeInitialDims.width;
       const initH = this._resizeInitialDims.height;
-      const ar =
-        initH !== 0 ? initW / initH : DEFAULT_MODULE_WIDTH / DEFAULT_MODULE_HEIGHT;
+      const ar = initH !== 0 ? initW / initH : DEFAULT_MODULE_WIDTH / DEFAULT_MODULE_HEIGHT;
 
       // Compute diagonal direction vector (AC18)
       const dirLen = Math.sqrt(ar * ar + 1);
@@ -1176,10 +1168,7 @@ export class InputManager {
       // fromWorld = previous center, toWorld = new center
       const fromWorld =
         this._resizePrevCenter ??
-        vec2(
-          anchor.x - cornerDirX * (initW / 2),
-          anchor.y - cornerDirY * (initH / 2),
-        );
+        vec2(anchor.x - cornerDirX * (initW / 2), anchor.y - cornerDirY * (initH / 2));
       const toWorld = vec2(newCx, newCy);
       this._resizePrevCenter = toWorld;
 
@@ -1256,20 +1245,15 @@ export class InputManager {
 
       // Diamond hover
       const rawDiamondHit = this.hitTestConnectionPointInstance(current);
-      const diamondHit = (rawDiamondHit && rawDiamondHit.moduleId === selectedId)
-        ? rawDiamondHit
-        : null;
+      const diamondHit =
+        rawDiamondHit && rawDiamondHit.moduleId === selectedId ? rawDiamondHit : null;
       const prevDiamond = this.hoveredDiamond;
       if (
         diamondHit?.moduleId !== prevDiamond?.moduleId ||
         diamondHit?.edge !== prevDiamond?.edge
       ) {
         this.hoveredDiamond = diamondHit;
-        this.onDiamondHover?.(
-          diamondHit?.moduleId ?? null,
-          diamondHit?.edge ?? null,
-          current,
-        );
+        this.onDiamondHover?.(diamondHit?.moduleId ?? null, diamondHit?.edge ?? null, current);
       }
       // Story 8.5 AC4: Diamond hover → crosshair (Space pan has global priority per UX-DR5)
       if (!this.spaceHeld && this.hoveredDiamond) {
@@ -1278,20 +1262,14 @@ export class InputManager {
 
       // Handle hover
       const rawHandleHit = this.hitTestResizeHandleInstance(current);
-      const handleHit = (rawHandleHit && rawHandleHit.moduleId === selectedId)
-        ? rawHandleHit
-        : null;
+      const handleHit = rawHandleHit && rawHandleHit.moduleId === selectedId ? rawHandleHit : null;
       const prevHandle = this.hoveredHandle;
       if (
         handleHit?.moduleId !== prevHandle?.moduleId ||
         handleHit?.corner !== prevHandle?.corner
       ) {
         this.hoveredHandle = handleHit;
-        this.onHandleHover?.(
-          handleHit?.moduleId ?? null,
-          handleHit?.corner ?? null,
-          current,
-        );
+        this.onHandleHover?.(handleHit?.moduleId ?? null, handleHit?.corner ?? null, current);
       }
       // Story 8.5 AC15: Handle hover → resize cursor (Space pan has global priority per UX-DR5)
       if (!this.spaceHeld && this.hoveredHandle) {
@@ -1375,10 +1353,8 @@ export class InputManager {
         this._resizePrevCenter
       ) {
         // Threshold was crossed → compute final dimensions from last center + anchor
-        const finalW =
-          2 * Math.abs(this._resizePrevCenter.x - this._resizeAnchorWorld.x);
-        const finalH =
-          2 * Math.abs(this._resizePrevCenter.y - this._resizeAnchorWorld.y);
+        const finalW = 2 * Math.abs(this._resizePrevCenter.x - this._resizeAnchorWorld.x);
+        const finalH = 2 * Math.abs(this._resizePrevCenter.y - this._resizeAnchorWorld.y);
         this.onResizeEnd?.(this._resizeModuleId, {
           width: finalW,
           height: finalH,
@@ -1535,8 +1511,8 @@ export class InputManager {
             this.onCanvasClickEmpty?.(worldPos);
           }
           this.onModuleSelect?.(null);
-            // PATCH-1+3 fix: reset selection-scoped state on mouse deselect
-            this.resetSelectionState();
+          // PATCH-1+3 fix: reset selection-scoped state on mouse deselect
+          this.resetSelectionState();
         }
       }
 
@@ -1663,7 +1639,12 @@ export class InputManager {
     }
 
     // ── Story 3.5: Arrow keys → nudge selected module (AC2) ───
-    if (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    if (
+      e.code === 'ArrowUp' ||
+      e.code === 'ArrowDown' ||
+      e.code === 'ArrowLeft' ||
+      e.code === 'ArrowRight'
+    ) {
       e.preventDefault();
       if (this.isDragging) return;
       const dirMap: Record<string, 'up' | 'down' | 'left' | 'right'> = {

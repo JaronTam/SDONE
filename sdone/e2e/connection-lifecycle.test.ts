@@ -89,7 +89,9 @@ test.describe('Connection Lifecycle', () => {
     await expect(toast).toContainText('Great!');
   });
 
-  test('[P1] full stack (source→stock→sink) triggers complete-stack achievement', async ({ page }) => {
+  test('[P1] full stack (source→stock→sink) triggers complete-stack achievement', async ({
+    page,
+  }) => {
     // Create source, stock, and sink
     await createModule(page, 'source', -250, -150);
     await createModule(page, 'stock', 0, 0);

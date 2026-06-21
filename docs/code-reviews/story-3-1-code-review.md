@@ -34,7 +34,7 @@
 
 在 destroy() 中添加：
 for (const { el, handler } of this.dragDisposers) {
-  el.removeEventListener('dragstart', handler);
+el.removeEventListener('dragstart', handler);
 }
 this.dragDisposers.length = 0;
 
@@ -50,7 +50,7 @@ this.dragDisposers.length = 0;
 - **修复方案：**
 
 if (this.rootEl.parentNode) {
-  this.rootEl.parentNode.removeChild(this.rootEl);
+this.rootEl.parentNode.removeChild(this.rootEl);
 }
 
 ---
@@ -68,27 +68,27 @@ if (this.rootEl.parentNode) {
 
 ## 已验证正确
 
-| # | 功能 | 验证要点 |
-|---|------|----------|
-| 1 | DOM 结构：header + iconList | 清晰的层级结构，带有语义化 CSS 类名和 ARIA 标签 |
-| 2 | handlePinClick 正确绑定并存储 | this.boundPinClick = this.handlePinClick.bind(this) 第 97 行 |
-| 3 | HiDPI 画布渲染 (renderIconShape) | DPR 缩放计算正确（第 203-214 行），与 ICON_BUFFER_SIZE 比较 |
-| 4 | 通过 ShapePaths 实现视觉一致性 | 导入并使用 drawCloud/drawStock/drawSink |
-| 5 | setHidden() 使用 CSS 类切换 | 干净地添加/移除 module-panel--hidden，无内联样式冗余 |
-| 6 | dragstart 数据设置正确 | application/x-sdone-module MIME 类型 + effectAllowed = 'copy' |
+| #   | 功能                             | 验证要点                                                      |
+| --- | -------------------------------- | ------------------------------------------------------------- |
+| 1   | DOM 结构：header + iconList      | 清晰的层级结构，带有语义化 CSS 类名和 ARIA 标签               |
+| 2   | handlePinClick 正确绑定并存储    | this.boundPinClick = this.handlePinClick.bind(this) 第 97 行  |
+| 3   | HiDPI 画布渲染 (renderIconShape) | DPR 缩放计算正确（第 203-214 行），与 ICON_BUFFER_SIZE 比较   |
+| 4   | 通过 ShapePaths 实现视觉一致性   | 导入并使用 drawCloud/drawStock/drawSink                       |
+| 5   | setHidden() 使用 CSS 类切换      | 干净地添加/移除 module-panel--hidden，无内联样式冗余          |
+| 6   | dragstart 数据设置正确           | application/x-sdone-module MIME 类型 + effectAllowed = 'copy' |
 
 ---
 
 ## 推断验收标准
 
-| # | 标准 | 状态 |
-|---|------|------|
-| AC1 | 左侧面板显示 3 个可拖拽模块图标（源、存量、汇） | 通过 - ICON_DEFINITIONS 数组 + createIconItem() 循环 |
-| AC2 | 图标使用与主画布相同的 ShapePaths 绘制函数 | 通过 - 导入 drawCloud/drawStock/drawSink |
-| AC3 | 每个图标渲染在 canvas 上以实现 HiDPI 清晰度 | 通过 - renderIconShape() 使用 DPR 缩放 |
-| AC4 | Pin 按钮存在且可点击 | 通过 - handlePinClick() 第 242 行 console.log |
-| AC5 | destroy() 清理所有事件监听器并移除 DOM | 部分通过 - pinBtn 已清理，dragstart 未清理（见 P1 #1） |
-| AC6 | setHidden() 切换面板可见性 | 通过 - 第 123-129 行 |
+| #   | 标准                                            | 状态                                                   |
+| --- | ----------------------------------------------- | ------------------------------------------------------ |
+| AC1 | 左侧面板显示 3 个可拖拽模块图标（源、存量、汇） | 通过 - ICON_DEFINITIONS 数组 + createIconItem() 循环   |
+| AC2 | 图标使用与主画布相同的 ShapePaths 绘制函数      | 通过 - 导入 drawCloud/drawStock/drawSink               |
+| AC3 | 每个图标渲染在 canvas 上以实现 HiDPI 清晰度     | 通过 - renderIconShape() 使用 DPR 缩放                 |
+| AC4 | Pin 按钮存在且可点击                            | 通过 - handlePinClick() 第 242 行 console.log          |
+| AC5 | destroy() 清理所有事件监听器并移除 DOM          | 部分通过 - pinBtn 已清理，dragstart 未清理（见 P1 #1） |
+| AC6 | setHidden() 切换面板可见性                      | 通过 - 第 123-129 行                                   |
 
 5/6 验收标准完全通过。AC5 存在已知问题（P1 #1）。
 
@@ -96,11 +96,11 @@ if (this.rootEl.parentNode) {
 
 ## 审查文件清单
 
-sdone/src/ui/panels/ModulePanel.ts         - 面板组件（主文件）
-sdone/src/ui/panels/index.ts              - 桶导出
+sdone/src/ui/panels/ModulePanel.ts - 面板组件（主文件）
+sdone/src/ui/panels/index.ts - 桶导出
 sdone/src/ui/panels/styles/module-panel.css - 面板样式
-sdone/src/shared/ShapePaths.ts            - 共享形状绘制函数
-sdone/src/main.ts (L182-L187)             - 面板实例化
+sdone/src/shared/ShapePaths.ts - 共享形状绘制函数
+sdone/src/main.ts (L182-L187) - 面板实例化
 
 ---
 

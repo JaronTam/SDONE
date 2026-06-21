@@ -1,8 +1,8 @@
 ---
-name: 'step-02-select-framework'
-description: 'Select Playwright or Cypress and justify choice'
-nextStepFile: '{skill-root}/steps-c/step-03-scaffold-framework.md'
-outputFile: '{test_artifacts}/framework-setup-progress.md'
+name: "step-02-select-framework"
+description: "Select Playwright or Cypress and justify choice"
+nextStepFile: "{skill-root}/steps-c/step-03-scaffold-framework.md"
+outputFile: "{test_artifacts}/framework-setup-progress.md"
 ---
 
 # Step 2: Framework Selection
@@ -89,9 +89,9 @@ State the selected framework and reasoning.
 
   ```yaml
   ---
-  stepsCompleted: ['step-02-select-framework']
-  lastStep: 'step-02-select-framework'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-02-select-framework"]
+  lastStep: "step-02-select-framework"
+  lastSaved: "{date}"
   ---
   ```
 

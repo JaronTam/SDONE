@@ -1,12 +1,12 @@
 ---
-title: 'TEA Test Design → BMAD Handoff Document'
-version: '1.0'
-workflowType: 'testarch-test-design-handoff'
+title: "TEA Test Design → BMAD Handoff Document"
+version: "1.0"
+workflowType: "testarch-test-design-handoff"
 inputDocuments: []
-sourceWorkflow: 'testarch-test-design'
-generatedBy: 'TEA Master Test Architect'
-generatedAt: '{timestamp}'
-projectName: '{project_name}'
+sourceWorkflow: "testarch-test-design"
+generatedBy: "TEA Master Test Architect"
+generatedAt: "{timestamp}"
+projectName: "{project_name}"
 ---
 
 # TEA → BMAD Integration Handoff

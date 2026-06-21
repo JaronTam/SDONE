@@ -16,18 +16,18 @@ metadata:
 
 ## 最终审查结论
 
-| 类别 | 数量 | 明细 |
-|------|------|------|
-| **PATCH (已修复)** | 2 | SNAPSHOT_EMITTED currentValue 冻结 + netText DRY |
-| **DEFER** | 5 | Capacity NaN / overflow-y(→6.6) / destroy nullify / undo clone / bypass helper |
-| **DISMISS** | 13 | 含 3 条原误报 patch（toFixed / 连接拖拽时序） |
+| 类别               | 数量 | 明细                                                                           |
+| ------------------ | ---- | ------------------------------------------------------------------------------ |
+| **PATCH (已修复)** | 2    | SNAPSHOT_EMITTED currentValue 冻结 + netText DRY                               |
+| **DEFER**          | 5    | Capacity NaN / overflow-y(→6.6) / destroy nullify / undo clone / bypass helper |
+| **DISMISS**        | 13   | 含 3 条原误报 patch（toFixed / 连接拖拽时序）                                  |
 
 ## 修改文件
 
-| 文件 | 修改 |
-|------|------|
-| `sdone/src/main.ts` | `refreshAnalyticsPanel(snapshotState?)` + SNAPSHOT_EMITTED 传入 `payload.state` |
-| `sdone/src/ui/panels/AnalyticsPanel.ts` | 负净变化分支复用 `netText.substring(1)` |
+| 文件                                    | 修改                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------- |
+| `sdone/src/main.ts`                     | `refreshAnalyticsPanel(snapshotState?)` + SNAPSHOT_EMITTED 传入 `payload.state` |
+| `sdone/src/ui/panels/AnalyticsPanel.ts` | 负净变化分支复用 `netText.substring(1)`                                         |
 
 ## 验证
 

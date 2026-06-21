@@ -22,6 +22,7 @@
 **位置**：`InputManager.handleMouseMove()` 第 655-658 行 → `main.ts` 第 91-99 行
 
 流程：
+
 1. `hitTestConnection()` 返回 `hoveredId`
 2. 触发 `onConnectionHover(hoveredId, screenPos)`
 3. `main.ts` 读取 `currentState.connections[connectionId]` 以获取 rate 文本
@@ -50,6 +51,7 @@ public clearHoveredConnection(): void {
 `main.ts` 无条件设置 `sceneRenderer.tooltipScreenPos = screenPos`，即使在清除操作中也是如此。虽然没有工具提示文本渲染（`tooltipText` 已被清除），但 `tooltipScreenPos` 被设置为 `(0,0)`，即画布左上角。如果 `drawHoverTooltip` 被错误地以非空文本调用，工具提示将短暂出现在左上角。
 
 **建议**：当 connectionId 为 null 时，同时清除 `tooltipScreenPos = null`，或让 `main.ts` handler 检查空值：
+
 ```typescript
 inputManager.onConnectionHover = (connectionId, screenPos) => {
   if (connectionId) {
@@ -58,7 +60,7 @@ inputManager.onConnectionHover = (connectionId, screenPos) => {
     sceneRenderer.tooltipScreenPos = screenPos;
   } else {
     sceneRenderer.tooltipText = null;
-    sceneRenderer.tooltipScreenPos = null;  // 添加此行
+    sceneRenderer.tooltipScreenPos = null; // 添加此行
   }
 };
 ```
@@ -96,6 +98,7 @@ inputManager.onConnectionHover = (connectionId, screenPos) => {
 **位置**：`InputManager.test.ts`（64 个测试）
 
 现有测试覆盖了 `hitTest`、拖拽和双击逻辑，但没有专门验证以下内容的测试：
+
 - 鼠标悬停在连接上时 `getHoveredConnectionId()` 返回正确的 ID
 - 在模块拖拽期间 `onConnectionHover` **不**触发（空闲状态保护）
 - `clearHoveredConnection()` 触发 `onConnectionHover(null, ...)`
@@ -109,13 +112,13 @@ inputManager.onConnectionHover = (connectionId, screenPos) => {
 
 ## 总结
 
-| # | 问题 | 严重程度 | 可操作性 |
-|---|------|----------|----------|
-| 1 | O(n) 连接扫描，无空间索引 | 低 | 节点数 > 100 时可操作 |
-| 2 | hover 回调与渲染之间的数据竞态 | 低 | 已有 null 守卫 |
-| 3 | 清除操作传递 (0,0) 坐标 | 低 | 单行修复 |
-| 4 | 内联硬编码的发光/宽度值 | 极低 | 提取为常量 |
-| 5 | 无屏幕阅读器可访问性 | 极低 | v2 功能 |
-| 6 | 缺少悬停集成测试 | 中 | 3-4 个新测试 |
+| #   | 问题                           | 严重程度 | 可操作性              |
+| --- | ------------------------------ | -------- | --------------------- |
+| 1   | O(n) 连接扫描，无空间索引      | 低       | 节点数 > 100 时可操作 |
+| 2   | hover 回调与渲染之间的数据竞态 | 低       | 已有 null 守卫        |
+| 3   | 清除操作传递 (0,0) 坐标        | 低       | 单行修复              |
+| 4   | 内联硬编码的发光/宽度值        | 极低     | 提取为常量            |
+| 5   | 无屏幕阅读器可访问性           | 极低     | v2 功能               |
+| 6   | 缺少悬停集成测试               | 中       | 3-4 个新测试          |
 
 **整体评估**：Story 5.4 实现干净，无阻塞性技术债务。列出的项目均非关键项，不会影响功能或用户体验。项目 #3 和 #6 是唯一建议在下一个迭代中处理的项目。

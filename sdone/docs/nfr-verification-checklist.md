@@ -30,6 +30,6 @@
 
 ## Verification Record
 
-| Date | NFR-P1 | NFR-P6 | Verified By |
-|------|--------|--------|------------|
-|      | ☐ Pass / ☐ Fail | ☐ Pass / ☐ Fail | |
+| Date | NFR-P1          | NFR-P6          | Verified By |
+| ---- | --------------- | --------------- | ----------- |
+|      | ☐ Pass / ☐ Fail | ☐ Pass / ☐ Fail |             |

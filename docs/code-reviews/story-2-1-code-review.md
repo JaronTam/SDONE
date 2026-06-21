@@ -66,25 +66,25 @@ private sync(canvas: HTMLCanvasElement): void {
 
 ## ✅ 已验证正确
 
-| # | 功能 | 验证要点 |
-|---|------|----------|
-| 1 | `CanvasResizer` 构造函数存储绑定引用 | `this.handle = this.resize.bind(this)` 存储为字段，确保 `destroy()` 可正确移除 |
-| 2 | `destroy()` 正确清理监听器 | 第 38 行精确移除 `resize` 监听器，无泄漏 |
-| 3 | 双画布同步 (`sceneCanvas` + `minimapCanvas`) | 第 32–33 行对两个画布调用 `resize()` |
-| 4 | HMR dispose 集成 | `main.ts` 第 175 行 `canvasResizer.destroy()` |
-| 5 | CSS 层级架构 (`layout.css`) | z-index 层清晰分离：canvas(0) < panel(1) < control-bar(2) < minimap(3) |
+| #   | 功能                                         | 验证要点                                                                       |
+| --- | -------------------------------------------- | ------------------------------------------------------------------------------ |
+| 1   | `CanvasResizer` 构造函数存储绑定引用         | `this.handle = this.resize.bind(this)` 存储为字段，确保 `destroy()` 可正确移除 |
+| 2   | `destroy()` 正确清理监听器                   | 第 38 行精确移除 `resize` 监听器，无泄漏                                       |
+| 3   | 双画布同步 (`sceneCanvas` + `minimapCanvas`) | 第 32–33 行对两个画布调用 `resize()`                                           |
+| 4   | HMR dispose 集成                             | `main.ts` 第 175 行 `canvasResizer.destroy()`                                  |
+| 5   | CSS 层级架构 (`layout.css`)                  | z-index 层清晰分离：canvas(0) < panel(1) < control-bar(2) < minimap(3)         |
 
 ---
 
 ## 📋 推断验收标准
 
-| # | 标准 | 状态 |
-|---|------|------|
+| #   | 标准                                              | 状态                                       |
+| --- | ------------------------------------------------- | ------------------------------------------ |
 | AC1 | 应用启动时获取 `#scene` 和 `#minimap` canvas 元素 | ✅ `main.ts` 第 40–45 行，含不存在时抛异常 |
-| AC2 | Canvas 元素在窗口 resize 时自动同步宽高 | ✅ `CanvasResizer.handle` → `sync()` |
-| AC3 | CSS 布局使 canvas 填满容器（100% 宽高） | ✅ `layout.css` 第 53–54 行 |
-| AC4 | HMR 热重载时正确清理 resize 监听器 | ✅ `destroy()` + `main.ts` dispose 钩子 |
-| AC5 | Minimap 叠在主画布之上（z-index 正确） | ✅ z-index: 0 (canvas) vs 3 (minimap) |
+| AC2 | Canvas 元素在窗口 resize 时自动同步宽高           | ✅ `CanvasResizer.handle` → `sync()`       |
+| AC3 | CSS 布局使 canvas 填满容器（100% 宽高）           | ✅ `layout.css` 第 53–54 行                |
+| AC4 | HMR 热重载时正确清理 resize 监听器                | ✅ `destroy()` + `main.ts` dispose 钩子    |
+| AC5 | Minimap 叠在主画布之上（z-index 正确）            | ✅ z-index: 0 (canvas) vs 3 (minimap)      |
 
 **5/5 验收标准通过。**
 

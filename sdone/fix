@@ -11,7 +11,10 @@ const fixes = [];
 
 // Fix 1: P3-1 - Fix indentation of 'export class' (remove leading 2 spaces)
 if (content.includes('  export class ToolbarController {')) {
-  content = content.replace('  export class ToolbarController {', 'export class ToolbarController {');
+  content = content.replace(
+    '  export class ToolbarController {',
+    'export class ToolbarController {',
+  );
   fixes.push('P3-1: Fixed export class indentation');
 }
 
@@ -25,7 +28,8 @@ if (content.includes(oldDestroy)) {
 
 // Fix 3: Add COLOR_DOT_HIDDEN_CLASS constant
 const oldConst = 'const COLOR_DOT_CLASS = `${TOOLBAR_CLASS}__color-dot`;\nconst NAME_CLASS';
-const newConst = 'const COLOR_DOT_CLASS = `${TOOLBAR_CLASS}__color-dot`;\nconst COLOR_DOT_HIDDEN_CLASS = `${TOOLBAR_CLASS}__color-dot--hidden`;\nconst NAME_CLASS';
+const newConst =
+  'const COLOR_DOT_CLASS = `${TOOLBAR_CLASS}__color-dot`;\nconst COLOR_DOT_HIDDEN_CLASS = `${TOOLBAR_CLASS}__color-dot--hidden`;\nconst NAME_CLASS';
 if (content.includes(oldConst) && !content.includes('COLOR_DOT_HIDDEN_CLASS')) {
   content = content.replace(oldConst, newConst);
   fixes.push('P3-4: Added COLOR_DOT_HIDDEN_CLASS constant');
@@ -95,7 +99,7 @@ fs.writeFileSync(filepath, content, 'utf-8');
 
 // Report
 console.log(`Applied ${fixes.length} fixes:`);
-fixes.forEach(fix => console.log(`  ✓ ${fix}`));
+fixes.forEach((fix) => console.log(`  ✓ ${fix}`));
 
 if (fixes.length === 0) {
   console.log('WARNING: No fixes were applied - patterns may not match');

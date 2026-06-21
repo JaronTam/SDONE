@@ -1,8 +1,8 @@
 ---
-name: 'step-04a-subagent-api-failing'
-description: 'Subagent: Generate red-phase API test scaffolds (TDD red phase)'
+name: "step-04a-subagent-api-failing"
+description: "Subagent: Generate red-phase API test scaffolds (TDD red phase)"
 subagent: true
-outputFile: '/tmp/tea-atdd-api-tests-{{timestamp}}.json'
+outputFile: "/tmp/tea-atdd-api-tests-{{timestamp}}.json"
 ---
 
 # Subagent 4A: Generate Red-Phase API Test Scaffolds (TDD Red Phase)
@@ -66,17 +66,19 @@ For each API endpoint, create test file in `tests/api/[feature].spec.ts`:
 **Test Structure (ATDD - Red Phase):**
 
 ```typescript
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 // If Playwright Utils enabled:
 // import { apiRequest } from '@playwright-utils/api';
 
-test.describe('[Story Name] API Tests (ATDD)', () => {
-  test.skip('[P0] should register new user successfully', async ({ request }) => {
+test.describe("[Story Name] API Tests (ATDD)", () => {
+  test.skip("[P0] should register new user successfully", async ({
+    request,
+  }) => {
     // THIS TEST WILL FAIL - Endpoint not implemented yet
-    const response = await request.post('/api/users/register', {
+    const response = await request.post("/api/users/register", {
       data: {
-        email: 'newuser@example.com',
-        password: 'SecurePass123!',
+        email: "newuser@example.com",
+        password: "SecurePass123!",
       },
     });
 
@@ -86,22 +88,22 @@ test.describe('[Story Name] API Tests (ATDD)', () => {
     const user = await response.json();
     expect(user).toMatchObject({
       id: expect.any(Number),
-      email: 'newuser@example.com',
+      email: "newuser@example.com",
     });
   });
 
-  test.skip('[P1] should return 400 if email exists', async ({ request }) => {
+  test.skip("[P1] should return 400 if email exists", async ({ request }) => {
     // THIS TEST WILL FAIL - Endpoint not implemented yet
-    const response = await request.post('/api/users/register', {
+    const response = await request.post("/api/users/register", {
       data: {
-        email: 'existing@example.com',
-        password: 'SecurePass123!',
+        email: "existing@example.com",
+        password: "SecurePass123!",
       },
     });
 
     expect(response.status()).toBe(400);
     const error = await response.json();
-    expect(error.message).toContain('Email already exists');
+    expect(error.message).toContain("Email already exists");
   });
 });
 ```
@@ -156,27 +158,30 @@ When generating Pact consumer contract tests in the ATDD red phase, provider scr
  *   - Status: 201 for success, 400 for duplicate email, 422 for validation error
  *   - Response: { id: number, email: string, createdAt: string }
  */
-test.skip('[P0] should generate consumer contract for user registration', async () => {
+test.skip("[P0] should generate consumer contract for user registration", async () => {
   await provider
-    .given('no users exist')
-    .uponReceiving('a request to register a new user')
+    .given("no users exist")
+    .uponReceiving("a request to register a new user")
     .withRequest({
-      method: 'POST',
-      path: '/api/v2/users/register',
-      headers: { 'Content-Type': 'application/json' },
-      body: { email: 'newuser@example.com', password: 'SecurePass123!' },
+      method: "POST",
+      path: "/api/v2/users/register",
+      headers: { "Content-Type": "application/json" },
+      body: { email: "newuser@example.com", password: "SecurePass123!" },
     })
     .willRespondWith({
       status: 201,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
       body: like({
         id: integer(1),
-        email: string('newuser@example.com'),
-        createdAt: string('2025-01-15T10:00:00Z'),
+        email: string("newuser@example.com"),
+        createdAt: string("2025-01-15T10:00:00Z"),
       }),
     })
     .executeTest(async (mockServer) => {
-      const result = await registerUser({ email: 'newuser@example.com', password: 'SecurePass123!' }, { baseUrl: mockServer.url });
+      const result = await registerUser(
+        { email: "newuser@example.com", password: "SecurePass123!" },
+        { baseUrl: mockServer.url },
+      );
       expect(result.id).toEqual(expect.any(Number));
     });
 });

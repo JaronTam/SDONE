@@ -16,24 +16,25 @@
 经过逐项源码验证、spec 原文交叉验证、TypeScript 编译器实证测试和运行时行为测试，**此前代码审查报告中的 5 项缺陷发现（P2-1, P2-2, P3-1, P3-2, P3-3）全部事实正确，技术判断准确**。不存在"为了认错而认错"的递归讨好行为。
 
 但存在 2 处次级精度偏差：
+
 1. **P2-1 严重度评级偏高** — 应从 P2 降为 P3
 2. **P3-2 spec 依据表述不够精确** — 需补充 AC6 与 AC11 的张力分析
 
 ### 验证方法清单
 
-| 验证项 | 方法 | 结果 |
-|--------|------|------|
-| P2-1 类型断言赋值是否合法 | 创建最小测试用例，`tsc --noEmit --strict` 编译 | ✅ 编译通过 |
-| P2-1 运行时是否有效 | Node.js 运行时测试 `(this._options) = null` | ✅ 运行时正确设为 null |
-| P2-2 `node:fs` 导致 tsc 失败 | `npx tsc --noEmit` 实际运行 | ✅ 3 个 TS2591 错误确认 |
-| P2-2 `pressEscape` 未使用 | `grep -n "pressEscape"` | ✅ 仅定义未调用 |
-| P3-2 spec 是否暗示编辑时不更新名称 | spec AC11 + AC6 原文分析 | ✅ AC11 明确 "while NOT in edit mode" |
-| P3-2 TC-26 是否覆盖 input.value 覆盖 | 读取 TC-26 完整测试代码 | ✅ 未验证 input.value 覆盖 |
-| P3-3 Subtask 2.6 是否要求 BEM 类 | spec 原文 grep | ✅ "`.toolbar__color-dot--hidden` styles" |
-| AC12 默认值 | spec 原文 + 实现代码对比 | ✅ `{ source: 'Source', stock: 'Stock', sink: 'Sink' }` |
-| AC13 50字符上限 | 实现代码 grep | ✅ `maxLength = 50` + `slice(0, 50)` |
-| AC16 Escape 分层退出 | 实现代码 grep | ✅ 编辑时 `stopPropagation`，非编辑时不拦截 |
-| AC24 依赖约束 | 实现代码 grep | ✅ 唯一导入 `Vec2` |
+| 验证项                               | 方法                                           | 结果                                                    |
+| ------------------------------------ | ---------------------------------------------- | ------------------------------------------------------- |
+| P2-1 类型断言赋值是否合法            | 创建最小测试用例，`tsc --noEmit --strict` 编译 | ✅ 编译通过                                             |
+| P2-1 运行时是否有效                  | Node.js 运行时测试 `(this._options) = null`    | ✅ 运行时正确设为 null                                  |
+| P2-2 `node:fs` 导致 tsc 失败         | `npx tsc --noEmit` 实际运行                    | ✅ 3 个 TS2591 错误确认                                 |
+| P2-2 `pressEscape` 未使用            | `grep -n "pressEscape"`                        | ✅ 仅定义未调用                                         |
+| P3-2 spec 是否暗示编辑时不更新名称   | spec AC11 + AC6 原文分析                       | ✅ AC11 明确 "while NOT in edit mode"                   |
+| P3-2 TC-26 是否覆盖 input.value 覆盖 | 读取 TC-26 完整测试代码                        | ✅ 未验证 input.value 覆盖                              |
+| P3-3 Subtask 2.6 是否要求 BEM 类     | spec 原文 grep                                 | ✅ "`.toolbar__color-dot--hidden` styles"               |
+| AC12 默认值                          | spec 原文 + 实现代码对比                       | ✅ `{ source: 'Source', stock: 'Stock', sink: 'Sink' }` |
+| AC13 50字符上限                      | 实现代码 grep                                  | ✅ `maxLength = 50` + `slice(0, 50)`                    |
+| AC16 Escape 分层退出                 | 实现代码 grep                                  | ✅ 编辑时 `stopPropagation`，非编辑时不拦截             |
+| AC24 依赖约束                        | 实现代码 grep                                  | ✅ 唯一导入 `Vec2`                                      |
 
 ---
 
@@ -42,6 +43,7 @@
 ### 偏差 1: P2-1 严重度评级偏高（P2 → P3）
 
 **原报告表述:**
+
 > P2-1: `destroy()` 中 `_options` 赋值为 null 的类型转换是反模式
 > 严重度: P2
 
@@ -56,6 +58,7 @@
 3. **TypeScript 设计意图:** context7 查询 TypeScript 官方文档确认，类型断言（`as`）产生的是表达式，但 TypeScript 允许对属性访问（`this._options`）进行赋值，断言只影响类型检查而非代码生成。这不是"绕过"类型系统，而是 TypeScript 的合法特性。
 
 **修正:**
+
 - 严重度从 P2 降为 P3
 - 问题描述保留（类型声明与实际行为不一致仍是代码质量问题）
 - 删除"未来 TypeScript 严格模式升级可能破坏此写法"的推测（已证伪）
@@ -71,6 +74,7 @@
 ### 偏差 2: P3-2 spec 依据表述不够精确
 
 **原报告表述:**
+
 > spec AC6 说 "updateData re-renders name, color dot, and data text"，未明确编辑时的行为。
 > Dev Notes 说 "Update pre-edit name when NOT editing"，暗示编辑时不应更新名称显示。
 
@@ -79,18 +83,22 @@
 **spec 原文实证:**
 
 AC11（L37）明确规定：
+
 > "The stored pre-edit name is updated on every `updateData()` call while NOT in edit mode."
 
 这不是"暗示"，而是**明确规定** `_preEditName` 在编辑时不更新。但 AC11 只规定了 `_preEditName` 的行为，**未规定 input.value 的行为**。
 
 AC6（L25）规定：
+
 > "`updateData(data: ToolbarData)` re-renders name, color dot, and data text."
 
 这里存在 spec 内部的**张力**：
+
 - AC6 说 "re-renders name"（无编辑模式例外）
 - AC11 说 `_preEditName` 只在非编辑时更新（暗示编辑时名称相关状态应保持不变）
 
 **修正:**
+
 - P3-2 的问题描述应从"Dev Notes 暗示"改为"AC11 明确规定 `_preEditName` 编辑时不更新，但 AC6 的 're-renders name' 与此存在张力"
 - 实际问题更精确：`_preEditName` 逻辑正确（符合 AC11），但 input.value 被覆盖是 AC6 与 AC11 张力的未解决产物
 
@@ -106,13 +114,13 @@ AC6（L25）规定：
 
 ### 修正后的缺陷清单
 
-| 优先级 | 缺陷 | 修正 | 依据 |
-|--------|------|------|------|
-| ~~P2~~ → **P3** | P2-1: `_options` 类型转换 | 降级，删除"未来破坏"推测 | tsc 编译通过 + 运行时正确 |
-| **P2** | P2-2: 测试文件 `node:fs` 导致 tsc 失败 | 维持原评级 | tsc 实际报 3 个错误 |
-| **P3** | P3-1: click 监听器绑定分散 | 维持原评级 | 源码确认 |
-| **P3** | P3-2: 编辑时 input.value 被覆盖 | 补充 AC11 spec 依据 | AC11 明确规定 + TC-26 未覆盖 |
-| **P3** | P3-3: 缺少 BEM `--hidden` 修饰类 | 维持原评级 | Subtask 2.6 明确要求 |
+| 优先级          | 缺陷                                   | 修正                     | 依据                         |
+| --------------- | -------------------------------------- | ------------------------ | ---------------------------- |
+| ~~P2~~ → **P3** | P2-1: `_options` 类型转换              | 降级，删除"未来破坏"推测 | tsc 编译通过 + 运行时正确    |
+| **P2**          | P2-2: 测试文件 `node:fs` 导致 tsc 失败 | 维持原评级               | tsc 实际报 3 个错误          |
+| **P3**          | P3-1: click 监听器绑定分散             | 维持原评级               | 源码确认                     |
+| **P3**          | P3-2: 编辑时 input.value 被覆盖        | 补充 AC11 spec 依据      | AC11 明确规定 + TC-26 未覆盖 |
+| **P3**          | P3-3: 缺少 BEM `--hidden` 修饰类       | 维持原评级               | Subtask 2.6 明确要求         |
 
 ### 修正后的评级
 
@@ -123,9 +131,9 @@ AC6（L25）规定：
 
 ### 第一性原理校准总结
 
-| 偏差 | 原点偏离 | 正确原点 |
-|------|---------|---------|
-| P2-1 严重度 | 直觉不适 → P2 | 实际影响 → P3 |
+| 偏差           | 原点偏离       | 正确原点      |
+| -------------- | -------------- | ------------- |
+| P2-1 严重度    | 直觉不适 → P2  | 实际影响 → P3 |
 | P3-2 spec 依据 | Dev Notes 暗示 | AC11 明确规定 |
 
 ---
@@ -137,6 +145,7 @@ AC6（L25）规定：
 **触发节点:** P2-1 严重度评级
 
 **推理链:**
+
 1. 看到 `(this._options as Options | null) = null` — 类型断言在赋值左侧
 2. 直觉判断："类型断言在赋值左侧 = 绕过类型系统 = 脆弱"
 3. 推测："未来 TypeScript 严格模式可能破坏此写法"
@@ -151,6 +160,7 @@ AC6（L25）规定：
 **触发节点:** P3-2 的 spec 依据引用
 
 **推理链:**
+
 1. 查找 spec 中关于编辑时名称更新的规定
 2. 找到 AC6 "re-renders name" 和 Dev Notes "Update pre-edit name when NOT editing"
 3. 判断："Dev Notes 暗示编辑时不应更新"

@@ -52,7 +52,7 @@ export type RiskScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 /**
  * Action categories based on risk score thresholds
  */
-export type RiskAction = 'DOCUMENT' | 'MONITOR' | 'MITIGATE' | 'BLOCK';
+export type RiskAction = "DOCUMENT" | "MONITOR" | "MITIGATE" | "BLOCK";
 
 export type RiskAssessment = {
   probability: Probability;
@@ -65,7 +65,10 @@ export type RiskAssessment = {
 /**
  * Calculate risk score: probability × impact
  */
-export function calculateRiskScore(probability: Probability, impact: Impact): RiskScore {
+export function calculateRiskScore(
+  probability: Probability,
+  impact: Impact,
+): RiskScore {
   return (probability * impact) as RiskScore;
 }
 
@@ -77,16 +80,20 @@ export function calculateRiskScore(probability: Probability, impact: Impact): Ri
  * - 9: BLOCK (automatic FAIL until resolved or waived)
  */
 export function classifyRiskAction(score: RiskScore): RiskAction {
-  if (score >= 9) return 'BLOCK';
-  if (score >= 6) return 'MITIGATE';
-  if (score >= 4) return 'MONITOR';
-  return 'DOCUMENT';
+  if (score >= 9) return "BLOCK";
+  if (score >= 6) return "MITIGATE";
+  if (score >= 4) return "MONITOR";
+  return "DOCUMENT";
 }
 
 /**
  * Full risk assessment with automatic classification
  */
-export function assessRisk(params: { probability: Probability; impact: Impact; reasoning: string }): RiskAssessment {
+export function assessRisk(params: {
+  probability: Probability;
+  impact: Impact;
+  reasoning: string;
+}): RiskAssessment {
   const { probability, impact, reasoning } = params;
 
   const score = calculateRiskScore(probability, impact);
@@ -101,22 +108,37 @@ export function assessRisk(params: { probability: Probability; impact: Impact; r
  */
 export function generateRiskMatrix(): string {
   const matrix: string[][] = [];
-  const header = ['Impact \\ Probability', 'Unlikely (1)', 'Possible (2)', 'Likely (3)'];
+  const header = [
+    "Impact \\ Probability",
+    "Unlikely (1)",
+    "Possible (2)",
+    "Likely (3)",
+  ];
   matrix.push(header);
 
-  const impactLabels = ['Critical (3)', 'Degraded (2)', 'Minor (1)'];
+  const impactLabels = ["Critical (3)", "Degraded (2)", "Minor (1)"];
   for (let impact = 3; impact >= 1; impact--) {
     const row = [impactLabels[3 - impact]];
     for (let probability = 1; probability <= 3; probability++) {
-      const score = calculateRiskScore(probability as Probability, impact as Impact);
+      const score = calculateRiskScore(
+        probability as Probability,
+        impact as Impact,
+      );
       const action = classifyRiskAction(score);
-      const emoji = action === 'BLOCK' ? '🔴' : action === 'MITIGATE' ? '🟠' : action === 'MONITOR' ? '🟡' : '🟢';
+      const emoji =
+        action === "BLOCK"
+          ? "🔴"
+          : action === "MITIGATE"
+            ? "🟠"
+            : action === "MONITOR"
+              ? "🟡"
+              : "🟢";
       row.push(`${emoji} ${score}`);
     }
     matrix.push(row);
   }
 
-  return matrix.map((row) => `| ${row.join(' | ')} |`).join('\n');
+  return matrix.map((row) => `| ${row.join(" | ")} |`).join("\n");
 }
 ```
 
@@ -138,22 +160,28 @@ export function generateRiskMatrix(): string {
 
 ```typescript
 // tests/e2e/test-planning/risk-assessment.ts
-import { assessRisk, generateRiskMatrix, type RiskAssessment } from '../../../src/testing/risk-matrix';
+import {
+  assessRisk,
+  generateRiskMatrix,
+  type RiskAssessment,
+} from "../../../src/testing/risk-matrix";
 
 export type TestScenario = {
   id: string;
   title: string;
   feature: string;
   risk: RiskAssessment;
-  testLevel: 'E2E' | 'API' | 'Unit';
-  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  testLevel: "E2E" | "API" | "Unit";
+  priority: "P0" | "P1" | "P2" | "P3";
   owner: string;
 };
 
 /**
  * Assess test scenarios and auto-assign priority based on risk score
  */
-export function assessTestScenarios(scenarios: Omit<TestScenario, 'risk' | 'priority'>[]): TestScenario[] {
+export function assessTestScenarios(
+  scenarios: Omit<TestScenario, "risk" | "priority">[],
+): TestScenario[] {
   return scenarios.map((scenario) => {
     // Auto-assign priority based on risk score
     const priority = mapRiskToPriority(scenario.risk.score);
@@ -168,64 +196,64 @@ export function assessTestScenarios(scenarios: Omit<TestScenario, 'risk' | 'prio
  * P2: Medium (score 4-5) - fix if time permits
  * P3: Low (score 1-3) - document and defer
  */
-function mapRiskToPriority(score: number): 'P0' | 'P1' | 'P2' | 'P3' {
-  if (score === 9) return 'P0';
-  if (score >= 6) return 'P1';
-  if (score >= 4) return 'P2';
-  return 'P3';
+function mapRiskToPriority(score: number): "P0" | "P1" | "P2" | "P3" {
+  if (score === 9) return "P0";
+  if (score >= 6) return "P1";
+  if (score >= 4) return "P2";
+  return "P3";
 }
 
 /**
  * Example: Payment flow risk assessment
  */
-export const paymentScenarios: Array<Omit<TestScenario, 'priority'>> = [
+export const paymentScenarios: Array<Omit<TestScenario, "priority">> = [
   {
-    id: 'PAY-001',
-    title: 'Valid credit card payment completes successfully',
-    feature: 'Checkout',
+    id: "PAY-001",
+    title: "Valid credit card payment completes successfully",
+    feature: "Checkout",
     risk: assessRisk({
       probability: 2, // Possible (standard Stripe integration)
       impact: 3, // Critical (revenue loss if broken)
-      reasoning: 'Core revenue flow, but Stripe is well-tested',
+      reasoning: "Core revenue flow, but Stripe is well-tested",
     }),
-    testLevel: 'E2E',
-    owner: 'qa-team',
+    testLevel: "E2E",
+    owner: "qa-team",
   },
   {
-    id: 'PAY-002',
-    title: 'Expired credit card shows user-friendly error',
-    feature: 'Checkout',
+    id: "PAY-002",
+    title: "Expired credit card shows user-friendly error",
+    feature: "Checkout",
     risk: assessRisk({
       probability: 3, // Likely (edge case handling often buggy)
       impact: 2, // Degraded (users see error, but can retry)
-      reasoning: 'Error handling logic is custom and complex',
+      reasoning: "Error handling logic is custom and complex",
     }),
-    testLevel: 'E2E',
-    owner: 'qa-team',
+    testLevel: "E2E",
+    owner: "qa-team",
   },
   {
-    id: 'PAY-003',
-    title: 'Payment confirmation email formatting is correct',
-    feature: 'Email',
+    id: "PAY-003",
+    title: "Payment confirmation email formatting is correct",
+    feature: "Email",
     risk: assessRisk({
       probability: 2, // Possible (template changes occasionally break)
       impact: 1, // Minor (cosmetic issue, email still sent)
-      reasoning: 'Non-blocking, users get email regardless',
+      reasoning: "Non-blocking, users get email regardless",
     }),
-    testLevel: 'Unit',
-    owner: 'dev-team',
+    testLevel: "Unit",
+    owner: "dev-team",
   },
   {
-    id: 'PAY-004',
-    title: 'Payment fails gracefully when Stripe is down',
-    feature: 'Checkout',
+    id: "PAY-004",
+    title: "Payment fails gracefully when Stripe is down",
+    feature: "Checkout",
     risk: assessRisk({
       probability: 1, // Unlikely (Stripe has 99.99% uptime)
       impact: 3, // Critical (complete checkout failure)
-      reasoning: 'Rare but catastrophic, requires retry mechanism',
+      reasoning: "Rare but catastrophic, requires retry mechanism",
     }),
-    testLevel: 'API',
-    owner: 'qa-team',
+    testLevel: "API",
+    owner: "qa-team",
   },
 ];
 
@@ -270,8 +298,11 @@ ${generateRiskMatrix()}
 ## Scenarios by Risk Score (Highest First)
 ${scenarios
   .sort((a, b) => b.risk.score - a.risk.score)
-  .map((s) => `- **[${s.priority}]** ${s.id}: ${s.title} (Score: ${s.risk.score} - ${s.risk.action})`)
-  .join('\n')}
+  .map(
+    (s) =>
+      `- **[${s.priority}]** ${s.id}: ${s.title} (Score: ${s.risk.score} - ${s.risk.action})`,
+  )
+  .join("\n")}
 `.trim();
 }
 ```
@@ -294,7 +325,12 @@ ${scenarios
 
 ```typescript
 // src/testing/risk-tracking.ts
-import { type RiskAssessment, assessRisk, type Probability, type Impact } from './risk-matrix';
+import {
+  type RiskAssessment,
+  assessRisk,
+  type Probability,
+  type Impact,
+} from "./risk-matrix";
 
 export type RiskHistory = {
   timestamp: Date;
@@ -310,7 +346,7 @@ export type TrackedRisk = {
   currentRisk: RiskAssessment;
   history: RiskHistory[];
   mitigations: string[];
-  status: 'OPEN' | 'MITIGATED' | 'WAIVED' | 'RESOLVED';
+  status: "OPEN" | "MITIGATED" | "WAIVED" | "RESOLVED";
 };
 
 export class RiskTracker {
@@ -328,7 +364,8 @@ export class RiskTracker {
     reasoning: string;
     changedBy: string;
   }): TrackedRisk {
-    const { id, title, feature, probability, impact, reasoning, changedBy } = params;
+    const { id, title, feature, probability, impact, reasoning, changedBy } =
+      params;
 
     const assessment = assessRisk({ probability, impact, reasoning });
 
@@ -342,11 +379,11 @@ export class RiskTracker {
           timestamp: new Date(),
           assessment,
           changedBy,
-          reason: 'Initial assessment',
+          reason: "Initial assessment",
         },
       ],
       mitigations: [],
-      status: 'OPEN',
+      status: "OPEN",
     };
 
     this.risks.set(id, risk);
@@ -392,7 +429,12 @@ export class RiskTracker {
   /**
    * Mark risk as mitigated (probability reduced)
    */
-  mitigateRisk(params: { id: string; newProbability: Probability; mitigation: string; changedBy: string }): TrackedRisk | null {
+  mitigateRisk(params: {
+    id: string;
+    newProbability: Probability;
+    mitigation: string;
+    changedBy: string;
+  }): TrackedRisk | null {
     const { id, newProbability, mitigation, changedBy } = params;
     const risk = this.reassessRisk({
       id,
@@ -403,8 +445,11 @@ export class RiskTracker {
 
     if (risk) {
       risk.mitigations.push(mitigation);
-      if (risk.currentRisk.action === 'DOCUMENT' || risk.currentRisk.action === 'MONITOR') {
-        risk.status = 'MITIGATED';
+      if (
+        risk.currentRisk.action === "DOCUMENT" ||
+        risk.currentRisk.action === "MONITOR"
+      ) {
+        risk.status = "MITIGATED";
       }
     }
 
@@ -416,7 +461,10 @@ export class RiskTracker {
    */
   getRisksRequiringAction(): TrackedRisk[] {
     return Array.from(this.risks.values()).filter(
-      (r) => r.status === 'OPEN' && (r.currentRisk.action === 'MITIGATE' || r.currentRisk.action === 'BLOCK'),
+      (r) =>
+        r.status === "OPEN" &&
+        (r.currentRisk.action === "MITIGATE" ||
+          r.currentRisk.action === "BLOCK"),
     );
   }
 
@@ -442,13 +490,16 @@ export class RiskTracker {
 - **Reasoning**: ${risk.currentRisk.reasoning}
 
 ## Mitigations Applied
-${risk.mitigations.length > 0 ? risk.mitigations.map((m) => `- ${m}`).join('\n') : '- None'}
+${risk.mitigations.length > 0 ? risk.mitigations.map((m) => `- ${m}`).join("\n") : "- None"}
 
 ## History (${risk.history.length} changes)
 ${risk.history
   .reverse()
-  .map((h) => `- **${h.timestamp.toISOString()}** by ${h.changedBy}: Score ${h.assessment.score} (${h.assessment.action}) - ${h.reason}`)
-  .join('\n')}
+  .map(
+    (h) =>
+      `- **${h.timestamp.toISOString()}** by ${h.changedBy}: Score ${h.assessment.score} (${h.assessment.action}) - ${h.reason}`,
+  )
+  .join("\n")}
 `.trim();
   }
 }
@@ -472,10 +523,14 @@ ${risk.history
 
 ```typescript
 // src/testing/gate-decision.ts
-import { type RiskScore, classifyRiskAction, type RiskAction } from './risk-matrix';
-import { type TrackedRisk } from './risk-tracking';
+import {
+  type RiskScore,
+  classifyRiskAction,
+  type RiskAction,
+} from "./risk-matrix";
+import { type TrackedRisk } from "./risk-tracking";
 
-export type GateDecision = 'PASS' | 'CONCERNS' | 'FAIL' | 'WAIVED';
+export type GateDecision = "PASS" | "CONCERNS" | "FAIL" | "WAIVED";
 
 export type GateResult = {
   decision: GateDecision;
@@ -490,22 +545,32 @@ export type GateResult = {
  * Evaluate gate based on risk assessments
  */
 export function evaluateGateFromRisks(risks: TrackedRisk[]): GateResult {
-  const blockers = risks.filter((r) => r.currentRisk.action === 'BLOCK' && r.status === 'OPEN');
-  const concerns = risks.filter((r) => r.currentRisk.action === 'MITIGATE' && r.status === 'OPEN');
-  const monitored = risks.filter((r) => r.currentRisk.action === 'MONITOR');
-  const documented = risks.filter((r) => r.currentRisk.action === 'DOCUMENT');
+  const blockers = risks.filter(
+    (r) => r.currentRisk.action === "BLOCK" && r.status === "OPEN",
+  );
+  const concerns = risks.filter(
+    (r) => r.currentRisk.action === "MITIGATE" && r.status === "OPEN",
+  );
+  const monitored = risks.filter((r) => r.currentRisk.action === "MONITOR");
+  const documented = risks.filter((r) => r.currentRisk.action === "DOCUMENT");
 
   let decision: GateDecision;
 
   if (blockers.length > 0) {
-    decision = 'FAIL';
+    decision = "FAIL";
   } else if (concerns.length > 0) {
-    decision = 'CONCERNS';
+    decision = "CONCERNS";
   } else {
-    decision = 'PASS';
+    decision = "PASS";
   }
 
-  const summary = generateGateSummary({ decision, blockers, concerns, monitored, documented });
+  const summary = generateGateSummary({
+    decision,
+    blockers,
+    concerns,
+    monitored,
+    documented,
+  });
 
   return { decision, blockers, concerns, monitored, documented, summary };
 }
@@ -513,16 +578,20 @@ export function evaluateGateFromRisks(risks: TrackedRisk[]): GateResult {
 /**
  * Generate gate decision summary
  */
-function generateGateSummary(result: Omit<GateResult, 'summary'>): string {
+function generateGateSummary(result: Omit<GateResult, "summary">): string {
   const { decision, blockers, concerns, monitored, documented } = result;
 
   const lines: string[] = [`## Gate Decision: ${decision}`];
 
-  if (decision === 'FAIL') {
-    lines.push(`\n**Blockers** (${blockers.length}): Automatic FAIL until resolved or waived`);
+  if (decision === "FAIL") {
+    lines.push(
+      `\n**Blockers** (${blockers.length}): Automatic FAIL until resolved or waived`,
+    );
     blockers.forEach((r) => {
       lines.push(`- **${r.id}**: ${r.title} (Score: ${r.currentRisk.score})`);
-      lines.push(`  - Probability: ${r.currentRisk.probability}, Impact: ${r.currentRisk.impact}`);
+      lines.push(
+        `  - Probability: ${r.currentRisk.probability}, Impact: ${r.currentRisk.impact}`,
+      );
       lines.push(`  - Reasoning: ${r.currentRisk.reasoning}`);
     });
   }
@@ -531,13 +600,15 @@ function generateGateSummary(result: Omit<GateResult, 'summary'>): string {
     lines.push(`\n**Concerns** (${concerns.length}): Address before release`);
     concerns.forEach((r) => {
       lines.push(`- **${r.id}**: ${r.title} (Score: ${r.currentRisk.score})`);
-      lines.push(`  - Mitigations: ${r.mitigations.join(', ') || 'None'}`);
+      lines.push(`  - Mitigations: ${r.mitigations.join(", ") || "None"}`);
     });
   }
 
   if (monitored.length > 0) {
     lines.push(`\n**Monitored** (${monitored.length}): Watch closely`);
-    monitored.forEach((r) => lines.push(`- **${r.id}**: ${r.title} (Score: ${r.currentRisk.score})`));
+    monitored.forEach((r) =>
+      lines.push(`- **${r.id}**: ${r.title} (Score: ${r.currentRisk.score})`),
+    );
   }
 
   if (documented.length > 0) {
@@ -546,16 +617,16 @@ function generateGateSummary(result: Omit<GateResult, 'summary'>): string {
 
   lines.push(`\n---\n`);
   lines.push(`**Next Steps**:`);
-  if (decision === 'FAIL') {
+  if (decision === "FAIL") {
     lines.push(`- Resolve blockers or request formal waiver`);
-  } else if (decision === 'CONCERNS') {
+  } else if (decision === "CONCERNS") {
     lines.push(`- Implement mitigations for high-risk scenarios (score 6-8)`);
     lines.push(`- Re-run gate after mitigations`);
   } else {
     lines.push(`- Proceed with release`);
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 ```
 

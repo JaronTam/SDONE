@@ -1,9 +1,9 @@
 ---
-name: 'step-02-assess'
-description: 'Gather learner role, experience level, learning goals, and pain points to customize teaching'
+name: "step-02-assess"
+description: "Gather learner role, experience level, learning goals, and pain points to customize teaching"
 
-nextStepFile: '{skill-root}/steps-c/step-03-session-menu.md'
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
+nextStepFile: "{skill-root}/steps-c/step-03-session-menu.md"
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
 ---
 
 # Step 2: Learner Assessment

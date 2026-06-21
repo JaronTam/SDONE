@@ -1,8 +1,8 @@
 ---
-name: 'step-02-discover-tests'
-description: 'Find and parse test files'
-nextStepFile: '{skill-root}/steps-c/step-03-quality-evaluation.md'
-outputFile: '{test_artifacts}/test-review.md'
+name: "step-02-discover-tests"
+description: "Find and parse test files"
+nextStepFile: "{skill-root}/steps-c/step-03-quality-evaluation.md"
+outputFile: "{test_artifacts}/test-review.md"
 ---
 
 # Step 2: Discover & Parse Tests
@@ -92,9 +92,9 @@ After capturing `trace.zip`, prefer Playwright's newer trace CLI for local or do
 
   ```yaml
   ---
-  stepsCompleted: ['step-02-discover-tests']
-  lastStep: 'step-02-discover-tests'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-02-discover-tests"]
+  lastStep: "step-02-discover-tests"
+  lastSaved: "{date}"
   ---
   ```
 

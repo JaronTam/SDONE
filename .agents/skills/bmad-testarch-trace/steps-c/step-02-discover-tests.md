@@ -1,8 +1,8 @@
 ---
-name: 'step-02-discover-tests'
-description: 'Discover and catalog tests by level'
-nextStepFile: '{skill-root}/steps-c/step-03-map-criteria.md'
-outputFile: '{test_artifacts}/traceability-matrix.md'
+name: "step-02-discover-tests"
+description: "Discover and catalog tests by level"
+nextStepFile: "{skill-root}/steps-c/step-03-map-criteria.md"
+outputFile: "{test_artifacts}/traceability-matrix.md"
 ---
 
 # Step 2: Discover & Catalog Tests
@@ -104,9 +104,9 @@ Record these findings in step output as `coverage_heuristics` for Step 3/4.
 
   ```yaml
   ---
-  stepsCompleted: ['step-02-discover-tests']
-  lastStep: 'step-02-discover-tests'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-02-discover-tests"]
+  lastStep: "step-02-discover-tests"
+  lastSaved: "{date}"
   ---
   ```
 

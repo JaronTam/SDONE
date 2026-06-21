@@ -29,13 +29,14 @@
 
 **源码验证：** AC2 可拆解为 3 个独立子需求：
 
-| # | 子需求 | AC 来源 | 源码状态 | 判定 |
-|---|--------|---------|----------|------|
-| A | 检测 ~20px snap zone | Given: "within ~20px snap radius of module B's edge" | 部分实现 — 使用 `hitTest()` 在 mouseup 时检测，半径 32-72px（≥20px） | P3 设计偏差 |
-| B | 橡皮筋 snap 到目标边缘 | Then: "Rubber-band snaps to module B's nearest edge point" | **未实现** — `cursorWorldPos` 始终为原始光标位置（SceneRenderer.ts:777, main.ts:374） | **P1** |
-| C | 目标模块边缘高亮 | Then: "B's edge highlights briefly" | **未实现** — 零代码（无 `snapTargetId`、无高亮渲染） | **P1** |
+| #   | 子需求                 | AC 来源                                                    | 源码状态                                                                              | 判定        |
+| --- | ---------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ----------- |
+| A   | 检测 ~20px snap zone   | Given: "within ~20px snap radius of module B's edge"       | 部分实现 — 使用 `hitTest()` 在 mouseup 时检测，半径 32-72px（≥20px）                  | P3 设计偏差 |
+| B   | 橡皮筋 snap 到目标边缘 | Then: "Rubber-band snaps to module B's nearest edge point" | **未实现** — `cursorWorldPos` 始终为原始光标位置（SceneRenderer.ts:777, main.ts:374） | **P1**      |
+| C   | 目标模块边缘高亮       | Then: "B's edge highlights briefly"                        | **未实现** — 零代码（无 `snapTargetId`、无高亮渲染）                                  | **P1**      |
 
 **证据链：**
+
 - (A) `InputManager.ts:485` — `const targetId = this.hitTest(screenPos)` 在 mouseup 时使用全 hit 半径
 - (B) `main.ts:365-376` — `connectionDragProvider` 返回 `cursorWorldPos: worldPos`（原始光标，非 snap 目标边缘）
 - (C) `grep -r "snapTargetId\|highlightTarget\|edgeHighlight" sdone/src/` 零匹配
@@ -53,6 +54,7 @@
 AC2 Given 子句原文："User drags within ~20px snap radius of module B's edge"
 
 关键分析：
+
 1. **"~" 表示近似值** — 不是精确的 20px 硬约束
 2. **hitTest() 使用 ≥20px 所有模块** — source=32px, stock=~72px, sink=24px。所有类型 ≥20px，使连接创建**更容易**而非更困难
 3. **功能等价性评估：** 从 UX 角度，更大的检测范围 = 更容易创建连接 = 用户体验更好。这不是缺陷，而是实现选择的差异
@@ -69,6 +71,7 @@ AC2 Given 子句原文："User drags within ~20px snap radius of module B's edge
 **此前 Auditor 的 AC1 判定：** PASS（正确识别 source edge 起点）
 
 **补充验证：** 这个 PASS 判定是正确的，但值得细化：
+
 - `main.ts:371` — `getEdgePoint(sourceNode, worldPos)` 正确计算 source 模块边界点
 - `SceneRenderer.ts:777` — `ctx.moveTo(preview.sourceWorldPos.x, preview.sourceWorldPos.y)` 从边界点开始
 - ✅ AC1 的 "from module A's nearest edge point" 已实现
@@ -82,28 +85,30 @@ AC2 Given 子句原文："User drags within ~20px snap radius of module B's edge
 
 ### 修正后的 AC2 判定
 
-| # | 严重性 | 类别 | 描述 | 文件:行 |
-|---|--------|------|------|---------|
-| 1 | **P1** | AC2 Then 违反 | 橡皮筋线未 snap 到目标模块最近边缘点（始终画到原始光标位置） | SceneRenderer.ts:777, main.ts:374 |
-| 2 | **P1** | AC2 Then 违反 | 拖拽中无目标模块边缘高亮效果（snapTargetId 概念不存在于代码库中） | SceneRenderer.ts, InputManager.ts |
-| 3 | **P3** | AC2 Given 实现选择 | Snap 检测使用 hitTest() center-distance 半径 (32-72px) 而非 edge-distance ~20px | InputManager.ts:485, SceneRenderer.ts:39-49 |
+| #   | 严重性 | 类别               | 描述                                                                            | 文件:行                                     |
+| --- | ------ | ------------------ | ------------------------------------------------------------------------------- | ------------------------------------------- |
+| 1   | **P1** | AC2 Then 违反      | 橡皮筋线未 snap 到目标模块最近边缘点（始终画到原始光标位置）                    | SceneRenderer.ts:777, main.ts:374           |
+| 2   | **P1** | AC2 Then 违反      | 拖拽中无目标模块边缘高亮效果（snapTargetId 概念不存在于代码库中）               | SceneRenderer.ts, InputManager.ts           |
+| 3   | **P3** | AC2 Given 实现选择 | Snap 检测使用 hitTest() center-distance 半径 (32-72px) 而非 edge-distance ~20px | InputManager.ts:485, SceneRenderer.ts:39-49 |
 
 ### 原报告修正
 
-| 原发现 | 原定级 | 修正定级 | 原因 |
-|--------|--------|----------|------|
-| "AC2 snap/highlight not implemented" | P1 | **维持 P1**（但拆分为 2 个独立 P1） | 核心事实正确，但需要更精确地拆分 |
-| "Snap zone radius mismatch" | P2 | **降级 P3** | AC 使用 "~" 近似标记，hitTest 使用 ≥20px 对所有类型，功能等价 |
-| "Rubber-band doesn't snap to target edge" | P2 | **合并入 P1 #1** | 不是独立问题，是 AC2 Then 违反的一部分 |
+| 原发现                                    | 原定级 | 修正定级                            | 原因                                                          |
+| ----------------------------------------- | ------ | ----------------------------------- | ------------------------------------------------------------- |
+| "AC2 snap/highlight not implemented"      | P1     | **维持 P1**（但拆分为 2 个独立 P1） | 核心事实正确，但需要更精确地拆分                              |
+| "Snap zone radius mismatch"               | P2     | **降级 P3**                         | AC 使用 "~" 近似标记，hitTest 使用 ≥20px 对所有类型，功能等价 |
+| "Rubber-band doesn't snap to target edge" | P2     | **合并入 P1 #1**                    | 不是独立问题，是 AC2 Then 违反的一部分                        |
 
 ### 第一性原理溯源：此前为何偏离逻辑原点
 
 **此前的推理链：**
+
 1. 搜索 `findSnapTarget`、`SNAP_RADIUS_PX`、`snapTargetId` → 零匹配
 2. 结论：AC2 未实现
 3. 将 snap zone 检测半径差异也归入"未实现"类别
 
 **正确的推理链应该是：**
+
 1. **解析 AC2 的独立子需求**（Given 条件 vs When 触发 vs Then 行为）
 2. **对每个子需求独立验证**（检测机制、视觉效果、高亮）
 3. **区分"未实现"和"实现方式不同"**（snap zone 用 hitTest 替代）
@@ -120,6 +125,7 @@ AC2 Given 子句原文："User drags within ~20px snap radius of module B's edge
 **现象：** 将多维度问题压缩为"已实现/未实现"的单一判定。
 
 **推理节点：** 在验证 AC2 时，模型执行了 `grep findSnapTarget/SNAP_RADIUS_PX/snapTargetId → 零匹配 → AC2未实现` 的简化推理链。这个链条跳过了两个关键步骤：
+
 1. 是否存在功能性等价替代？（hitTest 代替了 snap zone 检测）
 2. 子需求是否可以独立判定？（snap visual 和 highlight 是独立的）
 
@@ -130,6 +136,7 @@ AC2 Given 子句原文："User drags within ~20px snap radius of module B's edge
 **现象：** snap zone 检测半径差异（≥20px vs ~20px）被定性为 P2 偏离。
 
 **推理节点：** 模型将数值差异（14≠20，32≠20，72≠20）直接等同于"AC 违反"，而未评估：
+
 1. AC 文本中的 "~" 近似标记
 2. 功能等价性（所有检测半径 ≥20px）
 3. UX 影响方向（更大范围 → 更容易创建连接 → 正向体验）
@@ -148,14 +155,15 @@ AC2 Given 子句原文："User drags within ~20px snap radius of module B's edge
 
 ## [总结]
 
-| 指标 | 原始 | 修正 |
-|------|------|------|
+| 指标        | 原始     | 修正        |
+| ----------- | -------- | ----------- |
 | AC2 P1 发现 | 1 条捆绑 | 2 条独立 P1 |
-| AC2 P2 发现 | 2 条 | 0 条 |
-| AC2 P3 发现 | 0 条 | 1 条 |
-| 误报 | 0 | 0 |
+| AC2 P2 发现 | 2 条     | 0 条        |
+| AC2 P3 发现 | 0 条     | 1 条        |
+| 误报        | 0        | 0           |
 
 **AC2 实质性问题确认：**
+
 - P1: 橡皮筋线不 snap 到目标边缘（未实现）
 - P1: 无目标模块边缘高亮（未实现）
 - P3: Snap 检测使用 center-distance 而非 edge-distance（实现选择差异）

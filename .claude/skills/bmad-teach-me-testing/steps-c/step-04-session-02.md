@@ -1,13 +1,13 @@
 ---
-name: 'step-04-session-02'
-description: 'Session 2: Core Concepts - Risk-based testing, DoD, testing philosophy (45 min)'
+name: "step-04-session-02"
+description: "Session 2: Core Concepts - Risk-based testing, DoD, testing philosophy (45 min)"
 
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
-sessionNotesTemplate: '../templates/session-notes-template.md'
-sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-02-notes.md'
-nextStepFile: '{skill-root}/steps-c/step-03-session-menu.md'
-advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
+sessionNotesTemplate: "../templates/session-notes-template.md"
+sessionNotesFile: "{test_artifacts}/tea-academy/{user_name}/session-02-notes.md"
+nextStepFile: "{skill-root}/steps-c/step-03-session-menu.md"
+advancedElicitationTask: "{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Session 2 - Core Concepts

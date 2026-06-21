@@ -107,7 +107,7 @@
   margin-top: 6px;
   padding: 6px 8px;
   background: rgba(245, 158, 11, 0.1); /* amber-500 @ 10% */
-  border-left: 3px solid #f59e0b;       /* amber-500 */
+  border-left: 3px solid #f59e0b; /* amber-500 */
   border-radius: 4px;
 }
 

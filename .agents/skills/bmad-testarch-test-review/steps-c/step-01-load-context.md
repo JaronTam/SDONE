@@ -1,9 +1,9 @@
 ---
-name: 'step-01-load-context'
-description: 'Load knowledge base, determine scope, and gather context'
-nextStepFile: '{skill-root}/steps-c/step-02-discover-tests.md'
-knowledgeIndex: './resources/tea-index.csv'
-outputFile: '{test_artifacts}/test-review.md'
+name: "step-01-load-context"
+description: "Load knowledge base, determine scope, and gather context"
+nextStepFile: "{skill-root}/steps-c/step-02-discover-tests.md"
+knowledgeIndex: "./resources/tea-index.csv"
+outputFile: "{test_artifacts}/test-review.md"
 ---
 
 # Step 1: Load Context & Knowledge Base
@@ -167,9 +167,9 @@ Coverage mapping and coverage gates are out of scope in `test-review`. Route tho
 
   ```yaml
   ---
-  stepsCompleted: ['step-01-load-context']
-  lastStep: 'step-01-load-context'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-01-load-context"]
+  lastStep: "step-01-load-context"
+  lastSaved: "{date}"
   ---
   ```
 

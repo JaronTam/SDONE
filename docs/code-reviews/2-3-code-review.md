@@ -9,11 +9,11 @@
 
 ## Review Summary
 
-| Severity | Count | Items |
-|----------|-------|-------|
-| 🔴 HIGH | 1 | B1: Missing unit tests |
-| 🟡 MEDIUM | 2 | B2: Cross-story scope violation (drawConnections); E5: Hit-radius default branch assumption |
-| 🟢 LOW | 5 | B3: Unused import; B4: roundedRect robustness; E2: save/restore consistency; E3/E4: Edge cases (low risk) |
+| Severity  | Count | Items                                                                                                     |
+| --------- | ----- | --------------------------------------------------------------------------------------------------------- |
+| 🔴 HIGH   | 1     | B1: Missing unit tests                                                                                    |
+| 🟡 MEDIUM | 2     | B2: Cross-story scope violation (drawConnections); E5: Hit-radius default branch assumption               |
+| 🟢 LOW    | 5     | B3: Unused import; B4: roundedRect robustness; E2: save/restore consistency; E3/E4: Edge cases (low risk) |
 
 All 8 Acceptance Criteria are satisfied. Core rendering logic is correct.
 
@@ -41,6 +41,7 @@ All 8 Acceptance Criteria are satisfied. Core rendering logic is correct.
 **Location:** `SceneRenderer.ts:431-446, 135`
 
 `drawConnections()` draws center-to-center pink lines. Story 2.3 spec explicitly states:
+
 > ❌ No connection arrow rendering — Story 2.4
 
 While this may have been added for development convenience, `drawFrame()` calls `this.drawConnections(this.graphState)` unconditionally at L135. When Story 2.4 implements proper arrow rendering, these placeholder lines could cause visual conflicts or duplicate rendering.
@@ -54,7 +55,7 @@ While this may have been added for development convenience, `drawFrame()` calls 
 **Location:** `main.ts:2`
 
 ```typescript
-import { vec2 } from '../shared/Vec2.js';
+import { vec2 } from "../shared/Vec2.js";
 ```
 
 `vec2` is imported as a value but never used in `main.ts`. Only the type `Vec2` is used (L69 inline type import). This is dead code.
@@ -113,16 +114,16 @@ When ratio = 0, `fillHeight = 0` and `fillRect(x, y, w, 0)` is called. Canvas si
 
 ## Layer 3: Acceptance Auditor
 
-| AC | Description | Status | Evidence |
-|----|-------------|--------|----------|
-| AC1 | Source cloud shape (light green, overlapping circles) | ✅ PASS | `drawSource()` L258-288 |
-| AC2 | Stock rounded rect with fill level (120×80, white, blue fill, centered value) | ✅ PASS | `drawStock()` L292-347 |
-| AC3 | Sink infinity/funnel shape (dark red) | ✅ PASS | `drawSink()` L351-391 |
-| AC4 | Viewport transform applied (world→screen mapping) | ✅ PASS | `drawFrame()` L127-130 |
-| AC5 | Per-module color override (node.color ?? default) | ✅ PASS | L261, L354 |
-| AC6 | Module labels below shape (per-type colors) | ✅ PASS | L244-252 |
-| AC7 | Unknown type fallback (gray circle) | ✅ PASS | L239-240 → L395-404 |
-| AC8 | Selected module highlight (warm yellow glow behind) | ✅ PASS | L212-225 (pass 1), L228 (pass 2) |
+| AC  | Description                                                                   | Status  | Evidence                         |
+| --- | ----------------------------------------------------------------------------- | ------- | -------------------------------- |
+| AC1 | Source cloud shape (light green, overlapping circles)                         | ✅ PASS | `drawSource()` L258-288          |
+| AC2 | Stock rounded rect with fill level (120×80, white, blue fill, centered value) | ✅ PASS | `drawStock()` L292-347           |
+| AC3 | Sink infinity/funnel shape (dark red)                                         | ✅ PASS | `drawSink()` L351-391            |
+| AC4 | Viewport transform applied (world→screen mapping)                             | ✅ PASS | `drawFrame()` L127-130           |
+| AC5 | Per-module color override (node.color ?? default)                             | ✅ PASS | L261, L354                       |
+| AC6 | Module labels below shape (per-type colors)                                   | ✅ PASS | L244-252                         |
+| AC7 | Unknown type fallback (gray circle)                                           | ✅ PASS | L239-240 → L395-404              |
+| AC8 | Selected module highlight (warm yellow glow behind)                           | ✅ PASS | L212-225 (pass 1), L228 (pass 2) |
 
 ---
 
@@ -138,11 +139,11 @@ When ratio = 0, `fillHeight = 0` and `fillRect(x, y, w, 0)` is called. Canvas si
 
 ## Files Reviewed
 
-| File | Lines | Purpose |
-|------|-------|---------|
+| File                                | Lines | Purpose                                                                        |
+| ----------------------------------- | ----- | ------------------------------------------------------------------------------ |
 | `sdone/src/canvas/SceneRenderer.ts` | 1-447 | Module shape rendering, color palette, hit-radius helpers, selection highlight |
-| `sdone/src/canvas/index.ts` | 1-3 | Module re-exports |
-| `sdone/src/main.ts` | 1-116 | Seed modules, state wiring, interaction callbacks |
+| `sdone/src/canvas/index.ts`         | 1-3   | Module re-exports                                                              |
+| `sdone/src/main.ts`                 | 1-116 | Seed modules, state wiring, interaction callbacks                              |
 
 ## References
 

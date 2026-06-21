@@ -16,6 +16,7 @@ metadata:
 **测试状态:** 88/88 InputManager 测试通过
 **基线提交:** 2b14e3d
 **Context7 验证:**
+
 - TypeScript 官方文档 (`/microsoft/typescript-website`) — 确认可变类字段字面量类型拓宽行为，支持 DECISION-1 修复方案
 - Vitest 文档 (`/vitest-dev/vitest/v4.1.6`) — 验证 `vi.fn()` spy 和回调测试模式符合最佳实践
 
@@ -38,46 +39,46 @@ Story 8.2 的核心逻辑（hit-test 纯函数、hover 变更检测、keyboard g
 
 ### 声明范围（Story 8.2 spec）
 
-| 文件 | 操作 | 说明 |
-|------|------|------|
-| `src/input/InputManager.ts` | MODIFIED | hit-test 方法、状态标志、回调、hover 追踪、edge-zone 移除、keyboard gating |
-| `src/input/InputManager.test.ts` | MODIFIED | 17 新测试、15 移除 edge-zone 测试、1 更新 Tab 测试 |
+| 文件                             | 操作     | 说明                                                                       |
+| -------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `src/input/InputManager.ts`      | MODIFIED | hit-test 方法、状态标志、回调、hover 追踪、edge-zone 移除、keyboard gating |
+| `src/input/InputManager.test.ts` | MODIFIED | 17 新测试、15 移除 edge-zone 测试、1 更新 Tab 测试                         |
 
 ### 实际 git diff 范围
 
-| 层 | 文件 | 变更行数 | 说明 |
-|----|------|---------|------|
-| A1 | `InputManager.ts` | +195 / -45 | 新增 hit-test 纯函数、instance wrapper、hover 检测、keyboard gating、回调声明、状态标志 |
-| A2 | `InputManager.test.ts` | +210 / -310 | 新增 hit-test/keyboard 测试、移除 edge-zone 测试套件、更新 Tab 测试 |
-| B | 无 | — | 无测试基础设施变更 |
-| C | 无 | — | 无工具链变更 |
+| 层  | 文件                   | 变更行数    | 说明                                                                                    |
+| --- | ---------------------- | ----------- | --------------------------------------------------------------------------------------- |
+| A1  | `InputManager.ts`      | +195 / -45  | 新增 hit-test 纯函数、instance wrapper、hover 检测、keyboard gating、回调声明、状态标志 |
+| A2  | `InputManager.test.ts` | +210 / -310 | 新增 hit-test/keyboard 测试、移除 edge-zone 测试套件、更新 Tab 测试                     |
+| B   | 无                     | —           | 无测试基础设施变更                                                                      |
+| C   | 无                     | —           | 无工具链变更                                                                            |
 
 ---
 
 ## 🔍 三层审查执行
 
-| 层 | 状态 | 发现数 |
-|----|------|--------|
-| Blind Hunter | ✅ 完成 | 3 |
-| Acceptance Auditor | ✅ 完成 | 2 |
-| Edge Case Hunter | ✅ 完成 | 4 |
+| 层                 | 状态    | 发现数 |
+| ------------------ | ------- | ------ |
+| Blind Hunter       | ✅ 完成 | 3      |
+| Acceptance Auditor | ✅ 完成 | 2      |
+| Edge Case Hunter   | ✅ 完成 | 4      |
 
 ---
 
 ## 📋 发现清单
 
-| ID | 类型 | 严重度 | 标题 | 状态 |
-|----|------|--------|------|------|
-| PATCH-1 | Patch | 🔴 P2 | `isEditingName` 鼠标取消选择时未重置 | 🔓 Open |
-| PATCH-2 | Patch | 🔴 P2 | hit-test 函数未过滤到已选模块 — hover 可报告错误模块 | 🔓 Open |
-| PATCH-3 | Patch | 🟡 P3 | `hoveredDiamond`/`hoveredHandle` 鼠标取消选择时未清理 | 🔓 Open |
-| PATCH-4 | Patch | 🟡 P3 | `handleMouseLeave` 未清理 diamond/handle hover 状态 | 🔓 Open |
-| PATCH-5 | Patch | 🟡 P3 | Enter 键二次按下违反 AC9 规范 | 🔓 Open |
-| DECISION-1 | Decision | 🟡 P3 | hover 状态字段类型拓宽丢失联合类型精度 | 🔓 Open |
-| DEFER-1 | Defer | ⚪ P4 | `classifyHitZone` 死代码 + `@ts-ignore` | 🔓 Tracked |
-| DEFER-2 | Defer | ⚪ P4 | `_isResizing`/`_isColorPickerOpen` 前向声明 + `@ts-ignore` | 🔓 Tracked |
-| DISMISS-1 | Dismiss | ⚪ P4 | `isDragging` getter 未包含 `_isResizing` | 🔓 Story 8.5 |
-| DISMISS-2 | Dismiss | ⚪ P4 | `!= null` 松散等号缺少解释注释 | 🔓 可选 |
+| ID         | 类型     | 严重度 | 标题                                                       | 状态         |
+| ---------- | -------- | ------ | ---------------------------------------------------------- | ------------ |
+| PATCH-1    | Patch    | 🔴 P2  | `isEditingName` 鼠标取消选择时未重置                       | 🔓 Open      |
+| PATCH-2    | Patch    | 🔴 P2  | hit-test 函数未过滤到已选模块 — hover 可报告错误模块       | 🔓 Open      |
+| PATCH-3    | Patch    | 🟡 P3  | `hoveredDiamond`/`hoveredHandle` 鼠标取消选择时未清理      | 🔓 Open      |
+| PATCH-4    | Patch    | 🟡 P3  | `handleMouseLeave` 未清理 diamond/handle hover 状态        | 🔓 Open      |
+| PATCH-5    | Patch    | 🟡 P3  | Enter 键二次按下违反 AC9 规范                              | 🔓 Open      |
+| DECISION-1 | Decision | 🟡 P3  | hover 状态字段类型拓宽丢失联合类型精度                     | 🔓 Open      |
+| DEFER-1    | Defer    | ⚪ P4  | `classifyHitZone` 死代码 + `@ts-ignore`                    | 🔓 Tracked   |
+| DEFER-2    | Defer    | ⚪ P4  | `_isResizing`/`_isColorPickerOpen` 前向声明 + `@ts-ignore` | 🔓 Tracked   |
+| DISMISS-1  | Dismiss  | ⚪ P4  | `isDragging` getter 未包含 `_isResizing`                   | 🔓 Story 8.5 |
+| DISMISS-2  | Dismiss  | ⚪ P4  | `!= null` 松散等号缺少解释注释                             | 🔓 可选      |
 
 ---
 
@@ -90,6 +91,7 @@ Story 8.2 的核心逻辑（hit-test 纯函数、hover 变更检测、keyboard g
 **问题描述:**
 
 `isEditingName` 标志在以下位置被重置为 `false`：
+
 - `handleWindowBlur` (L535) ✅
 - Escape handler (L1313) ✅
 
@@ -194,9 +196,8 @@ const selectedId = this.selectedModuleIdProvider?.();
 if (selectedId != null) {
   const diamondHit = this.hitTestConnectionPointInstance(current);
   // Only report hover for the selected module
-  const filteredDiamondHit = (diamondHit && diamondHit.moduleId === selectedId)
-    ? diamondHit
-    : null;
+  const filteredDiamondHit =
+    diamondHit && diamondHit.moduleId === selectedId ? diamondHit : null;
   // ... use filteredDiamondHit instead of diamondHit
 }
 ```
@@ -319,6 +320,7 @@ if (this.selectedModuleIdProvider?.() != null && !this.isEditingName) {
 **根因分析:**
 
 这是 `isEditingName` 管理的设计间隙。在完整的 V1.1 实现中：
+
 1. 用户按 Enter → `isEditingName = true` → ToolbarController 聚焦 name input
 2. Name input 获得焦点后，`isEditingTarget(e.target)` 返回 true → InputManager 不再处理键盘事件
 3. 用户在 name input 中按 Enter → input 自身处理（提交/失焦）
@@ -331,7 +333,7 @@ if (this.selectedModuleIdProvider?.() != null && !this.isEditingName) {
 **方案 A（推荐）：当模块选中时，else 分支不应调用 `onModulePlaceAtCenter`**
 
 ```typescript
-if (e.code === 'Enter') {
+if (e.code === "Enter") {
   e.preventDefault();
   if (this.isDragging) return;
   if (this.selectedModuleIdProvider?.() != null) {
@@ -370,10 +372,16 @@ if (e.code === 'Enter') {
 
 ```typescript
 // L70 — 精确类型
-{ moduleId: string; edge: 'top' | 'bottom' | 'left' | 'right' }
+{
+  moduleId: string;
+  edge: "top" | "bottom" | "left" | "right";
+}
 
 // L108 — 精确类型
-{ moduleId: string; corner: 'nw' | 'ne' | 'sw' | 'se' }
+{
+  moduleId: string;
+  corner: "nw" | "ne" | "sw" | "se";
+}
 ```
 
 但 instance wrapper 和 hover 状态字段使用拓宽的 `string` 类型：
@@ -388,6 +396,7 @@ private hitTestConnectionPointInstance(screenPos: Vec2): { moduleId: string; edg
 ```
 
 类型拓宽导致：
+
 1. `hoveredDiamond.edge` 的类型是 `string`，编译器无法检查赋值是否为合法的 `'top' | 'bottom' | 'left' | 'right'`
 2. 变更检测比较 `diamondHit?.edge !== prevDiamond?.edge` 无法利用类型系统保证比较的值在合法范围内
 
@@ -465,7 +474,7 @@ AC5 明确要求保留此方法（"classifyHitZone method definition is preserve
 
 ```typescript
 // != null (not !==) — ?.() returns undefined when provider is null/undefined
-this.selectedModuleIdProvider?.() != null
+this.selectedModuleIdProvider?.() != null;
 ```
 
 Dismiss — 可选改进。
@@ -474,24 +483,24 @@ Dismiss — 可选改进。
 
 ## ✅ Acceptance Auditor — AC 逐项验证
 
-| AC | 描述 | 状态 | 备注 |
-|----|------|------|------|
-| AC1 | `hitTestConnectionPoint` hit detection | ✅ 通过 | 4 edge midpoints 正确计算，8px radius 精确 |
-| AC2 | `hitTestConnectionPoint` zoom scaling | ✅ 通过 | screen-pixel radius zoom-independent，测试验证 2× zoom |
-| AC3 | `hitTestResizeHandle` hit detection | ✅ 通过 | 4 corners 正确计算，8px radius 精确 |
-| AC4 | Handle/diamond overlap priority | ✅ 通过 | 各方法独立报告，调用者决定优先级 |
-| AC5 | `mouseDownInEdgeZone` removal | ✅ 通过 | 字段声明 + 7 处引用全部移除，`classifyHitZone` 保留 |
-| AC6 | Boolean state flags | ⚠️ 部分通过 | 声明+初始化正确，`handleWindowBlur` 重置正确，但鼠标取消选择时未重置（PATCH-1） |
-| AC7 | Hover trackers | ⚠️ 部分通过 | 变更检测逻辑正确，但未过滤到选中模块（PATCH-2），鼠标取消选择未清理（PATCH-3） |
-| AC8 | Selection-aware Tab | ✅ 通过 | 选中时触发 `onTabNext`，未选中时不触发 |
-| AC9 | Selection-aware Enter | ⚠️ 部分通过 | 首次 Enter 正确进入编辑模式，但二次 Enter 违反 "不再放置" 规范（PATCH-5） |
-| AC10 | Selection-aware Escape | ✅ 通过 | 取消拖拽优先，无拖拽时取消选择 |
-| AC11 | New callback declarations | ✅ 通过 | 8 个回调签名全部正确，`{width, height}` 符合 Rule 8 |
-| AC12 | `onModuleDoubleClick` preservation | ✅ 通过 | 声明和检测逻辑未修改 |
-| AC13 | Existing behavior preservation | ✅ 通过 | pan/zoom/drag/select/nudge/delete/drop/place 全部保留 |
-| AC14 | Test coverage | ⚠️ 部分通过 | hit-test + keyboard 测试充分，但缺少 hover 检测集成测试 |
-| AC15 | Enforcement rules | ✅ 通过 | 5/5 适用项正确，3/3 N/A 项正确排除 |
-| AC16 | Immutable/fail-safe boundaries | ✅ 通过 | 仅修改 `input/` 目录，未触及禁止区域 |
+| AC   | 描述                                   | 状态        | 备注                                                                            |
+| ---- | -------------------------------------- | ----------- | ------------------------------------------------------------------------------- |
+| AC1  | `hitTestConnectionPoint` hit detection | ✅ 通过     | 4 edge midpoints 正确计算，8px radius 精确                                      |
+| AC2  | `hitTestConnectionPoint` zoom scaling  | ✅ 通过     | screen-pixel radius zoom-independent，测试验证 2× zoom                          |
+| AC3  | `hitTestResizeHandle` hit detection    | ✅ 通过     | 4 corners 正确计算，8px radius 精确                                             |
+| AC4  | Handle/diamond overlap priority        | ✅ 通过     | 各方法独立报告，调用者决定优先级                                                |
+| AC5  | `mouseDownInEdgeZone` removal          | ✅ 通过     | 字段声明 + 7 处引用全部移除，`classifyHitZone` 保留                             |
+| AC6  | Boolean state flags                    | ⚠️ 部分通过 | 声明+初始化正确，`handleWindowBlur` 重置正确，但鼠标取消选择时未重置（PATCH-1） |
+| AC7  | Hover trackers                         | ⚠️ 部分通过 | 变更检测逻辑正确，但未过滤到选中模块（PATCH-2），鼠标取消选择未清理（PATCH-3）  |
+| AC8  | Selection-aware Tab                    | ✅ 通过     | 选中时触发 `onTabNext`，未选中时不触发                                          |
+| AC9  | Selection-aware Enter                  | ⚠️ 部分通过 | 首次 Enter 正确进入编辑模式，但二次 Enter 违反 "不再放置" 规范（PATCH-5）       |
+| AC10 | Selection-aware Escape                 | ✅ 通过     | 取消拖拽优先，无拖拽时取消选择                                                  |
+| AC11 | New callback declarations              | ✅ 通过     | 8 个回调签名全部正确，`{width, height}` 符合 Rule 8                             |
+| AC12 | `onModuleDoubleClick` preservation     | ✅ 通过     | 声明和检测逻辑未修改                                                            |
+| AC13 | Existing behavior preservation         | ✅ 通过     | pan/zoom/drag/select/nudge/delete/drop/place 全部保留                           |
+| AC14 | Test coverage                          | ⚠️ 部分通过 | hit-test + keyboard 测试充分，但缺少 hover 检测集成测试                         |
+| AC15 | Enforcement rules                      | ✅ 通过     | 5/5 适用项正确，3/3 N/A 项正确排除                                              |
+| AC16 | Immutable/fail-safe boundaries         | ✅ 通过     | 仅修改 `input/` 目录，未触及禁止区域                                            |
 
 ---
 
@@ -515,6 +524,7 @@ Dismiss — 可选改进。
 ### EC-4: `selectedModuleIdProvider` 返回已删除模块的 ID
 
 如果 `selectedModuleIdProvider` 返回一个已从 `nodes` 中删除的模块 ID：
+
 - hover 检测块仍会运行（`!= null` 检查通过）
 - `hitTestConnectionPoint` 不会匹配已删除模块（不在 `nodes` 中）
 - 不会产生运行时错误，但 hover 检测会空转
@@ -537,21 +547,21 @@ L537-539 重置了 hover 状态但未触发 `onDiamondHover(null, ...)` / `onHan
 
 ### 新增测试（17 个）
 
-| 类别 | 数量 | 覆盖的 AC | 质量 |
-|------|------|----------|------|
-| `hitTestConnectionPoint` | 5+ | AC1, AC2 | ✅ 覆盖 4 edge + miss + zoom + default size + empty nodes |
-| `hitTestResizeHandle` | 4+ | AC3 | ✅ 覆盖 4 corner + miss + zoom + null nodes |
-| Keyboard behavior | 8 | AC8, AC9, AC10 | ✅ 覆盖 Tab×3 + Enter×2 + Escape×3 |
+| 类别                     | 数量 | 覆盖的 AC      | 质量                                                      |
+| ------------------------ | ---- | -------------- | --------------------------------------------------------- |
+| `hitTestConnectionPoint` | 5+   | AC1, AC2       | ✅ 覆盖 4 edge + miss + zoom + default size + empty nodes |
+| `hitTestResizeHandle`    | 4+   | AC3            | ✅ 覆盖 4 corner + miss + zoom + null nodes               |
+| Keyboard behavior        | 8    | AC8, AC9, AC10 | ✅ 覆盖 Tab×3 + Enter×2 + Escape×3                        |
 
 ### 缺失测试
 
-| 缺失场景 | 相关 AC | 严重度 |
-|---------|---------|--------|
-| hover 检测集成测试（`onDiamondHover`/`onHandleHover` 通过 `handleMouseMove` 触发） | AC7 | 🟡 P3 |
-| `isEditingName` 状态在取消选择后的重置 | AC6, AC9 | 🔴 P2 |
-| `handleMouseLeave` 清理 diamond/handle hover | AC7 | 🟡 P3 |
-| `classifyHitZone` 在 edge zone 移除后仍正常工作 | AC5 | ⚪ P4 |
-| hit-test 对非选中模块的过滤 | AC7 | 🔴 P2 |
+| 缺失场景                                                                           | 相关 AC  | 严重度 |
+| ---------------------------------------------------------------------------------- | -------- | ------ |
+| hover 检测集成测试（`onDiamondHover`/`onHandleHover` 通过 `handleMouseMove` 触发） | AC7      | 🟡 P3  |
+| `isEditingName` 状态在取消选择后的重置                                             | AC6, AC9 | 🔴 P2  |
+| `handleMouseLeave` 清理 diamond/handle hover                                       | AC7      | 🟡 P3  |
+| `classifyHitZone` 在 edge zone 移除后仍正常工作                                    | AC5      | ⚪ P4  |
+| hit-test 对非选中模块的过滤                                                        | AC7      | 🔴 P2  |
 
 ### 移除测试（15 个）
 
@@ -561,30 +571,30 @@ L537-539 重置了 hover 状态但未触发 `onDiamondHover(null, ...)` / `onHan
 
 ## 🏗️ 架构合规性
 
-| 规则 | 合规 | 备注 |
-|------|------|------|
-| Rule 1 — PascalCase/lowerCamelCase | ✅ | `hitTestConnectionPoint`, `hitTestResizeHandle` 遵循 lowerCamelCase |
-| Rule 2 — hitTest 前缀 | ✅ | 匹配 `hitTestFeedbackHandle` 模式 |
-| Rule 3 — mutation 签名 | N/A | 本 Story 无 mutation |
-| Rule 4 — co-located test | ✅ | `InputManager.test.ts` 同目录 |
-| Rule 5 — DOM 销毁 | N/A | 本 Story 无 DOM 操作 |
-| Rule 6 — BEM CSS | N/A | 本 Story 无 CSS |
-| Rule 7 — 直接回调 | ✅ | 所有新增通信为直接回调 |
-| Rule 8 — Vec2 vs {width, height} | ✅ | `onResizeEnd` 使用 `{width, height}` |
+| 规则                               | 合规 | 备注                                                                |
+| ---------------------------------- | ---- | ------------------------------------------------------------------- |
+| Rule 1 — PascalCase/lowerCamelCase | ✅   | `hitTestConnectionPoint`, `hitTestResizeHandle` 遵循 lowerCamelCase |
+| Rule 2 — hitTest 前缀              | ✅   | 匹配 `hitTestFeedbackHandle` 模式                                   |
+| Rule 3 — mutation 签名             | N/A  | 本 Story 无 mutation                                                |
+| Rule 4 — co-located test           | ✅   | `InputManager.test.ts` 同目录                                       |
+| Rule 5 — DOM 销毁                  | N/A  | 本 Story 无 DOM 操作                                                |
+| Rule 6 — BEM CSS                   | N/A  | 本 Story 无 CSS                                                     |
+| Rule 7 — 直接回调                  | ✅   | 所有新增通信为直接回调                                              |
+| Rule 8 — Vec2 vs {width, height}   | ✅   | `onResizeEnd` 使用 `{width, height}`                                |
 
 ---
 
 ## 📝 修复优先级
 
-| 优先级 | ID | 修复工作量 | 建议时间 |
-|--------|-----|-----------|---------|
-| 🔴 P2 | PATCH-1 | 小（~10 行） | Story 8.4 之前 |
-| 🔴 P2 | PATCH-2 | 小（~6 行） | Story 8.5 之前 |
-| 🟡 P3 | PATCH-3 | 与 PATCH-1 合并 | 同 PATCH-1 |
-| 🟡 P3 | PATCH-4 | 小（~8 行） | Story 8.5 之前 |
-| 🟡 P3 | PATCH-5 | 小（~5 行） | Story 8.4 之前 |
-| 🟡 P3 | DECISION-1 | 小（类型变更） | 任意时间 |
-| ⚪ P4 | DEFER-1/2 | 清理 @ts-ignore | Story 8.5 之后 |
+| 优先级 | ID         | 修复工作量      | 建议时间       |
+| ------ | ---------- | --------------- | -------------- |
+| 🔴 P2  | PATCH-1    | 小（~10 行）    | Story 8.4 之前 |
+| 🔴 P2  | PATCH-2    | 小（~6 行）     | Story 8.5 之前 |
+| 🟡 P3  | PATCH-3    | 与 PATCH-1 合并 | 同 PATCH-1     |
+| 🟡 P3  | PATCH-4    | 小（~8 行）     | Story 8.5 之前 |
+| 🟡 P3  | PATCH-5    | 小（~5 行）     | Story 8.4 之前 |
+| 🟡 P3  | DECISION-1 | 小（类型变更）  | 任意时间       |
+| ⚪ P4  | DEFER-1/2  | 清理 @ts-ignore | Story 8.5 之后 |
 
 ---
 

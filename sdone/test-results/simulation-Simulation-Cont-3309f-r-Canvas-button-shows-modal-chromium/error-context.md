@@ -54,9 +54,9 @@ Call log:
   399 | export async function clickRewindCheckpoint(page: Page): Promise<void> {
   400 |   await page.locator(SELECTORS.btnRewindCheckpoint).click();
   401 | }
-  402 | 
+  402 |
   403 | // ── Modal Helpers ─────────────────────────────────────────────────────────
-  404 | 
+  404 |
   405 | /**
   406 |  * Click the confirm button in an open modal.
   407 |  */
@@ -65,7 +65,7 @@ Call log:
   410 |   // Wait for modal to close
   411 |   await page.waitForSelector(SELECTORS.modalBackdrop, { state: 'detached', timeout: 3000 }).catch(() => {});
   412 | }
-  413 | 
+  413 |
   414 | /**
   415 |  * Click the cancel button in an open modal.
   416 |  */
@@ -73,9 +73,9 @@ Call log:
   418 |   await page.locator(SELECTORS.modalCancelBtn).click();
   419 |   await page.waitForSelector(SELECTORS.modalBackdrop, { state: 'detached', timeout: 3000 }).catch(() => {});
   420 | }
-  421 | 
+  421 |
   422 | // ── Panel & UI Helpers ────────────────────────────────────────────────────
-  423 | 
+  423 |
   424 | /**
   425 |  * Get the control bar status text.
   426 |  */
@@ -84,7 +84,7 @@ Call log:
   429 |   const text = await statusEl.textContent();
   430 |   return text ?? '';
   431 | }
-  432 | 
+  432 |
   433 | /**
   434 |  * Check if the module panel is visible (not hidden off-screen).
   435 |  */
@@ -93,21 +93,21 @@ Call log:
   438 |   const isHidden = await panel.evaluate((el) => el.classList.contains('module-panel--hidden'));
   439 |   return !isHidden;
   440 | }
-  441 | 
+  441 |
   442 | /**
   443 |  * Check if the save checkpoint button is disabled.
   444 |  */
   445 | export async function isSaveCheckpointDisabled(page: Page): Promise<boolean> {
   446 |   return await page.locator(SELECTORS.btnSaveCheckpoint).isDisabled();
   447 | }
-  448 | 
+  448 |
   449 | /**
   450 |  * Check if the rewind checkpoint button is disabled.
   451 |  */
   452 | export async function isRewindCheckpointDisabled(page: Page): Promise<boolean> {
   453 |   return await page.locator(SELECTORS.btnRewindCheckpoint).isDisabled();
   454 | }
-  455 | 
+  455 |
   456 | /**
   457 |  * Look for an achievement toast with the given text.
   458 |  */
@@ -117,7 +117,7 @@ Call log:
   462 |   const text = await toast.textContent();
   463 |   return text ?? '';
   464 | }
-  465 | 
+  465 |
   466 | /**
   467 |  * Wait for simulation to advance by a given number of ticks.
   468 |  * Simulation runs at ~10Hz (100ms per tick).
@@ -125,9 +125,9 @@ Call log:
   470 | export async function waitForSimTicks(page: Page, ticks = 5): Promise<void> {
   471 |   await page.waitForTimeout(ticks * 100 + 50);
   472 | }
-  473 | 
+  473 |
   474 | // ── Assertions ────────────────────────────────────────────────────────────
-  475 | 
+  475 |
   476 | /**
   477 |  * Assert that a toast message is visible and contains the expected text.
   478 |  */
@@ -136,14 +136,14 @@ Call log:
   481 |   await expect(toast).toBeVisible({ timeout: 2000 });
   482 |   await expect(toast).toContainText(expectedText);
   483 | }
-  484 | 
+  484 |
   485 | /**
   486 |  * Assert the run button shows the expected text.
   487 |  */
   488 | export async function expectRunButton(page: Page, text: string): Promise<void> {
   489 |   await expect(page.locator(SELECTORS.btnRun)).toHaveText(text);
   490 | }
-  491 | 
+  491 |
   492 | /**
   493 |  * Assert that a modal dialog is visible.
   494 |  */
@@ -151,12 +151,12 @@ Call log:
 > 496 |   await expect(page.locator(SELECTORS.modalBackdrop)).toBeVisible({ timeout: 2000 });
       |                                                       ^ Error: expect(locator).toBeVisible() failed
   497 | }
-  498 | 
+  498 |
   499 | /**
   500 |  * Assert that the color picker popover is visible.
   501 |  */
   502 | export async function expectColorPickerVisible(page: Page): Promise<void> {
   503 |   await expect(page.locator(SELECTORS.colorPickerPopover)).toBeVisible({ timeout: 2000 });
   504 | }
-  505 | 
+  505 |
 ```

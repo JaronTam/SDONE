@@ -50,6 +50,7 @@ MDN 文档确认 `translate()` 函数"repositions an element in the horizontal a
 **位置**: `OverlaySyncManager.test.ts:272`  
 **测试名称**: `T13: OverlaySyncManager module does not reference DOM APIs`  
 **测试实际内容**:
+
 ```typescript
 const vm = new ViewportManager();
 const manager = new OverlaySyncManager(vm);
@@ -86,6 +87,7 @@ expect(manager).toBeDefined();
 **位置**: task 描述 `Tests: 839 通过 (35 文件) | 零回退`
 
 **实际验证结果**:
+
 - **首次完整运行**: 1 failed | 838 passed（PerformanceMonitor 的 `SYNC_BUDGET_MS` 测试失败）
 - **第二次运行**: 839 passed | 0 failed
 
@@ -104,6 +106,7 @@ expect(manager).toBeDefined();
 **位置**: `OverlaySyncManager.test.ts:110-115`
 
 **注释原文**:
+
 ```typescript
 // screenY = 300 + (-100 - 40)×1 - 8 = 300 - 140 - 8 = 152
 // Wait — the formula is worldToScreen(worldPos, canvasCenter) = canvasCenter + (worldPos - offset)*zoom
@@ -116,6 +119,7 @@ expect(manager).toBeDefined();
 **问题**: L110 的计算 `300 + (-100 - 40)×1 - 8 = 152` 是**错误的**——它没有考虑 viewport offset。测试作者最初算错（得 152），后来修正为 252。最终期望值 252 是正确的，但注释中残留的错误计算过程（L110）可能混淆读者。
 
 **数学验证**:
+
 - `topCenterWorld = (200, -100 - 40) = (200, -140)`
 - `worldToScreen((200, -140), (400, 300))` with offset (200, -100), zoom 1:
   - `screenX = (200 - 200) × 1 + 400 = 400` ✅
@@ -135,11 +139,13 @@ expect(manager).toBeDefined();
 ### 修正 1：JSDoc 应补充水平居中说明
 
 **当前**:
+
 ```typescript
 @returns Screen-space position for CSS transform: translate(returned.x px, returned.y px)
 ```
 
 **建议修正**:
+
 ```typescript
 @returns Screen-space position for the module's top-center. Caller must handle
          horizontal centering (e.g., translate(-50%, 0) or transform-origin: center top).
@@ -157,14 +163,19 @@ CSS `translate()` 的语义是"将元素从当前布局位置移动指定偏移�
 **当前名称**: `T13: OverlaySyncManager module does not reference DOM APIs`
 
 **建议方案 A（重命名）**:
+
 ```typescript
 it('T13: OverlaySyncManager can be instantiated in test environment (DOM audit is manual per AC7)', () => {
 ```
 
 **建议方案 B（增强为真正的静态分析）**:
+
 ```typescript
-it('T13: OverlaySyncManager source contains no DOM API references', async () => {
-  const source = await fs.readFile('./src/canvas/OverlaySyncManager.ts', 'utf-8');
+it("T13: OverlaySyncManager source contains no DOM API references", async () => {
+  const source = await fs.readFile(
+    "./src/canvas/OverlaySyncManager.ts",
+    "utf-8",
+  );
   expect(source).not.toMatch(/\b(document|window|HTMLElement|Element|CSS)\b/);
 });
 ```
@@ -179,6 +190,7 @@ it('T13: OverlaySyncManager source contains no DOM API references', async () => 
 ### 修正 3：测试 T5 注释应清理错误计算残留
 
 **建议修正**: 删除 L110 的错误计算，保留正确的计算过程：
+
 ```typescript
 // topCenterWorld = (200, -100 - 40) = (200, -140)
 // worldToScreen with offset (200, -100), zoom 1:
@@ -248,36 +260,36 @@ spec 声称"22 行纯数学类"，我未验证这个数字的准确性。
 
 基于 `worldToScreen` 实际实现：`screen = (world - offset) × zoom + canvasCenter`
 
-| 测试 | 输入 | 手算结果 | 断言值 | 结论 |
-|------|------|----------|--------|------|
-| T2 | center(100,100), h80, zoom1, offset(0,0), cc(400,300) | top=(100,60), screen=(500,360), -8=(500,352) | (500,352) | ✅ |
-| T3 | center(50,50), h80, zoom2, offset(0,0), cc(400,300) | top=(50,10), screen=(500,320), -8=(500,312) | (500,312) | ✅ |
-| T4 | center(100,100), h80, zoom0.5, offset(0,0), cc(400,300) | top=(100,60), screen=(450,330), -8=(450,322) | (450,322) | ✅ |
-| T5 | center(200,-100), h80, zoom1, offset(200,-100), cc(400,300) | top=(200,-140), screen=(400,260), -8=(400,252) | (400,252) | ✅ |
-| T6 | center(-50,-50), h80, zoom1, offset(0,0), cc(400,300) | top=(-50,-90), screen=(350,210), -8=(350,202) | (350,202) | ✅ |
-| T7 | center(100,100), h120, zoom1, offset(0,0), cc(400,300) | top=(100,40), screen=(500,340), -8=(500,332) | (500,332) | ✅ |
-| T8 | center(100,100), h0, zoom1, offset(0,0), cc(400,300) | top=(100,100), screen=(500,400), -8=(500,392) | (500,392) | ✅ |
-| T9 | center(100,100), h80, zoom1, offset(0,0), cc(512,384) | top=(100,60), screen=(612,444), -8=(612,436) | (612,436) | ✅ |
-| T10 | center(100,100), h80, zoom0.1, offset(0,0), cc(400,300) | top=(100,60), screen=(410,306), -8=(410,298) | (410,298) | ✅ |
-| T11 | center(100,100), h80, zoom5, offset(0,0), cc(400,300) | top=(100,60), screen=(900,600), -8=(900,592) | (900,592) | ✅ |
+| 测试 | 输入                                                        | 手算结果                                       | 断言值    | 结论 |
+| ---- | ----------------------------------------------------------- | ---------------------------------------------- | --------- | ---- |
+| T2   | center(100,100), h80, zoom1, offset(0,0), cc(400,300)       | top=(100,60), screen=(500,360), -8=(500,352)   | (500,352) | ✅   |
+| T3   | center(50,50), h80, zoom2, offset(0,0), cc(400,300)         | top=(50,10), screen=(500,320), -8=(500,312)    | (500,312) | ✅   |
+| T4   | center(100,100), h80, zoom0.5, offset(0,0), cc(400,300)     | top=(100,60), screen=(450,330), -8=(450,322)   | (450,322) | ✅   |
+| T5   | center(200,-100), h80, zoom1, offset(200,-100), cc(400,300) | top=(200,-140), screen=(400,260), -8=(400,252) | (400,252) | ✅   |
+| T6   | center(-50,-50), h80, zoom1, offset(0,0), cc(400,300)       | top=(-50,-90), screen=(350,210), -8=(350,202)  | (350,202) | ✅   |
+| T7   | center(100,100), h120, zoom1, offset(0,0), cc(400,300)      | top=(100,40), screen=(500,340), -8=(500,332)   | (500,332) | ✅   |
+| T8   | center(100,100), h0, zoom1, offset(0,0), cc(400,300)        | top=(100,100), screen=(500,400), -8=(500,392)  | (500,392) | ✅   |
+| T9   | center(100,100), h80, zoom1, offset(0,0), cc(512,384)       | top=(100,60), screen=(612,444), -8=(612,436)   | (612,436) | ✅   |
+| T10  | center(100,100), h80, zoom0.1, offset(0,0), cc(400,300)     | top=(100,60), screen=(410,306), -8=(410,298)   | (410,298) | ✅   |
+| T11  | center(100,100), h80, zoom5, offset(0,0), cc(400,300)       | top=(100,60), screen=(900,600), -8=(900,592)   | (900,592) | ✅   |
 
 **结论**: 所有 10 个数学测试用例的断言值与手算结果完全一致。代码数学正确性验证通过。
 
 ### AC 合规性独立验证
 
-| AC | 状态 | 验证依据 |
-|----|------|----------|
-| AC1 | ✅ 满足 | `OverlaySyncManager` PascalCase，构造函数接收 `viewport: ViewportManager`，`private` 存储 |
-| AC2 | ✅ 满足 | T2 数学验证通过 |
-| AC3 | ✅ 满足 | T3 数学验证通过，8px 在 worldToScreen 之后减去 |
-| AC4 | ✅ 满足 | T5 数学验证通过 |
-| AC5 | ✅ 满足 | T7 数学验证通过，使用参数化 `moduleHeight / 2` |
-| AC6 | ✅ 满足 | `canvasCenter` 是方法参数，T14 验证不同参数产生不同输出 |
-| AC7 | ✅ 满足 | 源码只有 3 个 import：`Vec2`/`vec2`（shared）、`ViewportManager`（canvas），零 DOM |
-| AC8 | ✅ 满足 | `index.ts` 包含 `export { OverlaySyncManager } from './OverlaySyncManager.js';` |
-| AC9 | ✅ 满足 | 15 个测试覆盖所有要求的用例 |
-| AC10 | ✅ 满足 | PascalCase 类名、lowerCamelCase 方法名、co-located test、Vec2 用于位置 |
-| AC11 | ✅ 满足 | 零 DOM（Immutable #2）、纯数学不抛异常（Fail-Safe #8） |
+| AC   | 状态    | 验证依据                                                                                  |
+| ---- | ------- | ----------------------------------------------------------------------------------------- |
+| AC1  | ✅ 满足 | `OverlaySyncManager` PascalCase，构造函数接收 `viewport: ViewportManager`，`private` 存储 |
+| AC2  | ✅ 满足 | T2 数学验证通过                                                                           |
+| AC3  | ✅ 满足 | T3 数学验证通过，8px 在 worldToScreen 之后减去                                            |
+| AC4  | ✅ 满足 | T5 数学验证通过                                                                           |
+| AC5  | ✅ 满足 | T7 数学验证通过，使用参数化 `moduleHeight / 2`                                            |
+| AC6  | ✅ 满足 | `canvasCenter` 是方法参数，T14 验证不同参数产生不同输出                                   |
+| AC7  | ✅ 满足 | 源码只有 3 个 import：`Vec2`/`vec2`（shared）、`ViewportManager`（canvas），零 DOM        |
+| AC8  | ✅ 满足 | `index.ts` 包含 `export { OverlaySyncManager } from './OverlaySyncManager.js';`           |
+| AC9  | ✅ 满足 | 15 个测试覆盖所有要求的用例                                                               |
+| AC10 | ✅ 满足 | PascalCase 类名、lowerCamelCase 方法名、co-located test、Vec2 用于位置                    |
+| AC11 | ✅ 满足 | 零 DOM（Immutable #2）、纯数学不抛异常（Fail-Safe #8）                                    |
 
 ---
 
@@ -290,6 +302,7 @@ Story 8.3 的代码实现与 spec AC1-AC11 完全一致，所有数学计算经�
 ### 此前 review 质量：合格但有改进空间
 
 此前 review 的 triage 分类在逻辑上正确，但存在透明度不足：
+
 - 未充分讨论 JSDoc 描述的潜在误导性
 - 未指出测试 T13 名称与行为不符
 - 未验证 spec 声称的行数
@@ -302,19 +315,18 @@ Story 8.3 的代码实现与 spec AC1-AC11 完全一致，所有数学计算经�
 3. 测试 T5 清理注释中的错误计算残留
 4. ViewportManager 构造函数 zoom clamp（已 defer，pre-existing）
 
-**无需要修正的 Critical/High/Medium 级别问题。Story 8.3 状态 `done` 的判定成立。**
----
+## **无需要修正的 Critical/High/Medium 级别问题。Story 8.3 状态 `done` 的判定成立。**
 
 ## [修正记录]（2026-06-18）
 
 ### 已修正的偏差
 
-| # | 偏差 | 修正方式 | 修正位置 |
-|---|------|----------|----------|
-| 1 | JSDoc `@returns` 描述不完整 | 补充"Caller must handle horizontal centering"说明 | `OverlaySyncManager.ts` + spec 文件 |
-| 2 | 测试 T13 名称与实际验证内容不符 | 重命名为"T13: OverlaySyncManager can be instantiated in test environment (DOM audit is manual per AC7)" | `OverlaySyncManager.test.ts` |
-| 3 | 测试 T5 注释残留错误计算过程 | 删除 L110 的错误计算（得 152），保留正确的计算过程（得 252） | `OverlaySyncManager.test.ts` |
-| 4 | spec 测试数量描述（12→15） | 更新为"15 test cases (12 spec-required + 3 additional)" | spec 文件 |
+| #   | 偏差                            | 修正方式                                                                                                | 修正位置                            |
+| --- | ------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 1   | JSDoc `@returns` 描述不完整     | 补充"Caller must handle horizontal centering"说明                                                       | `OverlaySyncManager.ts` + spec 文件 |
+| 2   | 测试 T13 名称与实际验证内容不符 | 重命名为"T13: OverlaySyncManager can be instantiated in test environment (DOM audit is manual per AC7)" | `OverlaySyncManager.test.ts`        |
+| 3   | 测试 T5 注释残留错误计算过程    | 删除 L110 的错误计算（得 152），保留正确的计算过程（得 252）                                            | `OverlaySyncManager.test.ts`        |
+| 4   | spec 测试数量描述（12→15）      | 更新为"15 test cases (12 spec-required + 3 additional)"                                                 | spec 文件                           |
 
 ### 验证结果
 

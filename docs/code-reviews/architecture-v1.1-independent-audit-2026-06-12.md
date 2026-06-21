@@ -24,20 +24,22 @@
 ### P1 🟡 持续性数字偏差：InputManager 私有状态字段计数
 
 **架构文档声明（L233）:**
+
 > InputManager.ts 共 14 个私有状态字段（1257 行）
 
 **源码事实:**
 `InputManager.ts` 实际有 **32 个 private 字段**（含初始化器），分类如下：
 
-| 类别 | 数量 | 字段 |
-|------|------|------|
-| 交互状态 | 20 | isPanning, lastMousePos, spaceHeld, isDraggingModule, dragModuleId, dragModuleWorldStart, mouseDownPos, mouseDownModuleId, mouseDownInEdgeZone, _mouseDownOnCanvas, isDraggingConnection, edgeDragSourceId, isDraggingFeedback, _feedbackDragStockId, _feedbackHandleHoveredStockId, hoveredConnectionId, lastScreenPos, lastClickModuleId, lastClickTime, lastClickScreenPos |
-| 绑定处理器 | 10 | boundMouseDown, boundMouseMove, boundMouseUp, boundMouseLeave, boundWheel, boundKeyDown, boundKeyUp, boundContextMenu, boundWindowBlur, boundDragOver, boundDragLeave, boundDrop |
-| 基础设施 | 2 | canvas, viewportManager |
+| 类别       | 数量 | 字段                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 交互状态   | 20   | isPanning, lastMousePos, spaceHeld, isDraggingModule, dragModuleId, dragModuleWorldStart, mouseDownPos, mouseDownModuleId, mouseDownInEdgeZone, \_mouseDownOnCanvas, isDraggingConnection, edgeDragSourceId, isDraggingFeedback, \_feedbackDragStockId, \_feedbackHandleHoveredStockId, hoveredConnectionId, lastScreenPos, lastClickModuleId, lastClickTime, lastClickScreenPos |
+| 绑定处理器 | 10   | boundMouseDown, boundMouseMove, boundMouseUp, boundMouseLeave, boundWheel, boundKeyDown, boundKeyUp, boundContextMenu, boundWindowBlur, boundDragOver, boundDragLeave, boundDrop                                                                                                                                                                                                 |
+| 基础设施   | 2    | canvas, viewportManager                                                                                                                                                                                                                                                                                                                                                          |
 
 **即使仅计"交互状态"字段，也是 20 个，而非 14 个。**
 
 **偏差历史:**
+
 - 原始版本声称 6 个 → 自审计修正为 14 个 → 实际为 20（状态）或 32（全部）
 - 自审计的"修正"本身就是不完整的——从 6 修正到 14 仍低报 30%
 
@@ -48,6 +50,7 @@
 ### P2 🟢 已验证正确：mutations.ts 导出函数
 
 **架构文档声明（L87）:**
+
 > mutations.ts: 10 个导出函数（addModule/deleteModule/moveModule/addConnection/deleteConnection/changeModuleColor/updateCapacity/addFeedbackConnection/updateFormula/updateRate），0 个 label 相关
 
 **源码事实:** ✅ 完全正确。10 个导出函数，无 label 相关函数。
@@ -57,9 +60,11 @@
 ### P3 🟢 已验证正确：GraphState.ModuleNode 接口
 
 **架构文档声明（L88）:**
+
 > GraphState.ModuleNode: id, type, position, label?, color? — 无 width/height 字段
 
 **源码事实:** ✅ 完全正确。ModuleNode 接口定义：
+
 ```typescript
 export interface ModuleNode {
   readonly id: string;
@@ -69,6 +74,7 @@ export interface ModuleNode {
   color?: string;
 }
 ```
+
 无 width/height 字段。
 
 ---
@@ -76,6 +82,7 @@ export interface ModuleNode {
 ### P4 🟢 已验证正确：classifyHitZone 用途
 
 **架构文档声明（L89）:**
+
 > InputManager.classifyHitZone: 仅用于 handleMouseDown 的模式判定（mouseDownInEdgeZone 标记），从未用于 idle hover cursor 显示
 
 **源码事实:** ✅ 正确。classifyHitZone 仅在 handleMouseDown 中被调用，用于设置 mouseDownInEdgeZone 标记。handleMouseMove 中的 cursor 赋值不调用此方法。
@@ -85,6 +92,7 @@ export interface ModuleNode {
 ### P5 🟢 已验证正确：ColorPickerPopover 触发方式
 
 **架构文档声明（L90）:**
+
 > main.ts: ColorPickerPopover 当前通过 onModuleDoubleClick 触发（仅 Source/Sink，Stock 早返回）
 
 **源码事实:** ✅ 正确。main.ts L533 设置 `inputManager.onModuleDoubleClick`，其中 Stock 类型早返回（AC8: fixed white），仅 Source/Sink 触发 `colorPickerPopover.open()`。
@@ -94,6 +102,7 @@ export interface ModuleNode {
 ### P6 🟢 已验证正确：CountdownPanel/AnalyticsPanel 消费 label
 
 **架构文档声明（L91）:**
+
 > CountdownPanel.ts:117 / AnalyticsPanel.ts:64: 已消费 ModuleNode.label（stock.label || stock.id.slice(0, 8)）
 
 **源码事实:** ✅ 正确。两个文件均使用 `stock.label || stock.id.slice(0, 8)` 模式。
@@ -103,9 +112,11 @@ export interface ModuleNode {
 ### P7 🟢 已验证正确：main.ts EventBus 订阅
 
 **架构文档声明（L716 图注）:**
+
 > 全部 5 个 eventBus.on() 调用均在 main.ts
 
 **源码事实:** ✅ 正确。5 个 eventBus.on() 调用：
+
 1. L772: `SNAPSHOT_EMITTED`
 2. L807: `COUNTDOWN_ZERO`
 3. L825: `RUN`
@@ -117,6 +128,7 @@ export interface ModuleNode {
 ### P8 🟢 已验证正确：ui/ → canvas/ 零导入
 
 **架构文档声明（L762）:**
+
 > ui/overlays/ 层的零个文件导入 canvas/ 模块（glob 验证）
 
 **源码事实:** ✅ 正确。在整个 `sdone/src/ui/` 目录中搜索 `../canvas` 和 `../../canvas` 导入路径，结果为零。
@@ -126,9 +138,11 @@ export interface ModuleNode {
 ### P9 🟡 论证路径偏差：D1 Boolean Flags 的"零新概念"论证
 
 **架构文档声明（L248）:**
+
 > 与 V1.0 14 个私有状态字段的模式完全一致——零新概念
 
 **偏差分析:**
+
 1. 数字错误（14→20/32，见 P1）
 2. "零新概念"论证不精确——V1.1 新增的 `hoveredDiamond: {moduleId, edge} | null` 和 `hoveredHandle: {moduleId, corner} | null` 是**结构化对象类型**，V1.0 的所有状态字段中仅有 `string | null` 和 `boolean` 和 `Vec2` 类型。结构化 hover tracker 是**类型层面的新概念**，尽管实现模式相似。
 
@@ -139,6 +153,7 @@ export interface ModuleNode {
 ### P10 🟡 论证路径偏差：D3 光标管理的数字基线
 
 **架构文档声明（L290-298）:**
+
 > V1.0 基线（grep 验证）: '' (default) 11 处, 'grab' 2 处, 'grabbing' 3 处, 'crosshair' 2 处
 
 **偏差分析:**
@@ -151,6 +166,7 @@ export interface ModuleNode {
 ### P11 🟢 已验证正确：ColorPickerPopover.open() API
 
 **架构文档声明（L351）:**
+
 > 保持挂载到 `<body>`（V1.0 API `open({anchorScreenX, anchorScreenY})` 不变）
 
 **源码事实:** ✅ 正确。ColorPickerPopover.open() 接受 `anchorScreenX` 和 `anchorScreenY` 屏幕绝对坐标参数，组件挂载到 `<body>`，使用 `position: fixed`。
@@ -163,6 +179,7 @@ export interface ModuleNode {
 完整目录树
 
 **源码事实:** ✅ 基本正确。实际文件树与文档列出的结构一致。以下差异为文档已标注的 [NEW] 文件（尚未创建）：
+
 - `OverlaySyncManager.ts` / `.test.ts` — 不存在（[NEW]）
 - `ToolbarController.ts` / `.test.ts` — 不存在（[NEW]）
 - `toolbar.css` — 不存在（[NEW]）
@@ -176,14 +193,17 @@ export interface ModuleNode {
 
 **问题:**
 我在此前响应中创建的两个 memory 审计文件：
+
 - `memory/v1.1-architecture-step3-elicitation-audit-2026-06-11.md`
 - `memory/v1.1-architecture-step7-meta-validation-audit-2026-06-12.md`
 
 其内容**直接采信了架构文档的自述审计结果**，未做独立源码验证。例如：
+
 - Step 3 审计中"3 处虚假精度"的描述来自架构文档 L191 的自述
 - Step 7 审计中"2 项虚假发现，准确率 25%"来自架构文档 L821-832 的自述
 
 这些自述审计结果本身**未经独立验证**，可能包含：
+
 - 低报偏差（如 P1 所示，自审计修正仍不准确）
 - 选择性披露（仅报告已修正的偏差，未报告未发现的偏差）
 
@@ -195,17 +215,18 @@ export interface ModuleNode {
 
 ### 修正 1：InputManager 私有字段计数
 
-| 版本 | 数字 | 来源 |
-|------|------|------|
-| 原始 | 6 | 架构文档初版（已修正） |
-| 自审计修正 | 14 | 架构文档 L233（仍不准确） |
-| **本审计** | **20（状态）/ 32（全部）** | 源码 grep 验证 |
+| 版本       | 数字                       | 来源                      |
+| ---------- | -------------------------- | ------------------------- |
+| 原始       | 6                          | 架构文档初版（已修正）    |
+| 自审计修正 | 14                         | 架构文档 L233（仍不准确） |
+| **本审计** | **20（状态）/ 32（全部）** | 源码 grep 验证            |
 
 **第一性原理溯源：**
 偏差源于"状态字段"的定义边界模糊——原始计数可能仅计了 boolean flag（4 个：isPanning, isDraggingModule, isDraggingConnection, isDraggingFeedback），自审计扩展到包含 `string | null` 和 `Vec2` 类型的交互状态，但仍遗漏了：
+
 - 点击消歧状态（mouseDownPos, mouseDownModuleId, lastClickModuleId, lastClickTime, lastClickScreenPos）
 - 连接拖拽状态（edgeDragSourceId）
-- 反馈拖拽状态（_feedbackDragStockId, _feedbackHandleHoveredStockId）
+- 反馈拖拽状态（\_feedbackDragStockId, \_feedbackHandleHoveredStockId）
 - Hover 状态（hoveredConnectionId, lastScreenPos）
 
 **逻辑原点偏离原因：** 计数时采用了"互斥交互模式"的狭义定义（仅 boolean flag），而非"所有私有可变状态"的完整定义。自审计修正时扩展了定义但仍未达到完整——这是**锚定效应**：初始计数（6）作为锚点，修正时仅做了增量调整（+8→14），而非从零重新计数。
@@ -213,6 +234,7 @@ export interface ModuleNode {
 ### 修正 2：D1 "零新概念" 论证
 
 **修正表述：**
+
 > V1.1 新增的 boolean flag（isResizing, isEditingName, isColorPickerOpen）与 V1.0 模式一致。但 hoveredDiamond/hoveredHandle 为结构化对象类型（`{moduleId, edge} | null`），这在 V1.0 状态字段中无先例——V1.0 仅有 `string | null`、`boolean`、`Vec2` 三种类型。结构化 hover tracker 是类型层面的增量，但实现模式（可空引用 + 条件分支）与 V1.0 一致。
 
 **第一性原理溯源：**
@@ -229,6 +251,7 @@ export interface ModuleNode {
 ### 偏差节点 1：锚定效应 — 数字修正不充分
 
 **推理链路：**
+
 ```
 初始计数(6) → 自审计发现低报 → 修正为14 → 停止
                                     ↑
@@ -241,6 +264,7 @@ export interface ModuleNode {
 ### 偏差节点 2：确认偏误 — "grep 验证"标签的信任滥用
 
 **推理链路：**
+
 ```
 声明"grep验证" → 读者信任 → 不再独立验证 → 偏差传播
          ↑
@@ -253,6 +277,7 @@ export interface ModuleNode {
 ### 偏差节点 3：自审计的递归信任问题
 
 **推理链路：**
+
 ```
 架构文档自述审计结果 → 我采信并写入memory → 未来agent读取memory → 采信
                               ↑
@@ -265,16 +290,17 @@ export interface ModuleNode {
 
 ## 审计总结
 
-| 类别 | 数量 | 详情 |
-|------|------|------|
-| ✅ 已验证正确 | 9 | P2-P8, P11-P12 |
-| 🟡 偏差（低影响） | 3 | P1(数字), P9(论证), P10(数字可信度) |
-| 🔴 二次传播偏差 | 1 | P13(memory文件) |
-| ❌ 推翻性偏差 | 0 | — |
+| 类别              | 数量 | 详情                                |
+| ----------------- | ---- | ----------------------------------- |
+| ✅ 已验证正确     | 9    | P2-P8, P11-P12                      |
+| 🟡 偏差（低影响） | 3    | P1(数字), P9(论证), P10(数字可信度) |
+| 🔴 二次传播偏差   | 1    | P13(memory文件)                     |
+| ❌ 推翻性偏差     | 0    | —                                   |
 
 **架构文档核心结论（D1-D4 + 17 已决项 + READY FOR IMPLEMENTATION）经独立源码验证后未被推翻。** 偏差集中在数字精度和论证路径选择上，不影响决策方向。
 
 **需修正项：**
+
 1. InputManager 私有字段计数：14 → 20（状态）/ 32（全部）
 2. D1 "零新概念" → 补充结构化类型增量说明
 3. D3 光标赋值计数需独立验证（当前仅采信文档自述）

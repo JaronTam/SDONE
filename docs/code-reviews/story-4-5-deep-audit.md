@@ -11,6 +11,7 @@
 **此前审查的严重偏差等级：中等偏高。**
 
 三层审查共产生 29 条原始发现。经逐项回溯验证：
+
 - **5 条发现的事实陈述完全错误**（含 2 条被标记为 P0/P1），需彻底否定
 - **3 条严重性被显著夸大**（P0→P2, P0→无效, P1→P3）
 - **3 条被错误归因到 Story 4.5**（实际来自 Story 3.4/3.7 的既存代码）
@@ -24,12 +25,14 @@
 
 ### ❌ 完全错误的事实陈述
 
-#### BH-#4 (P1): "setRate() does not update _lastValidRate"
+#### BH-#4 (P1): "setRate() does not update \_lastValidRate"
 
 **Blind Hunter 原文**：
+
 > "The field `_lastValidRate` is only set in `setConnection()` (once, when the connection is selected) and never updated by `setRate()`."
 
 **事实**：`RateEditorPanel.ts:170` 明确写有：
+
 ```typescript
 this._lastValidRate = value;
 ```
@@ -43,13 +46,16 @@ this._lastValidRate = value;
 #### BH-#1 (P0): "onConnectionDelete pushes state AFTER mutation, making undo pointless — data-loss bug"
 
 **Blind Hunter 原文**：
+
 > "In `onConnectionDelete`, the pre-deletion state is never saved. When the user hits undo, it restores the post-deletion state — a no-op."
 
 **事实**：经阅读 `HistoryManager.ts:89-112`，`undo()` 的语义为：
+
 1. 弹出栈顶（最新条目）→ 移入 redoStack
 2. 返回栈中新栈顶（前一个条目）的 `structuredClone`
 
 **具体追踪**：
+
 ```
 # push-AFTER 模式（onConnectionDelete 实际使用）：
 栈前: [S0, S1, S2]                     # S2 = 当前状态（含连接）
@@ -69,11 +75,17 @@ undo 正确恢复了删除前的状态。**该发现完全无效**。
 #### BH-#13 (P2): "TYPE_DISPLAY_NAMES may silently miss future ModuleType variants; no exhaustiveness guard"
 
 **Blind Hunter 原文**：
+
 > "If ModuleType includes 'flow' or 'converter' or any future type... TypeScript would not raise a compile error."
 
 **事实**：`RateEditorPanel.ts:36` 声明为：
+
 ```typescript
-const TYPE_DISPLAY_NAMES: Record<ModuleType, string> = { source: '源', stock: '存量', sink: '汇' };
+const TYPE_DISPLAY_NAMES: Record<ModuleType, string> = {
+  source: "源",
+  stock: "存量",
+  sink: "汇",
+};
 ```
 
 TypeScript 的 `Record<K, V>` 要求 K 的所有成员必须作为 key 存在。若 `ModuleType` 添加第四个变体，**编译器必然报错**（`Property 'newType' is missing in type...`）。Blind Hunter 对 TypeScript 类型系统的断言完全错误。
@@ -83,11 +95,13 @@ TypeScript 的 `Record<K, V>` 要求 K 的所有成员必须作为 key 存在。
 #### BH-#3 (P0): "TOCTOU race in SNAPSHOT_EMITTED handler — can miss updates"
 
 **Blind Hunter 原文**：
+
 > "Snapshot captured at time T... User selects connection Y at T+1... Handler runs at T+2: selectedConnId = 'Y'... but payload.state.connections['Y'] does not exist"
 
 **事实分析**：`payload.state` 是 `structuredClone(state)` 的完整克隆，包含 **所有** connections（不只是 selected 的）。连接 Y 在用户选择它之前必然已存在（通过 `addConnection` 创建），因此 `payload.state.connections['Y']` 在快照中一定存在。
 
 **实际行为**：
+
 1. 快照时刻 T：连接 Z 被选中，rate = 5
 2. T+1：用户点击连接 Y。`currentState.selectedConnectionIds = ['Y']`
 3. 处理器执行：读取 `currentState` 的 selected = 'Y'，查找 `payload.state.connections['Y']` → 存在（因 Y 在 T 时刻已存在）→ 显示 Y 的 rate
@@ -101,6 +115,7 @@ TypeScript 的 `Record<K, V>` 要求 K 的所有成员必须作为 key 存在。
 #### AA-#4 (P2): "Number.isNaN validation path is unreachable in normal browser UX"
 
 **Acceptance Auditor 原文**：
+
 > "The `Number.isNaN` branch is only reachable through programmatic assignment"
 
 **部分事实**：在 Chrome/Edge 中确实如此（`type="number"` 过滤非数字字符，`.value` 为空字符串）。但在 **Firefox** 和某些移动浏览器中，`type="number"` 允许输入非数字文本，`.value` 可能是 `"abc"`。Edge Case Hunter 的 EH-#10 正确指出了此浏览器差异。
@@ -114,6 +129,7 @@ TypeScript 的 `Record<K, V>` 要求 K 的所有成员必须作为 key 存在。
 #### BH-#2 (P0→P2): "EventBus subscription leak on hot-reload — handlers accumulate"
 
 **夸大原因**：
+
 1. `EventBus.on()` 返回 `unsubscribe` 函数（`EventBus.ts:30`）
 2. `EventBus.clear()` 方法存在（`EventBus.ts:70-72`）
 3. 修复方案简单：在 HMR dispose 中调用 `eventBus.clear()` 或保存 unsubscribe 句柄
@@ -138,11 +154,11 @@ Edge Case Hunter 标记为 P2，但 Acceptance Auditor 正确识别为 P0（违�
 
 ### 📋 错误归因
 
-| 发现 | 标记来源 | 实际来源 |
-|------|---------|---------|
+| 发现                            | 标记来源  | 实际来源          |
+| ------------------------------- | --------- | ----------------- |
 | onConnectionDelete history 顺序 | Story 4.5 | Story 3.7（既存） |
-| onModuleDelete history 顺序 | Story 4.5 | Story 3.4（既存） |
-| onModuleDelete 缺少 markDirty | Story 4.5 | Story 3.4（既存） |
+| onModuleDelete history 顺序     | Story 4.5 | Story 3.4（既存） |
+| onModuleDelete 缺少 markDirty   | Story 4.5 | Story 3.4（既存） |
 | EventBus RUN/PAUSE/RESET 处理器 | Story 4.5 | Story 4.2（既存） |
 
 这些发现本身可能有效，但**与 Story 4.5 的实现无关**。Story 4.5 仅在上述 handler 中添加了 `rateEditorPanel.setConnection(null)` 行。
@@ -169,11 +185,12 @@ Edge Case Hunter 标记为 P2，但 Acceptance Auditor 正确识别为 P0（违�
 
 #### 🔴 P0 — 必须修复
 
-| # | 发现 | 位置 | 违反 |
-|---|------|------|------|
+| #     | 发现                                                                                                                    | 位置              | 违反     |
+| ----- | ----------------------------------------------------------------------------------------------------------------------- | ----------------- | -------- |
 | **1** | **Undo/Redo 后面板显示过期数据** — Ctrl+Z 恢复旧 state 后，`rateEditorPanel` 不更新。模拟PAUSED/IDLE 时面板永久不同步。 | `main.ts:314-343` | AC5, AC7 |
 
 **修正方案**：在 undo/redo 处理器中，恢复 state 后调用 `rateEditorPanel.setConnection(...)`：
+
 ```typescript
 // After currentState = prevState/nextState:
 const connId = currentState.selectedConnectionIds[0];
@@ -183,8 +200,12 @@ if (connId) {
     const fromNode = currentState.nodes[conn.fromId];
     const toNode = currentState.nodes[conn.toId];
     rateEditorPanel.setConnection({
-      id: connId, fromId: conn.fromId, toId: conn.toId,
-      rate: conn.rate, fromType: fromNode?.type, toType: toNode?.type,
+      id: connId,
+      fromId: conn.fromId,
+      toId: conn.toId,
+      rate: conn.rate,
+      fromType: fromNode?.type,
+      toType: toNode?.type,
     });
   }
 } else {
@@ -198,26 +219,28 @@ if (connId) {
 
 #### 🟡 P1 — 应该修复
 
-| # | 发现 | 位置 | 违反 |
-|---|------|------|------|
-| **2** | **`_lastValidRate` 在 `onRateSubmit` 后不同步** — 提交 rate=10 后 `_lastValidRate` 仍为 5，用户再输入 5 被误判为"未修改"。 | `RateEditorPanel.ts:243-246` | 用户交互正确性 |
-| **3** | **RESET 不清除面板** — 清除 `selectedConnectionIds` 但不调用 `rateEditorPanel.setConnection(null)`。 | `main.ts:396-397` | AC4 |
-| **4** | **RESET 直接 mutate node 对象** — `(node as StockNode).value = ...` 违反不可变状态架构约定。 | `main.ts:392` | 架构一致性 |
-| **5** | **`RATE_UPDATED` 事件零订阅者** — 违反 spec 反模式"No new EventBus events"。 | `main.ts:479`, `EventMap.ts:40` | Spec 合规 |
+| #     | 发现                                                                                                                       | 位置                            | 违反           |
+| ----- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | -------------- |
+| **2** | **`_lastValidRate` 在 `onRateSubmit` 后不同步** — 提交 rate=10 后 `_lastValidRate` 仍为 5，用户再输入 5 被误判为"未修改"。 | `RateEditorPanel.ts:243-246`    | 用户交互正确性 |
+| **3** | **RESET 不清除面板** — 清除 `selectedConnectionIds` 但不调用 `rateEditorPanel.setConnection(null)`。                       | `main.ts:396-397`               | AC4            |
+| **4** | **RESET 直接 mutate node 对象** — `(node as StockNode).value = ...` 违反不可变状态架构约定。                               | `main.ts:392`                   | 架构一致性     |
+| **5** | **`RATE_UPDATED` 事件零订阅者** — 违反 spec 反模式"No new EventBus events"。                                               | `main.ts:479`, `EventMap.ts:40` | Spec 合规      |
 
 **修正方案**：
 
 **#2** — 在 `_handleKeydown` 成功调用 `onRateSubmit` 后更新 `_lastValidRate`：
+
 ```typescript
 if (this.onRateSubmit) {
   this.onRateSubmit(parsed);
-  this._lastValidRate = parsed;  // ADD: sync after successful submit
+  this._lastValidRate = parsed; // ADD: sync after successful submit
 }
 ```
 
 **第一性原理**：`_lastValidRate` 存在三个职责：(a) error-revert 目标值，(b) "未修改"检测基准值，(c) 面板显示的权威值。在当前实现中, `setRate()`（快照更新）和 `setConnection()`（选择切换）都维护了 (a)(c)，但 `onRateSubmit` 之后 (b) 被遗漏。Edge Case Hunter 正确识别了此窗口，但此前 BH 错误地声称 `setRate()` 也缺失此更新——该错误已被证伪。
 
 **#3** — 在 RESET handler `currentState.selectedConnectionIds = []` 后添加：
+
 ```typescript
 rateEditorPanel.setConnection(null);
 ```
@@ -225,10 +248,11 @@ rateEditorPanel.setConnection(null);
 **第一性原理**：RESET 是 state 的硬重置路径，必须与常规取消选择路径保持相同的不变式——state 变更必须伴随 UI 层同步。
 
 **#4** — 改为不可变模式：
+
 ```typescript
 const updatedNodes = { ...currentState.nodes };
 for (const [id, node] of Object.entries(updatedNodes)) {
-  if (node.type === 'stock') {
+  if (node.type === "stock") {
     updatedNodes[id] = { ...node, value: (node as StockNode).initialValue };
   }
 }
@@ -241,21 +265,21 @@ currentState = { ...currentState, nodes: updatedNodes };
 
 #### 🟢 P2 — 建议修复
 
-| # | 发现 | 位置 |
-|---|------|------|
-| **6** | `onConnectionSelect(null)` 和 `onModuleSelect(null)` 缺少 `minimapRenderer.markDirty()` — cancel选择后 minimap 不高亮清除 | `main.ts:90, :113` |
-| **7** | `setRate()` 无 `Number.isNaN(value)` 守卫 — 模拟引擎若产出 NaN 则面板静默传播 | `RateEditorPanel.ts:166-172` |
-| **8** | 无 `!Number.isFinite(parsed)` 守卫 — 用户可提交 `Infinity` 速率 | `RateEditorPanel.ts:234-239` |
+| #     | 发现                                                                                                                      | 位置                         |
+| ----- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| **6** | `onConnectionSelect(null)` 和 `onModuleSelect(null)` 缺少 `minimapRenderer.markDirty()` — cancel选择后 minimap 不高亮清除 | `main.ts:90, :113`           |
+| **7** | `setRate()` 无 `Number.isNaN(value)` 守卫 — 模拟引擎若产出 NaN 则面板静默传播                                             | `RateEditorPanel.ts:166-172` |
+| **8** | 无 `!Number.isFinite(parsed)` 守卫 — 用户可提交 `Infinity` 速率                                                           | `RateEditorPanel.ts:234-239` |
 
 ---
 
 ### 确认有效但非 Story 4.5 专属的发现（延后）
 
-| 发现 | 实际来源 | 
-|------|---------|
+| 发现                                                                                                                | 实际来源      |
+| ------------------------------------------------------------------------------------------------------------------- | ------------- |
 | `onConnectionDelete`/`onModuleDelete` 的 history push 顺序（经分析后确认与 HistoryManager.undo() 语义兼容，非 bug） | Story 3.4/3.7 |
-| EventBus 热重载订阅泄漏（HMR 专用，修复简单） | Story 4.2 |
-| `structuredClone(state)` 每 tick 性能（非 Story 4.5 引入） | Story 4.3 |
+| EventBus 热重载订阅泄漏（HMR 专用，修复简单）                                                                       | Story 4.2     |
+| `structuredClone(state)` 每 tick 性能（非 Story 4.5 引入）                                                          | Story 4.3     |
 
 ---
 
@@ -278,6 +302,7 @@ currentState = { ...currentState, nodes: updatedNodes };
 **偏离节点**：Blind Hunter 在阅读 `RateEditorPanel.ts` 时，**漏读**了第 170 行 `this._lastValidRate = value;`。
 
 **偏差根因**：`setRate()` 方法仅有 5 行代码（166-172）。漏读一行在如此短的方法中是注意力分配失误。可能原因：
+
 - 代理接收到的是精简后的 diff 文本，不是完整文件
 - `document.activeElement` 守卫吸引了过多注意力，导致跳过后续赋值行
 
@@ -311,15 +336,15 @@ currentState = { ...currentState, nodes: updatedNodes };
 
 ## [总结]
 
-| 指标 | 值 |
-|------|---|
-| 原始发现总数 | 29 |
-| 事实错误 | 5 |
-| 严重性夸大 | 3 |
-| 错误归因 | 4 |
-| 遗漏 | 2 |
-| **有效缺陷（Story 4.5 专属）** | **8** |
-| P0 有效缺陷 | 1（Undo/Redo 面板不同步） |
-| P1 有效缺陷 | 4 |
-| P2 有效缺陷 | 3 |
-| **审查净准确率** | **约 65%**（有效且无偏差的发现占总发现比例） |
+| 指标                           | 值                                           |
+| ------------------------------ | -------------------------------------------- |
+| 原始发现总数                   | 29                                           |
+| 事实错误                       | 5                                            |
+| 严重性夸大                     | 3                                            |
+| 错误归因                       | 4                                            |
+| 遗漏                           | 2                                            |
+| **有效缺陷（Story 4.5 专属）** | **8**                                        |
+| P0 有效缺陷                    | 1（Undo/Redo 面板不同步）                    |
+| P1 有效缺陷                    | 4                                            |
+| P2 有效缺陷                    | 3                                            |
+| **审查净准确率**               | **约 65%**（有效且无偏差的发现占总发现比例） |

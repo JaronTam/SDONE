@@ -26,11 +26,11 @@
 
 **Blind Hunter 发现原文：**
 
-| 发现 | Blind Hunter 行号 | 实际源文件行号 | 偏差原因 |
-|------|-------------------|---------------|----------|
-| B3 注释残留 | main.ts:1836 | **main.ts:12** | diff hunk 行号 |
+| 发现                | Blind Hunter 行号 | 实际源文件行号  | 偏差原因       |
+| ------------------- | ----------------- | --------------- | -------------- |
+| B3 注释残留         | main.ts:1836      | **main.ts:12**  | diff hunk 行号 |
 | NudgeDebouncer 双推 | main.ts:1972-1977 | main.ts:165-170 | diff hunk 行号 |
-| onModuleMove 变异 | main.ts:1909-1913 | main.ts:103-107 | diff hunk 行号 |
+| onModuleMove 变异   | main.ts:1909-1913 | main.ts:103-107 | diff hunk 行号 |
 | ghost provider 重复 | main.ts:2186-2199 | main.ts:378-392 | diff hunk 行号 |
 
 **根本原因：** Blind Hunter agent 仅接收 unified diff，无权读取源文件。其报告的行号是 diff 文件中的绝对行号，与源文件行号存在偏移。这是 Blind Hunter 方法论的固有局限，非认知错误。
@@ -44,11 +44,13 @@
 ### 偏差 2：`expect(true).toBe(true)` 被错误标记为 STILL OPEN
 
 **Acceptance Auditor 原文：**
+
 > P2 #5: `expect(true).toBe(true)` 无用测试 [EmptyCanvasAffordance.test.ts:16,22] — **STILL OPEN** — import line was cleaned up (vi removed) but test assertions remain unchanged
 
 **源码验证结果：** `EmptyCanvasAffordance.test.ts` 共 168 行，全文搜索 `expect(true).toBe(true)` — **零匹配**。
 
 当前文件中的相关测试（第 95-106 行）：
+
 ```typescript
 // Line 95-100
 const nodes = {};
@@ -56,7 +58,7 @@ const shouldRender = Object.keys(nodes).length === 0;
 expect(shouldRender).toBe(true);
 
 // Line 102-106
-const nodes = { 'a': { type: 'stock', position: { x: 0, y: 0 } } };
+const nodes = { a: { type: "stock", position: { x: 0, y: 0 } } };
 const shouldRender = Object.keys(nodes).length === 0;
 expect(shouldRender).toBe(false);
 ```
@@ -64,6 +66,7 @@ expect(shouldRender).toBe(false);
 这些测试验证了 `Object.keys(nodes).length === 0` 的真假——虽说是验证 JS 内置行为，但**不是** `expect(true).toBe(true)`。它们是**有实际断言的测试**（尽管简单）。
 
 **第一性原理分析：**
+
 - `expect(true).toBe(true)` 是**无条件通过的断言** — 零信息量，零回归保护
 - `const shouldRender = Object.keys({}).length === 0; expect(shouldRender).toBe(true)` 是**有条件的断言** — 它验证了一个具体的逻辑条件。即使条件简单，其真假取决于输入，而非恒真
 - Auditor 将两者等同处理是错误的——后者是 trivial test（简单但有断言），前者是 useless test（无断言）
@@ -139,19 +142,21 @@ expect(shouldRender).toBe(false);
 
 - **原发现：** `drawArrowhead` 有 `len < 1` 守卫（line 802），但线条在检查之前已绘制（lines 734-740）
 - **源码验证：**
+
   ```typescript
   // SceneRenderer.ts:734-740 — 线条绘制（无长度守卫）
   ctx.beginPath();
   ctx.moveTo(fromEdge.x, fromEdge.y);
   ctx.lineTo(toEdge.x, toEdge.y);
   ctx.stroke();
-  
+
   // SceneRenderer.ts:743 — drawArrowhead 调用
   this.drawArrowhead(ctx, fromEdge.x, fromEdge.y, toEdge.x, toEdge.y);
-  
+
   // SceneRenderer.ts:802 — drawArrowhead 内部守卫
   if (len < 1) return;
   ```
+
 - **验证：** ✅ **正确。** 线条在无长度检查的情况下被 stroke。
 - **可达性分析：**
   - `fromEdge === toEdge` 要求 fromNode 和 toNode 位于相同位置且同类型 → 需要两个同类型模块占据完全相同的 world position
@@ -177,21 +182,22 @@ expect(shouldRender).toBe(false);
 
 以下全部来自第一轮审查，经 confession report 从 P1 降级为 P3。每项均经过独立源码验证。
 
-| # | 参数 | 源码值 | Dev Notes 值 | AC 约束 | 定级 | 源码位置 | 验证 |
-|---|------|--------|-------------|---------|------|----------|------|
-| 1 | 连接线颜色 | `#4fc3f7` | `#1a1a1a` | AC8 不指定颜色 | P3 ✅ | SceneRenderer.ts:168 | 正确 |
-| 2 | 箭头尺寸 | 14/7 | 8/6 | AC8 不指定尺寸 | P3 ✅ | SceneRenderer.ts:171-172 | 正确 |
-| 3 | EDGE_ZONE_INNER_FRACTION | 0.7 | 0.5 | AC 皆不指定 | P3 ✅ | InputManager.ts:12 | 正确 |
-| 4 | Rubber-band 颜色 | 继承 `#4fc3f7` | `#888888` | AC1 不指定颜色 | P3 ✅ | SceneRenderer.ts:773 | 正确 |
-| 5 | SNAP_ZONE_RADIUS | 14 | 20 | AC2 "~20px" 近似 | P3 ✅ | SceneRenderer.ts:173 | 正确 |
-| 6 | 线宽 | 2.5 | 2 | AC8 不指定线宽 | P3 ✅ | SceneRenderer.ts:169 | 正确 |
-| 7 | 虚线样式 | [6,6] | [6,4] | AC1 不指定样式 | P3 ✅ | SceneRenderer.ts:775 | 正确 |
+| #   | 参数                     | 源码值         | Dev Notes 值 | AC 约束          | 定级  | 源码位置                 | 验证 |
+| --- | ------------------------ | -------------- | ------------ | ---------------- | ----- | ------------------------ | ---- |
+| 1   | 连接线颜色               | `#4fc3f7`      | `#1a1a1a`    | AC8 不指定颜色   | P3 ✅ | SceneRenderer.ts:168     | 正确 |
+| 2   | 箭头尺寸                 | 14/7           | 8/6          | AC8 不指定尺寸   | P3 ✅ | SceneRenderer.ts:171-172 | 正确 |
+| 3   | EDGE_ZONE_INNER_FRACTION | 0.7            | 0.5          | AC 皆不指定      | P3 ✅ | InputManager.ts:12       | 正确 |
+| 4   | Rubber-band 颜色         | 继承 `#4fc3f7` | `#888888`    | AC1 不指定颜色   | P3 ✅ | SceneRenderer.ts:773     | 正确 |
+| 5   | SNAP_ZONE_RADIUS         | 14             | 20           | AC2 "~20px" 近似 | P3 ✅ | SceneRenderer.ts:173     | 正确 |
+| 6   | 线宽                     | 2.5            | 2            | AC8 不指定线宽   | P3 ✅ | SceneRenderer.ts:169     | 正确 |
+| 7   | 虚线样式                 | [6,6]          | [6,4]        | AC1 不指定样式   | P3 ✅ | SceneRenderer.ts:775     | 正确 |
 
 **第一性原理验证：**
 
 AC 是行为契约——只有 AC 表格 Then 列中的约束有规范效力。Dev Notes 中的代码示例是实现参考，不是验收标准。
 
 逐项 AC 交叉验证：
+
 - **连接线颜色/尺寸/线宽：** AC8 仅要求 "solid lines with arrowheads" —— 未指定颜色/尺寸/线宽。`#4fc3f7` 在深色背景（`#11111b`）上比 `#1a1a1a` 有更好的对比度和可视性。这是一个 UX 改进。
 - **EDGE_ZONE_INNER_FRACTION 0.7：** 无 AC 约束。0.7（outer 30%）故意缩小边缘拖拽区域以减少与普通选择/拖拽的误触。注释中明确记录了意图。
 - **Rubber-band 颜色：** AC1 仅要求 "dashed line follows the pointer" —— 未指定颜色。使用与已建立连接相同的颜色保持了视觉一致性。
@@ -205,9 +211,11 @@ AC 是行为契约——只有 AC 表格 Then 列中的约束有规范效力。D
 ### 四、Defer P3 — 边界防御（含第一轮遗留 4 项 + 第二轮新增 2 项）
 
 #### P3-8: NaN 通过 ShapePaths 尺寸守卫
+
 → 见 P3-5（相同发现，已在上方验证）
 
 #### P3-9: 零长度连接线
+
 → 见 P3-6（相同发现，已在上方验证）
 
 #### P3-10: 拖拽中源模块被删除的竞态
@@ -240,9 +248,13 @@ AC 是行为契约——只有 AC 表格 Then 列中的约束有规范效力。D
 - **原发现：** `InputManager.ts:601-610` — Escape 取消拖拽但不 preventDefault
 - **源码验证：**
   ```typescript
-  if (e.code === 'Escape') {
-    if (this.isDraggingModule) { this.cancelDrag(); }
-    if (this.isDraggingConnection) { this.cancelConnectionDrag(); }
+  if (e.code === "Escape") {
+    if (this.isDraggingModule) {
+      this.cancelDrag();
+    }
+    if (this.isDraggingConnection) {
+      this.cancelConnectionDrag();
+    }
     return;
   }
   ```
@@ -288,12 +300,12 @@ AC 是行为契约——只有 AC 表格 Then 列中的约束有规范效力。D
 
 ## [总结]
 
-| 指标 | 数值 |
-|------|------|
-| P3 发现总数 | 18 |
-| ✅ 验证确认 | 18 (100%) |
-| ❌ 误报 | 0 |
+| 指标                  | 数值                             |
+| --------------------- | -------------------------------- |
+| P3 发现总数           | 18                               |
+| ✅ 验证确认           | 18 (100%)                        |
+| ❌ 误报               | 0                                |
 | 🔧 需修正的元数据错误 | 2（行号校正、expect(true) 状态） |
-| 📐 系统性偏差 | 无 |
+| 📐 系统性偏差         | 无                               |
 
 **审计结论：P3 发现在事实维度全部正确。两处元数据偏差（Blind Hunter diff 行号、Auditor 状态误判）不影响发现本身的有效性。P3 分类一致性好——这是经第一次 confession report 修正后审查框架改进的直接证据。**

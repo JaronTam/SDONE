@@ -1,13 +1,13 @@
 ---
-name: 'step-04-session-01'
-description: 'Session 1: Quick Start - TEA Lite intro, run automate workflow (30 min)'
+name: "step-04-session-01"
+description: "Session 1: Quick Start - TEA Lite intro, run automate workflow (30 min)"
 
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
-sessionNotesTemplate: '../templates/session-notes-template.md'
-sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-01-notes.md'
-nextStepFile: '{skill-root}/steps-c/step-03-session-menu.md'
-advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
+sessionNotesTemplate: "../templates/session-notes-template.md"
+sessionNotesFile: "{test_artifacts}/tea-academy/{user_name}/session-01-notes.md"
+nextStepFile: "{skill-root}/steps-c/step-03-session-menu.md"
+advancedElicitationTask: "{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Session 1 - Quick Start
@@ -280,12 +280,12 @@ Create {sessionNotesFile} using {sessionNotesTemplate} with:
 ```markdown
 ---
 session_id: session-01-quickstart
-session_name: 'Session 1: Quick Start'
+session_name: "Session 1: Quick Start"
 user: { user_name }
 role: { role }
 completed_date: { current_date }
 score: { score }
-duration: '30 min'
+duration: "30 min"
 ---
 
 # Session 1: Quick Start - Session Notes

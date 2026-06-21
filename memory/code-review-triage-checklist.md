@@ -23,27 +23,30 @@ Epic 6 的 Story 6.6 和 6.7 代码审查中，审查者在 Triage 阶段使用�
 **问题**: 代码与 spec 原文是否一致？
 **方法**: 回溯 spec 文件中对应的 Task/AC，逐字比对代码实现与 spec 规定。
 **规则**:
+
 - 代码 = spec → **Dismiss**（"不一致"不等于"错误"——相邻代码的风格差异不是 bug）
 - 代码 ≠ spec → 继续 Gate 2
-**典型案例**: Story 6.7 CSS padding `6px` vs `4px`。Edge Case Hunter 发现与相邻按钮不一致，但 spec Task 1.2 明确规定 `6px`。代码与 spec 一致 → Dismiss。
+  **典型案例**: Story 6.7 CSS padding `6px` vs `4px`。Edge Case Hunter 发现与相邻按钮不一致，但 spec Task 1.2 明确规定 `6px`。代码与 spec 一致 → Dismiss。
 
 ### Gate 2: 测试职责边界检查
 
 **问题**: 该测试验证的是被测单元的特有行为还是通用契约？
 **方法**: 检查被质疑的测试覆盖的行为，是否已在更早/更通用的测试层中覆盖。
 **规则**:
+
 - 通用契约（如"点击按钮触发回调"）→ **Dismiss**（不应在配置级测试中重复验证）
 - 特有行为（如"清除画布的中文文本为'清除确认'"）→ 继续 Gate 3
-**典型案例**: Story 6.7 ModalDialog 测试被要求验证 confirm/cancel 点击。但点击→回调是 ModalDialog 的通用契约，已在 Story 6.1 测试中覆盖。新测试正确覆盖了特有行为（中文文本配置）→ Dismiss。
+  **典型案例**: Story 6.7 ModalDialog 测试被要求验证 confirm/cancel 点击。但点击→回调是 ModalDialog 的通用契约，已在 Story 6.1 测试中覆盖。新测试正确覆盖了特有行为（中文文本配置）→ Dismiss。
 
 ### Gate 3: 测试可实现性检查
 
 **问题**: 该测试在当前测试架构下是否可实现？
 **方法**: 检查被测代码所在的架构层。编排层（main.ts）的模块级变量在组件隔离的单元测试环境中不可访问。
 **规则**:
+
 - 单元测试层可实现 → **Patch**
 - 需要集成测试基础设施 → **Defer**（解锁条件：建立集成测试框架或提取纯函数）
-**典型案例**: Story 6.7 guard 路径测试。Guard 在 main.ts 编排层，依赖模块级 `currentState` 和 `modalDialog`。当前 jsdom 隔离环境无法访问 → Defer（解锁条件：提取 `isCanvasEmpty(state)` 纯函数）。
+  **典型案例**: Story 6.7 guard 路径测试。Guard 在 main.ts 编排层，依赖模块级 `currentState` 和 `modalDialog`。当前 jsdom 隔离环境无法访问 → Defer（解锁条件：提取 `isCanvasEmpty(state)` 纯函数）。
 
 ## 使用方式
 

@@ -11,8 +11,8 @@ Uses `GET /__admin/requests` to fetch the webhook log and `DELETE /__admin/reque
 **Works with any backend implementing the `/__admin/requests` format** — not just actual WireMock. The playwright-utils sample app's Express backend uses this exact format.
 
 ```typescript
-import { WireMockWebhookProvider } from '@seontechnologies/playwright-utils/webhook';
-import { API_URL } from '../config/local.config';
+import { WireMockWebhookProvider } from "@seontechnologies/playwright-utils/webhook";
+import { API_URL } from "../config/local.config";
 
 const webhookProviderFixture = base.extend<{
   webhookProvider: WireMockWebhookProvider;
@@ -33,7 +33,7 @@ Uses `PUT /mockserver/retrieve` to fetch logs with client-side `since` filtering
 **Limitation**: `deleteById` is a no-op — MockServer does not support deleting individual log entries by ID. The `startedAt` timestamp filter handles per-test isolation. Use `full-reset` for explicit journal cleanup.
 
 ```typescript
-import { MockServerWebhookProvider } from '@seontechnologies/playwright-utils/webhook';
+import { MockServerWebhookProvider } from "@seontechnologies/playwright-utils/webhook";
 
 const webhookProviderFixture = base.extend<{
   webhookProvider: MockServerWebhookProvider;
@@ -43,10 +43,14 @@ const webhookProviderFixture = base.extend<{
   },
 });
 
-const test = mergeTests(base, /* ...other fixtures... */ webhookFixture, webhookProviderFixture);
+const test = mergeTests(
+  base,
+  /* ...other fixtures... */ webhookFixture,
+  webhookProviderFixture,
+);
 
 // MockServer has no delete-by-ID on log entries — use full-reset
-test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } });
+test.use({ webhookConfig: { cleanupStrategy: "full-reset" } });
 ```
 
 ## MockoonWebhookProvider
@@ -56,7 +60,7 @@ Uses `GET /mockoon-admin/logs` to fetch logs. The admin API is enabled by defaul
 **Limitation**: `deleteById` is a no-op for the same reason as MockServer. Use `full-reset`.
 
 ```typescript
-import { MockoonWebhookProvider } from '@seontechnologies/playwright-utils/webhook';
+import { MockoonWebhookProvider } from "@seontechnologies/playwright-utils/webhook";
 
 const webhookProviderFixture = base.extend<{
   webhookProvider: MockoonWebhookProvider;
@@ -66,10 +70,14 @@ const webhookProviderFixture = base.extend<{
   },
 });
 
-const test = mergeTests(base, /* ...other fixtures... */ webhookFixture, webhookProviderFixture);
+const test = mergeTests(
+  base,
+  /* ...other fixtures... */ webhookFixture,
+  webhookProviderFixture,
+);
 
 // Mockoon has no delete-by-ID on log entries — use full-reset
-test.use({ webhookConfig: { cleanupStrategy: 'full-reset' } });
+test.use({ webhookConfig: { cleanupStrategy: "full-reset" } });
 ```
 
 Start Mockoon with an increased log limit if needed:
@@ -84,8 +92,12 @@ Implement `WebhookProvider` for any backend that exposes a queryable request log
 
 ```typescript
 // support/providers/custom-webhook-provider.ts
-import type { WebhookProvider, ReceivedWebhook, WebhookQueryFilter } from '@seontechnologies/playwright-utils/webhook';
-import type { APIRequestContext } from '@playwright/test';
+import type {
+  WebhookProvider,
+  ReceivedWebhook,
+  WebhookQueryFilter,
+} from "@seontechnologies/playwright-utils/webhook";
+import type { APIRequestContext } from "@playwright/test";
 
 export class CustomWebhookProvider implements WebhookProvider {
   constructor(
@@ -93,12 +105,16 @@ export class CustomWebhookProvider implements WebhookProvider {
     private readonly request: APIRequestContext,
   ) {}
 
-  async getReceivedWebhooks(filter?: WebhookQueryFilter): Promise<ReceivedWebhook[]> {
+  async getReceivedWebhooks(
+    filter?: WebhookQueryFilter,
+  ): Promise<ReceivedWebhook[]> {
     const params = new URLSearchParams();
-    if (filter?.since) params.set('since', filter.since.toISOString());
-    if (filter?.method) params.set('method', filter.method);
+    if (filter?.since) params.set("since", filter.since.toISOString());
+    if (filter?.method) params.set("method", filter.method);
 
-    const response = await this.request.get(`${this.baseUrl}/webhooks/received?${params}`);
+    const response = await this.request.get(
+      `${this.baseUrl}/webhooks/received?${params}`,
+    );
     const { webhooks } = await response.json();
     return webhooks.map((w: Record<string, unknown>) => ({
       id: String(w.id),

@@ -8,7 +8,7 @@
 
 ```typescript
 class WebhookTimeoutError extends Error {
-  readonly name = 'WebhookTimeoutError';
+  readonly name = "WebhookTimeoutError";
   readonly templateName: string; // from webhookTemplate('...')
   readonly timeoutMs: number; // the timeout that was exceeded
   readonly totalReceived: number; // total webhooks seen in polling window
@@ -36,28 +36,33 @@ Use `matcherDetails` to confirm the matchers were configured correctly. Use `rec
 ## Validating the Error Shape in Tests
 
 ```typescript
-import { WebhookTimeoutError, webhookTemplate } from '@seontechnologies/playwright-utils/webhook';
+import {
+  WebhookTimeoutError,
+  webhookTemplate,
+} from "@seontechnologies/playwright-utils/webhook";
 
-const neverArrivingTemplate = webhookTemplate('never.arrives')
-  .matchField('event', 'event.that.never.happens')
+const neverArrivingTemplate = webhookTemplate("never.arrives")
+  .matchField("event", "event.that.never.happens")
   .withTimeout(500)
   .withInterval(100)
   .build();
 
-const [waitResult] = await Promise.allSettled([webhookRegistry.waitFor(neverArrivingTemplate)]);
+const [waitResult] = await Promise.allSettled([
+  webhookRegistry.waitFor(neverArrivingTemplate),
+]);
 
-expect(waitResult.status).toBe('rejected');
-if (waitResult.status !== 'rejected') {
-  throw new Error('Expected webhook wait to reject with WebhookTimeoutError');
+expect(waitResult.status).toBe("rejected");
+if (waitResult.status !== "rejected") {
+  throw new Error("Expected webhook wait to reject with WebhookTimeoutError");
 }
 
 const error = waitResult.reason as WebhookTimeoutError;
 expect(error).toBeInstanceOf(WebhookTimeoutError);
-expect(error.templateName).toBe('never.arrives');
+expect(error.templateName).toBe("never.arrives");
 expect(error.timeoutMs).toBe(500);
 expect(error.toJSON()).toMatchObject({
-  name: 'WebhookTimeoutError',
-  templateName: 'never.arrives',
+  name: "WebhookTimeoutError",
+  templateName: "never.arrives",
   timeoutMs: 500,
   totalReceived: expect.any(Number),
   matcherDetails: ['field(event="event.that.never.happens")'],
@@ -76,18 +81,20 @@ await webhookRegistry.waitFor(movieCreated(movieId));
 const undeliveredDelete = webhookTemplate<{
   event: string;
   data: { id: number };
-}>('movie.deleted.not.delivered')
-  .matchField('event', 'movie.deleted')
-  .matchField('data.id', movieId)
+}>("movie.deleted.not.delivered")
+  .matchField("event", "movie.deleted")
+  .matchField("data.id", movieId)
   .withTimeout(2_000)
   .withInterval(200)
   .build();
 
-const [waitResult] = await Promise.allSettled([webhookRegistry.waitFor(undeliveredDelete)]);
+const [waitResult] = await Promise.allSettled([
+  webhookRegistry.waitFor(undeliveredDelete),
+]);
 
-expect(waitResult.status).toBe('rejected');
-if (waitResult.status !== 'rejected') {
-  throw new Error('Expected webhook wait to reject with WebhookTimeoutError');
+expect(waitResult.status).toBe("rejected");
+if (waitResult.status !== "rejected") {
+  throw new Error("Expected webhook wait to reject with WebhookTimeoutError");
 }
 
 const error = waitResult.reason as WebhookTimeoutError;
@@ -95,9 +102,11 @@ expect(error).toBeInstanceOf(WebhookTimeoutError);
 expect(error.totalReceived).toBeGreaterThanOrEqual(1);
 
 // The movie.created webhook that did arrive is visible in the error
-const createdWebhook = error.receivedWebhooks.find((w) => (w.body as { data: { id: number } }).data.id === movieId);
+const createdWebhook = error.receivedWebhooks.find(
+  (w) => (w.body as { data: { id: number } }).data.id === movieId,
+);
 expect(createdWebhook).toBeDefined();
-expect((createdWebhook!.body as { event: string }).event).toBe('movie.created');
+expect((createdWebhook!.body as { event: string }).event).toBe("movie.created");
 ```
 
 ## Common Failure Patterns
@@ -121,7 +130,7 @@ expect((createdWebhook!.body as { event: string }).event).toBe('movie.created');
 ## Import
 
 ```typescript
-import { WebhookTimeoutError } from '@seontechnologies/playwright-utils/webhook';
+import { WebhookTimeoutError } from "@seontechnologies/playwright-utils/webhook";
 ```
 
 ## Related Fragments

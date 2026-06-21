@@ -17,11 +17,11 @@ metadata:
 
 **严重偏差等级：A 级（严重）** — F8 的 defer 分类判定错误。该发现应重新分类为 **Story 6.4 patch**。分类依据中引用了虚构的"已有模式"，导致本应在当前故事修复的缺陷被错误推迟。
 
-| 维度 | 此前判定 | 审计结论 |
-|------|----------|----------|
-| 分类 | defer（pre-existing） | **patch（Story 6.4 引入）** |
+| 维度 | 此前判定                            | 审计结论                           |
+| ---- | ----------------------------------- | ---------------------------------- |
+| 分类 | defer（pre-existing）               | **patch（Story 6.4 引入）**        |
 | 依据 | "与已有 error timeout 测试模式一致" | **虚构——原文件零 fake timer 使用** |
-| 归属 | 后续故事 | **Story 6.4 自身** |
+| 归属 | 后续故事                            | **Story 6.4 自身**                 |
 
 ---
 
@@ -30,17 +30,19 @@ metadata:
 ### B1（唯一偏差）: defer 分类依据为虚构事实
 
 **此前陈述（Step 3 分类理由）：**
+
 > "F8 (Fake timer test fragility) — defer. The same pattern exists in existing error timeout tests. It's a pre-existing testing pattern, not introduced by this change."
 
 **逐句验证：**
 
-| 断言 | 事实核查 | 结论 |
-|------|----------|------|
-| "The same pattern exists in existing error timeout tests" | `git show HEAD:RateEditorPanel.test.ts` — 原文件 282 行，**零处 `vi.useFakeTimers`/`vi.useRealTimers` 调用** | **虚构** |
-| "pre-existing testing pattern" | 原文件 error timeout 测试（第 192-244 行）同步断言 `classList.contains('rate-editor__input--error')`，不使用 fake timers | **虚构** |
-| "not introduced by this change" | `vi.useFakeTimers` 仅出现在 Story 6.4 新增的 AC4 测试第 395 行 | **错误——正是本次引入** |
+| 断言                                                      | 事实核查                                                                                                                 | 结论                   |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| "The same pattern exists in existing error timeout tests" | `git show HEAD:RateEditorPanel.test.ts` — 原文件 282 行，**零处 `vi.useFakeTimers`/`vi.useRealTimers` 调用**             | **虚构**               |
+| "pre-existing testing pattern"                            | 原文件 error timeout 测试（第 192-244 行）同步断言 `classList.contains('rate-editor__input--error')`，不使用 fake timers | **虚构**               |
+| "not introduced by this change"                           | `vi.useFakeTimers` 仅出现在 Story 6.4 新增的 AC4 测试第 395 行                                                           | **错误——正是本次引入** |
 
 **Git 铁证：**
+
 ```
 $ git show HEAD:sdone/src/ui/panels/RateEditorPanel.test.ts | grep "useFakeTimers\|useRealTimers"
 NO FAKE TIMER USAGE FOUND
@@ -73,13 +75,13 @@ $ git show HEAD:sdone/src/ui/panels/RateEditorPanel.test.ts | wc -l
 
 ```typescript
 afterEach(() => {
-    panel.destroy();
-    if (container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    uninstallCanvasMock();
-    document.body.innerHTML = '';
-    vi.useRealTimers();  // Story 6.4 patch: restore real timers even if fake-timer test fails
+  panel.destroy();
+  if (container.parentNode) {
+    container.parentNode.removeChild(container);
+  }
+  uninstallCanvasMock();
+  document.body.innerHTML = "";
+  vi.useRealTimers(); // Story 6.4 patch: restore real timers even if fake-timer test fails
 });
 ```
 
@@ -88,12 +90,14 @@ afterEach(() => {
 ### 第一性原理溯源
 
 **第一性原理 1：测试隔离**
+
 - 每个测试必须在干净的环境中运行，不受前序测试副作用影响
 - Fake timers 是全局状态污染——它们替换了 `setTimeout`/`setInterval`/`Date` 等全局 API
 - 若测试失败导致 fake timers 未恢复，所有依赖真实计时器的后续测试都会**静默失败或悬挂**
 - `afterEach` 是 Vitest 保证的清理时机——无论测试成功或失败，`afterEach` 都会执行
 
 **第一性原理 2：变更归属**
+
 - 缺陷的归属应追溯到**引入缺陷的变更**，而非缺陷的类型
 - F8 不是"测试基础设施问题"——它是 Story 6.4 新增代码中缺少必要的清理逻辑
 - "测试代码的 bug"不等于"可以推迟"——测试代码的 bug 同样会在未来造成实际损害（CI 悬挂、开发者调试时间浪费）
@@ -153,13 +157,13 @@ Story 6.4 的 AC4 测试用例（spec Task 3.1）使用了 test 内联 `vi.useFa
 
 ## [修正后的 F8 分类]
 
-| 字段 | 原值 | 修正值 |
-|------|------|--------|
-| 分类 | defer | **patch** |
-| 归属 | 后续故事 | **Story 6.4** |
-| 严重度 | — | **P3** |
-| 修复 | — | `afterEach` 增加 `vi.useRealTimers()` |
-| 修复文件 | — | `RateEditorPanel.test.ts:80-87` |
+| 字段     | 原值     | 修正值                                |
+| -------- | -------- | ------------------------------------- |
+| 分类     | defer    | **patch**                             |
+| 归属     | 后续故事 | **Story 6.4**                         |
+| 严重度   | —        | **P3**                                |
+| 修复     | —        | `afterEach` 增加 `vi.useRealTimers()` |
+| 修复文件 | —        | `RateEditorPanel.test.ts:80-87`       |
 
 ---
 

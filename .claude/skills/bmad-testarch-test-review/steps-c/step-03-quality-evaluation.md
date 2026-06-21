@@ -1,7 +1,7 @@
 ---
-name: 'step-03-quality-evaluation'
-description: 'Orchestrate adaptive quality dimension checks (agent-team, subagent, or sequential)'
-nextStepFile: '{skill-root}/steps-c/step-03f-aggregate-scores.md'
+name: "step-03-quality-evaluation"
+description: "Orchestrate adaptive quality dimension checks (agent-team, subagent, or sequential)"
+nextStepFile: "{skill-root}/steps-c/step-03f-aggregate-scores.md"
 ---
 
 # Step 3: Orchestrate Adaptive Quality Evaluation
@@ -50,7 +50,7 @@ Coverage is intentionally excluded from this workflow and handled by `trace`.
 **Generate unique timestamp:**
 
 ```javascript
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 ```
 
 **Prepare context for all subagents:**
@@ -83,33 +83,56 @@ const subagentContext = {
 
 ```javascript
 const normalizeUserExecutionMode = (mode) => {
-  if (typeof mode !== 'string') return null;
-  const normalized = mode.trim().toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+  if (typeof mode !== "string") return null;
+  const normalized = mode
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ");
 
-  if (normalized === 'auto') return 'auto';
-  if (normalized === 'sequential') return 'sequential';
-  if (normalized === 'subagent' || normalized === 'sub agent' || normalized === 'subagents' || normalized === 'sub agents') {
-    return 'subagent';
+  if (normalized === "auto") return "auto";
+  if (normalized === "sequential") return "sequential";
+  if (
+    normalized === "subagent" ||
+    normalized === "sub agent" ||
+    normalized === "subagents" ||
+    normalized === "sub agents"
+  ) {
+    return "subagent";
   }
-  if (normalized === 'agent team' || normalized === 'agent teams' || normalized === 'agentteam') {
-    return 'agent-team';
+  if (
+    normalized === "agent team" ||
+    normalized === "agent teams" ||
+    normalized === "agentteam"
+  ) {
+    return "agent-team";
   }
 
   return null;
 };
 
 const normalizeConfigExecutionMode = (mode) => {
-  if (mode === 'subagent') return 'subagent';
-  if (mode === 'auto' || mode === 'sequential' || mode === 'subagent' || mode === 'agent-team') {
+  if (mode === "subagent") return "subagent";
+  if (
+    mode === "auto" ||
+    mode === "sequential" ||
+    mode === "subagent" ||
+    mode === "agent-team"
+  ) {
     return mode;
   }
   return null;
 };
 
 // Explicit user instruction in the active run takes priority over config.
-const explicitModeFromUser = normalizeUserExecutionMode(runtime.getExplicitExecutionModeHint?.() || null);
+const explicitModeFromUser = normalizeUserExecutionMode(
+  runtime.getExplicitExecutionModeHint?.() || null,
+);
 
-const requestedMode = explicitModeFromUser || normalizeConfigExecutionMode(subagentContext.config.execution_mode) || 'auto';
+const requestedMode =
+  explicitModeFromUser ||
+  normalizeConfigExecutionMode(subagentContext.config.execution_mode) ||
+  "auto";
 const probeEnabled = subagentContext.config.capability_probe;
 
 const supports = {
@@ -124,14 +147,18 @@ if (probeEnabled) {
 
 let resolvedMode = requestedMode;
 
-if (requestedMode === 'auto') {
-  if (supports.agentTeam) resolvedMode = 'agent-team';
-  else if (supports.subagent) resolvedMode = 'subagent';
-  else resolvedMode = 'sequential';
-} else if (probeEnabled && requestedMode === 'agent-team' && !supports.agentTeam) {
-  resolvedMode = supports.subagent ? 'subagent' : 'sequential';
-} else if (probeEnabled && requestedMode === 'subagent' && !supports.subagent) {
-  resolvedMode = 'sequential';
+if (requestedMode === "auto") {
+  if (supports.agentTeam) resolvedMode = "agent-team";
+  else if (supports.subagent) resolvedMode = "subagent";
+  else resolvedMode = "sequential";
+} else if (
+  probeEnabled &&
+  requestedMode === "agent-team" &&
+  !supports.agentTeam
+) {
+  resolvedMode = supports.subagent ? "subagent" : "sequential";
+} else if (probeEnabled && requestedMode === "subagent" && !supports.subagent) {
+  resolvedMode = "sequential";
 }
 
 subagentContext.execution = {
@@ -205,9 +232,12 @@ In `agent-team` and `subagent` modes, runtime decides worker scheduling and conc
 ### 5. Verify All Outputs Exist
 
 ```javascript
-const outputs = ['determinism', 'isolation', 'maintainability', 'performance'].map(
-  (dim) => `/tmp/tea-test-review-${dim}-${timestamp}.json`,
-);
+const outputs = [
+  "determinism",
+  "isolation",
+  "maintainability",
+  "performance",
+].map((dim) => `/tmp/tea-test-review-${dim}-${timestamp}.json`);
 
 outputs.forEach((output) => {
   if (!fs.existsSync(output)) {

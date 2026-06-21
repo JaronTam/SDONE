@@ -1,8 +1,8 @@
 ---
-name: 'step-04c-aggregate'
-description: 'Aggregate subagent outputs and complete ATDD test infrastructure'
-outputFile: '{test_artifacts}/atdd-checklist-{story_key}.md'
-nextStepFile: '{skill-root}/steps-c/step-05-validate-and-complete.md'
+name: "step-04c-aggregate"
+description: "Aggregate subagent outputs and complete ATDD test infrastructure"
+outputFile: "{test_artifacts}/atdd-checklist-{story_key}.md"
+nextStepFile: "{skill-root}/steps-c/step-05-validate-and-complete.md"
 ---
 
 # Step 4C: Aggregate ATDD Test Generation Results
@@ -50,15 +50,15 @@ Read outputs from parallel subagents (API + E2E red-phase test generation), aggr
 **Read API test subagent output:**
 
 ```javascript
-const apiTestsPath = '/tmp/tea-atdd-api-tests-{{timestamp}}.json';
-const apiTestsOutput = JSON.parse(fs.readFileSync(apiTestsPath, 'utf8'));
+const apiTestsPath = "/tmp/tea-atdd-api-tests-{{timestamp}}.json";
+const apiTestsOutput = JSON.parse(fs.readFileSync(apiTestsPath, "utf8"));
 ```
 
 **Read E2E test subagent output:**
 
 ```javascript
-const e2eTestsPath = '/tmp/tea-atdd-e2e-tests-{{timestamp}}.json';
-const e2eTestsOutput = JSON.parse(fs.readFileSync(e2eTestsPath, 'utf8'));
+const e2eTestsPath = "/tmp/tea-atdd-e2e-tests-{{timestamp}}.json";
+const e2eTestsOutput = JSON.parse(fs.readFileSync(e2eTestsPath, "utf8"));
 ```
 
 **Verify both subagents succeeded:**
@@ -78,13 +78,17 @@ const e2eTestsOutput = JSON.parse(fs.readFileSync(e2eTestsPath, 'utf8'));
 ```javascript
 apiTestsOutput.tests.forEach((test) => {
   // Verify test.skip() is present
-  if (!test.content.includes('test.skip(')) {
-    throw new Error(`ATDD ERROR: ${test.file} missing test.skip() - tests MUST be skipped in red phase!`);
+  if (!test.content.includes("test.skip(")) {
+    throw new Error(
+      `ATDD ERROR: ${test.file} missing test.skip() - tests MUST be skipped in red phase!`,
+    );
   }
 
   // Verify not placeholder assertions
-  if (test.content.includes('expect(true).toBe(true)')) {
-    throw new Error(`ATDD ERROR: ${test.file} has placeholder assertions - must assert EXPECTED behavior!`);
+  if (test.content.includes("expect(true).toBe(true)")) {
+    throw new Error(
+      `ATDD ERROR: ${test.file} has placeholder assertions - must assert EXPECTED behavior!`,
+    );
   }
 
   // Verify expected_to_fail flag
@@ -99,11 +103,13 @@ apiTestsOutput.tests.forEach((test) => {
 ```javascript
 e2eTestsOutput.tests.forEach((test) => {
   // Same validation as API tests
-  if (!test.content.includes('test.skip(')) {
-    throw new Error(`ATDD ERROR: ${test.file} missing test.skip() - tests MUST be skipped in red phase!`);
+  if (!test.content.includes("test.skip(")) {
+    throw new Error(
+      `ATDD ERROR: ${test.file} missing test.skip() - tests MUST be skipped in red phase!`,
+    );
   }
 
-  if (test.content.includes('expect(true).toBe(true)')) {
+  if (test.content.includes("expect(true).toBe(true)")) {
     throw new Error(`ATDD ERROR: ${test.file} has placeholder assertions!`);
   }
 
@@ -130,7 +136,7 @@ e2eTestsOutput.tests.forEach((test) => {
 
 ```javascript
 apiTestsOutput.tests.forEach((test) => {
-  fs.writeFileSync(test.file, test.content, 'utf8');
+  fs.writeFileSync(test.file, test.content, "utf8");
   console.log(`✅ Created (RED): ${test.file}`);
 });
 ```
@@ -139,7 +145,7 @@ apiTestsOutput.tests.forEach((test) => {
 
 ```javascript
 e2eTestsOutput.tests.forEach((test) => {
-  fs.writeFileSync(test.file, test.content, 'utf8');
+  fs.writeFileSync(test.file, test.content, "utf8");
   console.log(`✅ Created (RED): ${test.file}`);
 });
 ```
@@ -151,7 +157,10 @@ e2eTestsOutput.tests.forEach((test) => {
 **Collect all fixture needs from both subagents:**
 
 ```javascript
-const allFixtureNeeds = [...apiTestsOutput.fixture_needs, ...e2eTestsOutput.fixture_needs];
+const allFixtureNeeds = [
+  ...apiTestsOutput.fixture_needs,
+  ...e2eTestsOutput.fixture_needs,
+];
 
 // Remove duplicates
 const uniqueFixtures = [...new Set(allFixtureNeeds)];
@@ -169,8 +178,8 @@ const uniqueFixtures = [...new Set(allFixtureNeeds)];
 ```typescript
 // tests/fixtures/test-data.ts
 export const testUserData = {
-  email: 'test@example.com',
-  password: 'SecurePass123!',
+  email: "test@example.com",
+  password: "SecurePass123!",
 };
 ```
 
@@ -220,7 +229,11 @@ UI components to implement:
 **Save checklist:**
 
 ```javascript
-fs.writeFileSync(`{test_artifacts}/atdd-checklist-{story_key}.md`, checklistContent, 'utf8');
+fs.writeFileSync(
+  `{test_artifacts}/atdd-checklist-{story_key}.md`,
+  checklistContent,
+  "utf8",
+);
 ```
 
 **If `{story_file}` exists and is writable, attempt to link artifacts back into the story:**
@@ -244,22 +257,22 @@ fs.writeFileSync(`{test_artifacts}/atdd-checklist-{story_key}.md`, checklistCont
 ```javascript
 const resolvedMode = subagentContext?.execution?.resolvedMode; // Provided by Step 4's orchestration context
 const subagentExecutionLabel =
-  resolvedMode === 'sequential'
-    ? 'SEQUENTIAL (API → E2E)'
-    : resolvedMode === 'agent-team'
-      ? 'AGENT-TEAM (API + E2E)'
-      : resolvedMode === 'subagent'
-        ? 'SUBAGENT (API + E2E)'
-        : 'PARALLEL (API + E2E)';
+  resolvedMode === "sequential"
+    ? "SEQUENTIAL (API → E2E)"
+    : resolvedMode === "agent-team"
+      ? "AGENT-TEAM (API + E2E)"
+      : resolvedMode === "subagent"
+        ? "SUBAGENT (API + E2E)"
+        : "PARALLEL (API + E2E)";
 const performanceGainLabel =
-  resolvedMode === 'sequential'
-    ? 'baseline (no parallel speedup)'
-    : resolvedMode === 'agent-team' || resolvedMode === 'subagent'
-      ? '~50% faster than sequential'
-      : 'mode-dependent';
+  resolvedMode === "sequential"
+    ? "baseline (no parallel speedup)"
+    : resolvedMode === "agent-team" || resolvedMode === "subagent"
+      ? "~50% faster than sequential"
+      : "mode-dependent";
 
 const summary = {
-  tdd_phase: 'RED',
+  tdd_phase: "RED",
   total_tests: apiTestsOutput.test_count + e2eTestsOutput.test_count,
   api_tests: apiTestsOutput.test_count,
   e2e_tests: e2eTestsOutput.test_count,
@@ -270,7 +283,10 @@ const summary = {
     ...apiTestsOutput.tests.flatMap((t) => t.acceptance_criteria_covered),
     ...e2eTestsOutput.tests.flatMap((t) => t.acceptance_criteria_covered),
   ],
-  knowledge_fragments_used: [...apiTestsOutput.knowledge_fragments_used, ...e2eTestsOutput.knowledge_fragments_used],
+  knowledge_fragments_used: [
+    ...apiTestsOutput.knowledge_fragments_used,
+    ...e2eTestsOutput.knowledge_fragments_used,
+  ],
   subagent_execution: subagentExecutionLabel,
   performance_gain: performanceGainLabel,
 };
@@ -279,7 +295,11 @@ const summary = {
 **Store summary for Step 5:**
 
 ```javascript
-fs.writeFileSync('/tmp/tea-atdd-summary-{{timestamp}}.json', JSON.stringify(summary, null, 2), 'utf8');
+fs.writeFileSync(
+  "/tmp/tea-atdd-summary-{{timestamp}}.json",
+  JSON.stringify(summary, null, 2),
+  "utf8",
+);
 ```
 
 ---
@@ -344,13 +364,13 @@ Proceed to Step 5 when:
 
   ```yaml
   ---
-  stepsCompleted: ['step-04c-aggregate']
-  lastStep: 'step-04c-aggregate'
-  lastSaved: '{date}'
-  storyId: '{story_id}'
-  storyKey: '{story_key}'
-  storyFile: '{story_file}'
-  atddChecklistPath: '{outputFile}'
+  stepsCompleted: ["step-04c-aggregate"]
+  lastStep: "step-04c-aggregate"
+  lastSaved: "{date}"
+  storyId: "{story_id}"
+  storyKey: "{story_key}"
+  storyFile: "{story_file}"
+  atddChecklistPath: "{outputFile}"
   generatedTestFiles: []
   ---
   ```

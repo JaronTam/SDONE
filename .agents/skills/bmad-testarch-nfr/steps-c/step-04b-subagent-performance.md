@@ -1,8 +1,8 @@
 ---
-name: 'step-04b-subagent-performance'
-description: 'Subagent: Performance NFR evidence audit'
+name: "step-04b-subagent-performance"
+description: "Subagent: Performance NFR evidence audit"
 subagent: true
-outputFile: '/tmp/tea-nfr-performance-{{timestamp}}.json'
+outputFile: "/tmp/tea-nfr-performance-{{timestamp}}.json"
 ---
 
 # Subagent 4B: Performance NFR Evidence Audit
@@ -65,14 +65,20 @@ This is an **isolated subagent** running in parallel with other NFR domain evide
       "status": "CONCERN",
       "description": "No CDN for static assets",
       "evidence": ["Static files served from origin"],
-      "recommendations": ["Implement CDN (CloudFront/Cloudflare)", "Cache static assets for 1 year"]
+      "recommendations": [
+        "Implement CDN (CloudFront/Cloudflare)",
+        "Cache static assets for 1 year"
+      ]
     }
   ],
   "compliance": {
     "SLA_99.9": "PASS",
     "SLA_99.99": "CONCERN"
   },
-  "priority_actions": ["Implement CDN for static assets", "Add database query caching for frequent reads"],
+  "priority_actions": [
+    "Implement CDN for static assets",
+    "Add database query caching for frequent reads"
+  ],
   "summary": "Performance is acceptable with minor optimization opportunities"
 }
 ```

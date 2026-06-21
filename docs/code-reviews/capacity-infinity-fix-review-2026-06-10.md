@@ -10,13 +10,13 @@
 
 ## 审查总览
 
-| 关注点 | 风险 | 判定 | 发现数 |
-|--------|------|------|--------|
-| R1: `handleModulePlace` 闭包正确性 | 🟡 | ✅ 通过 (附注) | 2 |
-| R2: `_lastValidCapacity` 状态机一致性 | 🟡 | ⚠️ 有条件通过 | 2 |
-| R3: `CountdownPanel` Infinity 移除 | 🟢 | ✅ 通过 | 0 |
-| R4: `CapacityInputPopover` DOM 清理 | 🟢 | ⚠️ 有条件通过 | 1 |
-| R5: `feedback.test.ts` 语义保持 | 🟢 | ✅ 通过 | 0 |
+| 关注点                                | 风险 | 判定           | 发现数 |
+| ------------------------------------- | ---- | -------------- | ------ |
+| R1: `handleModulePlace` 闭包正确性    | 🟡   | ✅ 通过 (附注) | 2      |
+| R2: `_lastValidCapacity` 状态机一致性 | 🟡   | ⚠️ 有条件通过  | 2      |
+| R3: `CountdownPanel` Infinity 移除    | 🟢   | ✅ 通过        | 0      |
+| R4: `CapacityInputPopover` DOM 清理   | 🟢   | ⚠️ 有条件通过  | 1      |
+| R5: `feedback.test.ts` 语义保持       | 🟢   | ✅ 通过        | 0      |
 
 **总发现数:** 7 (2 🟡 Medium, 5 🟢 Low) — 含 2 个附加发现
 
@@ -28,17 +28,17 @@
 
 `main.ts` L377-411 — `handleModulePlace(moduleType, worldPos)` 及其 3 条调用路径：
 
-| 路径 | 调用点 | 代码位置 |
-|------|--------|----------|
-| I1-p1 drag-drop | `inputManager.onModuleDrop` | ~L1130 |
-| I1-p2 click-to-place | `inputManager.onCanvasClickEmpty` | L580-586 |
-| I1-p3 center-place | `inputManager.onModulePlaceAtCenter` | L561-577 |
+| 路径                 | 调用点                               | 代码位置 |
+| -------------------- | ------------------------------------ | -------- |
+| I1-p1 drag-drop      | `inputManager.onModuleDrop`          | ~L1130   |
+| I1-p2 click-to-place | `inputManager.onCanvasClickEmpty`    | L580-586 |
+| I1-p3 center-place   | `inputManager.onModulePlaceAtCenter` | L561-577 |
 
 ### 闭包分析
 
 ```typescript
 capacityInputPopover.onConfirm = (capacity: number) => {
-  currentState = addModule(currentState, 'stock', worldPos, capacity);
+  currentState = addModule(currentState, "stock", worldPos, capacity);
   // ...
 };
 ```
@@ -99,6 +99,7 @@ capacityInputPopover.onConfirm = (capacity: number) => {
 当前仅在 `keydown Enter` 时验证输入。若用户输入非法值后直接 Tab/点击其他元素离开（blur），非法值会残留在 input 中，直到下次 `setStock` 调用才被覆盖。
 
 **复现路径:**
+
 1. 选中 stock → 容量 input 显示 "100"
 2. 用户输入 "abc" → Tab 离开（无 Enter）
 3. input 显示 "abc"，`_lastValidCapacity` 仍为 100
@@ -107,11 +108,13 @@ capacityInputPopover.onConfirm = (capacity: number) => {
 **建议:** 添加 `blur` 事件监听，revert 到 `_lastValidCapacity`：
 
 ```typescript
-capacityValue.addEventListener('blur', () => {
+capacityValue.addEventListener("blur", () => {
   const parsed = Number(capacityValue.value.trim());
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    capacityValue.value = this._lastValidCapacity !== null
-      ? String(this._lastValidCapacity) : '100';
+    capacityValue.value =
+      this._lastValidCapacity !== null
+        ? String(this._lastValidCapacity)
+        : "100";
   }
 });
 ```
@@ -148,19 +151,20 @@ capacityValue.addEventListener('blur', () => {
 
 **`getUrgencyGroup` 编号:**
 
-| 旧编号 | 旧含义 | 新编号 | 新含义 |
-|--------|--------|--------|--------|
-| 1 | terminal | 1 | terminal |
-| 2 | active | 2 | active |
-| 3 | infinite capacity | **移除** | — |
-| 4 | stable | **3** | stable |
-| — | — | 4 | catch-all / NaN |
+| 旧编号 | 旧含义            | 新编号   | 新含义          |
+| ------ | ----------------- | -------- | --------------- |
+| 1      | terminal          | 1        | terminal        |
+| 2      | active            | 2        | active          |
+| 3      | infinite capacity | **移除** | —               |
+| 4      | stable            | **3**    | stable          |
+| —      | —                 | 4        | catch-all / NaN |
 
 - 编号连续无缺口（1→2→3→4）✅
 - `sortCountdownsByUrgency` 的 `groupA - groupB` 比较器不受影响 ✅
 - 旧 "infinite capacity" 组（原 group 3）已移除，stable 从 4→3，catch-all 从隐含变为显式 group 4 ✅
 
 **边界条件:**
+
 - `value > capacity`（溢出）→ `remainingSeconds < 0` → group 1 (terminal) ✅
 - `netRate` 极小 → `remainingSeconds` 极大 → group 2 (active) ✅
 - `remainingSeconds` 为 NaN → group 4 (catch-all) ✅
@@ -179,13 +183,14 @@ Infinity 移除干净，编号重映射正确，无遗漏边界条件。
 
 ### 清理路径分析
 
-| 路径 | mousedown | wheel | keydown | DOM 移除 | 引用置空 |
-|------|-----------|-------|---------|----------|----------|
-| `close()` | ✅ removeEventListener | ✅ removeEventListener | ✅ removeEventListener | ✅ el.remove() | ✅ 全部 null |
-| `destroy()` | ✅ 委托 close() | ✅ | ✅ | ✅ | ✅ |
-| `open()` 内部 | ✅ 先 close() | ✅ | ✅ | ✅ | ✅ |
+| 路径          | mousedown              | wheel                  | keydown                | DOM 移除       | 引用置空     |
+| ------------- | ---------------------- | ---------------------- | ---------------------- | -------------- | ------------ |
+| `close()`     | ✅ removeEventListener | ✅ removeEventListener | ✅ removeEventListener | ✅ el.remove() | ✅ 全部 null |
+| `destroy()`   | ✅ 委托 close()        | ✅                     | ✅                     | ✅             | ✅           |
+| `open()` 内部 | ✅ 先 close()          | ✅                     | ✅                     | ✅             | ✅           |
 
 **`setTimeout(0)` mousedown 延迟注册:**
+
 - `close()` 将 `_boundDocClick` 置 null ✅
 - setTimeout 回调检查 `if (this._boundDocClick)` → 若已 close 则跳过 ✅
 
@@ -204,12 +209,14 @@ setTimeout(() => {
 ```
 
 若 popover 在 800ms 内被 close/reopen：
+
 1. `close()` 将 `_inputEl` 置 null
 2. `open()` 创建新 `_inputEl`
 3. 旧 setTimeout 触发时，`this._inputEl` 指向**新** input 元素
 4. 错误地移除新 input 的 error class
 
 **复现路径:**
+
 1. 打开 popover → 输入非法值 → Enter → 红色闪烁
 2. 800ms 内 Esc 关闭 → 立即重新打开 popover
 3. 旧 timeout 触发，移除新 input 的 error class（若新 input 恰好有 error 状态）
@@ -244,23 +251,26 @@ if (this._errorTimeoutId !== null) {
 ### 数学验证
 
 **旧值:** `value=100, capacity=Infinity`
+
 ```
 max(0, (Infinity - 100) / Infinity) = max(0, NaN) = NaN  ❌
 ```
+
 IEEE 754: `Infinity / Infinity = NaN`。旧测试在数学上是**错误的**。
 
 **新值:** `value=50, capacity=100`
+
 ```
 max(0, (100 - 50) / 100) = max(0, 0.5) = 0.5  ✅
 ```
 
 ### 测试用例验证
 
-| 测试 | value | capacity | 公式结果 | 判定 |
-|------|-------|----------|----------|------|
-| L187-199 | 50 | 100 | 0.5 | ✅ |
-| L258-280 | 0 | 100 | 1.0 | ✅ |
-| L283-334 (sim tick) | 50 | 100 | multiplier=0.5, effective=2.5 | ✅ |
+| 测试                | value | capacity | 公式结果                      | 判定 |
+| ------------------- | ----- | -------- | ----------------------------- | ---- |
+| L187-199            | 50    | 100      | 0.5                           | ✅   |
+| L258-280            | 0     | 100      | 1.0                           | ✅   |
+| L283-334 (sim tick) | 50    | 100      | multiplier=0.5, effective=2.5 | ✅   |
 
 **语义等价性:** 旧测试本意是验证"stock 未满时 feedback 乘数 > 0"，但 `Infinity/Infinity = NaN` 使其从未真正验证这一点。新测试用有限值正确验证了同一语义。
 
@@ -275,6 +285,7 @@ max(0, (100 - 50) / 100) = max(0, 0.5) = 0.5  ✅
 ### A1: `SNAPSHOT_EMITTED` 中 `Number.isFinite(stock.capacity)` guard 仍保留
 
 `main.ts` L792:
+
 ```typescript
 if (Number.isFinite(stock.capacity) && Number.isFinite(stock.value) && stock.value > stock.capacity)
 ```
@@ -291,17 +302,18 @@ capacity 现在始终有限，`Number.isFinite(stock.capacity)` 检查已冗余�
 
 经审查 `AnalyticsPanel.test.ts`，发现新增的交互逻辑**完全没有单元测试覆盖**：
 
-| 未覆盖行为 | 风险 |
-|------------|------|
-| `onCapacitySubmit` 回调触发 | 🟡 用户提交有效容量值后回调是否正确触发 |
-| `_lastValidCapacity` 状态更新 | 🟡 连续提交不同值时状态是否正确演进 |
-| 非法输入 Enter → revert | 🟡 输入 "abc" + Enter 是否 revert 到 `_lastValidCapacity` |
-| 非法输入 blur → 残留 | 🟡 输入 "abc" + Tab 是否残留非法值（R2-1 的根因） |
-| 重复值提交跳过 | 🟡 输入与 `_lastValidCapacity` 相同值时是否跳过回调 |
+| 未覆盖行为                    | 风险                                                      |
+| ----------------------------- | --------------------------------------------------------- |
+| `onCapacitySubmit` 回调触发   | 🟡 用户提交有效容量值后回调是否正确触发                   |
+| `_lastValidCapacity` 状态更新 | 🟡 连续提交不同值时状态是否正确演进                       |
+| 非法输入 Enter → revert       | 🟡 输入 "abc" + Enter 是否 revert 到 `_lastValidCapacity` |
+| 非法输入 blur → 残留          | 🟡 输入 "abc" + Tab 是否残留非法值（R2-1 的根因）         |
+| 重复值提交跳过                | 🟡 输入与 `_lastValidCapacity` 相同值时是否跳过回调       |
 
 现有测试仅验证 `setStock` 后 input 显示值正确（capacity 100 → "100"，capacity 500 → "500"），未覆盖用户交互路径。
 
 **建议:** 为 `AnalyticsPanel` 新增至少以下测试用例：
+
 1. 有效输入 + Enter → `onCapacitySubmit` 被调用，参数正确
 2. 非法输入 + Enter → input revert，`onCapacitySubmit` 未被调用
 3. 重复值 + Enter → `onCapacitySubmit` 未被调用
@@ -311,11 +323,11 @@ capacity 现在始终有限，`Number.isFinite(stock.capacity)` 检查已冗余�
 
 ## 审查结论
 
-| 等级 | 数量 | 明细 |
-|------|------|------|
-| 🔴 阻塞 | 0 | — |
-| 🟡 建议修复 | 3 | R2-1 (blur handler), R4-1 (error timeout), A3 (测试覆盖缺口) |
-| 🟢 低优先级 | 4 | R1-1, R1-2, R2-2, A1 |
+| 等级        | 数量 | 明细                                                         |
+| ----------- | ---- | ------------------------------------------------------------ |
+| 🔴 阻塞     | 0    | —                                                            |
+| 🟡 建议修复 | 3    | R2-1 (blur handler), R4-1 (error timeout), A3 (测试覆盖缺口) |
+| 🟢 低优先级 | 4    | R1-1, R1-2, R2-2, A1                                         |
 
 **总体判定: ✅ 通过（附建议）**
 

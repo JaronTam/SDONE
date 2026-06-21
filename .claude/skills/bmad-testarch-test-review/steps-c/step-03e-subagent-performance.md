@@ -1,8 +1,8 @@
 ---
-name: 'step-03e-subagent-performance'
-description: 'Subagent: Check test performance (speed, efficiency, parallelization)'
+name: "step-03e-subagent-performance"
+description: "Subagent: Check test performance (speed, efficiency, parallelization)"
 subagent: true
-outputFile: '/tmp/tea-test-review-performance-{{timestamp}}.json'
+outputFile: "/tmp/tea-test-review-performance-{{timestamp}}.json"
 ---
 
 # Subagent 3E: Performance Quality Check
@@ -51,7 +51,10 @@ This is an **isolated subagent** running in parallel with other quality dimensio
 
 ```javascript
 const severityWeights = { HIGH: 10, MEDIUM: 5, LOW: 2 };
-const totalPenalty = violations.reduce((sum, v) => sum + severityWeights[v.severity], 0);
+const totalPenalty = violations.reduce(
+  (sum, v) => sum + severityWeights[v.severity],
+  0,
+);
 const score = Math.max(0, 100 - totalPenalty);
 ```
 

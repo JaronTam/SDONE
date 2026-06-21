@@ -1,13 +1,13 @@
 ---
-name: 'step-04-session-03'
-description: 'Session 3: Architecture & Patterns - Fixtures, network patterns, framework setup (60 min)'
+name: "step-04-session-03"
+description: "Session 3: Architecture & Patterns - Fixtures, network patterns, framework setup (60 min)"
 
-progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
-sessionNotesTemplate: '../templates/session-notes-template.md'
-sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-03-notes.md'
-nextStepFile: '{skill-root}/steps-c/step-03-session-menu.md'
-advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
+progressFile: "{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml"
+sessionNotesTemplate: "../templates/session-notes-template.md"
+sessionNotesFile: "{test_artifacts}/tea-academy/{user_name}/session-03-notes.md"
+nextStepFile: "{skill-root}/steps-c/step-03-session-menu.md"
+advancedElicitationTask: "{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml"
+partyModeWorkflow: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
 ---
 
 # Step 4: Session 3 - Architecture & Patterns
@@ -99,7 +99,7 @@ const baseFixtures = {
 // Composed fixtures
 const authFixtures = {
   authenticatedPage: async ({ page }, use) => {
-    await page.goto('/login');
+    await page.goto("/login");
     await login(page);
     await use(page);
   },
@@ -133,12 +133,12 @@ test.use(mergeTests(baseFixtures, authFixtures));
 
 ```typescript
 // BEFORE the action, set up network interception
-await page.route('/api/users', (route) => {
+await page.route("/api/users", (route) => {
   route.fulfill({ json: mockUsers });
 });
 
 // THEN trigger the action
-await page.click('Load Users');
+await page.click("Load Users");
 
 // Network is already mocked - no race condition
 ```
@@ -170,13 +170,13 @@ function createUser(overrides = {}) {
   return {
     id: faker.uuid(),
     email: faker.email(),
-    role: 'user',
+    role: "user",
     ...overrides,
   };
 }
 
 // Use in tests
-const admin = createUser({ role: 'admin' });
+const admin = createUser({ role: "admin" });
 const user = createUser(); // defaults
 ```
 

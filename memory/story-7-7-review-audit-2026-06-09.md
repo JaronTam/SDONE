@@ -16,11 +16,13 @@ story: "7.7"
 ## Key Findings
 
 ### Medium (3)
+
 - **P2**: Latency threshold deviates from spec (110ms → 120ms) — spec not updated
 - **P3**: Async latency tests have no timeout guard — risk of CI hangs
 - **P6**: NFR-P1 verification doc references unobservable "degradation indicator"
 
 ### Low (4)
+
 - **P1**: Stale ATDD RED PHASE comments in test files (tests are active, not skipped)
 - **P4**: Dead import `statSync` in check-bundle-size.mjs
 - **P5**: check-bundle-size.mjs doesn't handle missing dist/ directory (ENOENT)

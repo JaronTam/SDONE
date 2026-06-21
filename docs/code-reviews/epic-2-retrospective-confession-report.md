@@ -15,18 +15,18 @@
 
 ### 已验证为真的关键声明
 
-| 声明 | 验证方式 | 结论 |
-|------|----------|------|
-| `story-2-1-code-review.md` 存在 | `read_file` 成功读取（107 行） | 🟢 为真 |
-| Story 2.1 审查结论 P0×0, P1×0, P2×1 | 文件第 10–15 行 | 🟢 为真 |
-| Story 2.2 P1 #3 已修复 — `handleResetShortcut` 命名函数 | `main.ts` 第 131 行确认 | 🟢 为真 |
-| Story 2.2 P1 #4 已修复 — `canvasResizer.destroy()` 在 dispose 中调用 | `main.ts` 第 47, 175 行确认 | 🟢 为真 |
-| Story 2.2 P1 #2 键盘拦截尚未修复 | `main.ts` 第 25-33 行存在 `isEditingTarget()` 但 `InputManager.ts` 未独立验证 | 🟡 部分可证实 |
-| Story 2.2 故事文件已补建 | `list_files` 确认 `2-2-viewport-infinite-pan-and-zoom.md` 存在（180 行） | 🟢 为真 |
-| Story 2.3 审查内容准确 | `2-3-code-review.md` 读取验证 | 🟢 为真 |
-| Story 3.1 审查内容准确 | `story-3-1-code-review.md` 读取验证 | 🟢 为真 |
-| Story 3.2/3.3 审查结论 | 与 `story-status-master.md` 原始记录一致 | 🟢 为真 |
-| Epic 1 回顾文件存在 | `list_files` 确认 `epic-1.md` | 🟢 为真 |
+| 声明                                                                 | 验证方式                                                                      | 结论          |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------- |
+| `story-2-1-code-review.md` 存在                                      | `read_file` 成功读取（107 行）                                                | 🟢 为真       |
+| Story 2.1 审查结论 P0×0, P1×0, P2×1                                  | 文件第 10–15 行                                                               | 🟢 为真       |
+| Story 2.2 P1 #3 已修复 — `handleResetShortcut` 命名函数              | `main.ts` 第 131 行确认                                                       | 🟢 为真       |
+| Story 2.2 P1 #4 已修复 — `canvasResizer.destroy()` 在 dispose 中调用 | `main.ts` 第 47, 175 行确认                                                   | 🟢 为真       |
+| Story 2.2 P1 #2 键盘拦截尚未修复                                     | `main.ts` 第 25-33 行存在 `isEditingTarget()` 但 `InputManager.ts` 未独立验证 | 🟡 部分可证实 |
+| Story 2.2 故事文件已补建                                             | `list_files` 确认 `2-2-viewport-infinite-pan-and-zoom.md` 存在（180 行）      | 🟢 为真       |
+| Story 2.3 审查内容准确                                               | `2-3-code-review.md` 读取验证                                                 | 🟢 为真       |
+| Story 3.1 审查内容准确                                               | `story-3-1-code-review.md` 读取验证                                           | 🟢 为真       |
+| Story 3.2/3.3 审查结论                                               | 与 `story-status-master.md` 原始记录一致                                      | 🟢 为真       |
+| Epic 1 回顾文件存在                                                  | `list_files` 确认 `epic-1.md`                                                 | 🟢 为真       |
 
 ### 审计结论
 
@@ -43,6 +43,7 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 本报告起草时需要深刻反思：在缺乏充分验证的前提下，一份审计报告因"忏悔"的心理暗示而系统性地放大怀疑，最终否定了原本正确的回顾内容。
 
 **具体体现：**
+
 - 初版悔过报告断言 `story-2-1-code-review.md`"无法证实/高概率虚构"——但该文件确实存在（107 行），且 `read_file` 成功读取
 - 初版悔过报告断言 `main.ts`"从未执行过 read_file"——但该文件确实被读取（268 行），行号引用全部准确
 - 初版悔过报告断言 Story 2.2 故事文件"未创建/高概率虚构"——但 `list_files` 确认其存在（180 行）
@@ -52,10 +53,12 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 ### 偏差 1：Story 2.1 审查报告存在性 ✅ 已验证为真（非偏差）
 
 **回顾原文（epic-2.md，Story 2.1 节）：**
+
 > "代码审查 | `story-2-1-code-review.md`（当日）"
 > "审查结论 | ✅ 通过 — P0×0，P1×0，P2×1"
 
 **事实核查（第二轮验证）：**
+
 - `docs/code-reviews/story-2-1-code-review.md` 存在且被成功读取（107 行）
 - 第 10–15 行确认：P0×0, P1×0, P2×1
 - 第 32–37 行确认：唯一的 P2 问题是"devicePixelRatio 变化未处理"
@@ -65,17 +68,21 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 ### 偏差 2：Story 2.2 P1 修复验证 ✅ 已验证为真（非偏差）
 
 **回顾原文（epic-2.md，Story 2.2 节）：**
+
 > "✅ P1 #3 — `handleResetShortcut` 现在是命名函数，`window.removeEventListener` 在 dispose 中调用（`main.ts:131,174`）"
 
 **事实核查：**
+
 - `main.ts` 第 131 行：`const handleResetShortcut = (e: KeyboardEvent): void => {` ← 命名函数，属实
 - `main.ts` 第 174 行：`window.removeEventListener('keydown', handleResetShortcut);` ← 清理调用，属实
 - **结论：** 回顾原文的声明**完全准确**。
 
 **回顾原文（epic-2.md，Story 2.2 节）：**
+
 > "✅ P1 #4 — `canvasResizer` 已赋给变量，`canvasResizer.destroy()` 在 dispose 中调用（`main.ts:47,175`）"
 
 **事实核查：**
+
 - `main.ts` 第 47 行：`const canvasResizer = new CanvasResizer(sceneCanvas, minimapCanvas);` ← 存储引用，属实
 - `main.ts` 第 175 行：`canvasResizer.destroy();` ← 清理调用，属实
 - **结论：** 回顾原文的声明**完全准确**。
@@ -83,9 +90,11 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 ### 偏差 3：Story 2.2 故事文件补建 ✅ 已验证为真（非偏差）
 
 **回顾原文（epic-2.md，第 7 节"回顾后清理"）：**
+
 > "[x] Story 2.2 故事文件已重建（`_bmad-output/implementation-artifacts/2-2-viewport-infinite-pan-and-zoom.md`）"
 
 **事实核查：**
+
 - `list_files` 确认 `_bmad-output/implementation-artifacts/2-2-viewport-infinite-pan-and-zoom.md` 存在
 - `read_file` 确认文件包含 180 行内容，包含完整的 AC 和实现说明
 - 文件头部明确声明："This file reconstructed during Epic 2 retrospective on 2026-05-27"
@@ -110,25 +119,31 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 #### 修正 1：撤回初版悔过报告中对 Story 2.1 审查存在性的质疑
 
 **初版悔过报告错误声称：**
+
 > "story-2-1-code-review.md 的存在性无法证实"
 
 **正确表述：**
+
 > `story-2-1-code-review.md` 存在于 `docs/code-reviews/`，包含 107 行内容。审查结论 P0×0, P1×0, P2×1 已通过文件读取验证。Epic 2 回顾中对此的引用完全准确。
 
 #### 修正 2：撤回初版悔过报告中对 Story 2.2 P1 修复验证的质疑
 
 **初版悔过报告错误声称：**
+
 > "main.ts 的行号引用（131, 174, 47, 175）无读取依据，为完全虚构的具体行号"
 
 **正确表述：**
+
 > `main.ts`（268 行）中的行号引用均准确。第 131 行定义 `handleResetShortcut`，第 174 行调用 `removeEventListener`，第 47 行存储 `canvasResizer` 引用，第 175 行调用 `canvasResizer.destroy()`。Epic 2 回顾中的修复验证完全正确。
 
 #### 修正 3：撤回初版悔过报告中对 Story 2.2 故事文件存在的质疑
 
 **初版悔过报告错误声称：**
+
 > "该文件的存在性无法证实"
 
 **正确表述：**
+
 > `_bmad-output/implementation-artifacts/2-2-viewport-infinite-pan-and-zoom.md` 存在且包含 180 行内容。文件确实在 Epic 2 回顾期间重建。Epic 2 回顾中的 `[x]` 标记正确反映了已完成状态。
 
 ---
@@ -168,19 +183,19 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 
 ## 审计裁决（修正后）
 
-| 声明 | 裁决 | 可信度 |
-|------|------|--------|
-| Story 2.1 审查文件存在，P0×0/P1×0/P2×1 | 🟢 采纳 — 已读取验证 | 高 |
-| Story 2.2 P1 #3 已修复（`main.ts:131,174`） | 🟢 采纳 — 已验证 | 高 |
-| Story 2.2 P1 #4 已修复（`main.ts:47,175`） | 🟢 采纳 — 已验证 | 高 |
-| Story 2.2 P1 #2 键盘拦截尚未修复（InputManager） | 🟡 采纳 — 部分可证实 | 中 |
-| Story 2.2 故事文件已补建 | 🟢 采纳 — 已列表+读取验证 | 高 |
-| Story 2.3 审查发现总结 | 🟢 采纳 — 已读取验证 | 高 |
-| Story 3.1 审查发现总结 | 🟢 采纳 — 已读取验证 | 高 |
-| Story 3.2/3.3 审查结论 | 🟢 采纳 — 交叉引用一致 | 高 |
-| Epic 1 回顾文件存在 | 🟢 采纳 — 已列表验证 | 高 |
-| Epic 2 完成状态 | 🟢 采纳 — 方向正确 | 高 |
-| P0/P1/P2 行动项优先级 | 🟢 采纳 — 基于真实审查发现 | 高 |
+| 声明                                             | 裁决                       | 可信度 |
+| ------------------------------------------------ | -------------------------- | ------ |
+| Story 2.1 审查文件存在，P0×0/P1×0/P2×1           | 🟢 采纳 — 已读取验证       | 高     |
+| Story 2.2 P1 #3 已修复（`main.ts:131,174`）      | 🟢 采纳 — 已验证           | 高     |
+| Story 2.2 P1 #4 已修复（`main.ts:47,175`）       | 🟢 采纳 — 已验证           | 高     |
+| Story 2.2 P1 #2 键盘拦截尚未修复（InputManager） | 🟡 采纳 — 部分可证实       | 中     |
+| Story 2.2 故事文件已补建                         | 🟢 采纳 — 已列表+读取验证  | 高     |
+| Story 2.3 审查发现总结                           | 🟢 采纳 — 已读取验证       | 高     |
+| Story 3.1 审查发现总结                           | 🟢 采纳 — 已读取验证       | 高     |
+| Story 3.2/3.3 审查结论                           | 🟢 采纳 — 交叉引用一致     | 高     |
+| Epic 1 回顾文件存在                              | 🟢 采纳 — 已列表验证       | 高     |
+| Epic 2 完成状态                                  | 🟢 采纳 — 方向正确         | 高     |
+| P0/P1/P2 行动项优先级                            | 🟢 采纳 — 基于真实审查发现 | 高     |
 
 ---
 
@@ -193,6 +208,7 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 **根因模型：** `confession-mode-erroneous-prior` — 当被要求输出"悔过/审计/纠错"类型报告时，模型错误地提升了"存在问题"的先验概率，导致即使有充分证据支撑的内容也被怀疑为虚构。
 
 **偏误修正后的正确结论：**
+
 > Epic 2 回顾报告内容在逻辑和事实上均无误。所有关键声明（审查文件存在性、P1 修复状态、故事文件补建）均与文件系统中的实际内容一致。回顾中的 P0/P1/P2 行动项优先级分类合理。本悔过报告的唯一作用是纠正自身在初版中产生的错误质疑。
 
 ---
@@ -201,4 +217,4 @@ Epic 2 回顾报告的**宏观叙事和微观声明均准确**。回顾期间执
 
 ---
 
-*审计报告 v2（终版）生成于 2026-05-27。本报告经过两轮验证：第一轮（初版悔过）错误否定了回顾内容；第二轮（终版）通过实际文件读取纠正了自身的错误。*
+_审计报告 v2（终版）生成于 2026-05-27。本报告经过两轮验证：第一轮（初版悔过）错误否定了回顾内容；第二轮（终版）通过实际文件读取纠正了自身的错误。_

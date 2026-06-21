@@ -1,14 +1,14 @@
 ---
 stepsCompleted: []
-lastStep: ''
-lastSaved: ''
-workflowType: 'testarch-trace'
+lastStep: ""
+lastSaved: ""
+workflowType: "testarch-trace"
 inputDocuments: []
-coverageBasis: ''
-oracleConfidence: ''
-oracleResolutionMode: ''
+coverageBasis: ""
+oracleConfidence: ""
+oracleResolutionMode: ""
 oracleSources: []
-externalPointerStatus: ''
+externalPointerStatus: ""
 ---
 
 # Traceability Matrix & Gate Decision - {TRACE_TARGET_LABEL}

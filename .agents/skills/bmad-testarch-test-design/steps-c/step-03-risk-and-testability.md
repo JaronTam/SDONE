@@ -1,8 +1,8 @@
 ---
-name: 'step-03-risk-and-testability'
-description: 'Perform testability review (system-level) and risk assessment'
-nextStepFile: '{skill-root}/steps-c/step-04-coverage-plan.md'
-outputFile: '{test_artifacts}/test-design-progress.md'
+name: "step-03-risk-and-testability"
+description: "Perform testability review (system-level) and risk assessment"
+nextStepFile: "{skill-root}/steps-c/step-04-coverage-plan.md"
+outputFile: "{test_artifacts}/test-design-progress.md"
 ---
 
 # Step 3: Testability & Risk Assessment
@@ -96,12 +96,12 @@ Summarize the highest risks and their mitigation priorities.
 
   ```yaml
   ---
-  workflowStatus: 'in-progress'
+  workflowStatus: "in-progress"
   totalSteps: 5
-  stepsCompleted: ['step-03-risk-and-testability']
-  lastStep: 'step-03-risk-and-testability'
-  nextStep: '{nextStepFile}'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-03-risk-and-testability"]
+  lastStep: "step-03-risk-and-testability"
+  nextStep: "{nextStepFile}"
+  lastSaved: "{date}"
   ---
   ```
 

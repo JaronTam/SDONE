@@ -1,9 +1,9 @@
 ---
-name: 'step-01-preflight-and-context'
-description: 'Determine mode, verify framework, and load context and knowledge'
-outputFile: '{test_artifacts}/automation-summary.md'
-nextStepFile: '{skill-root}/steps-c/step-02-identify-targets.md'
-knowledgeIndex: './resources/tea-index.csv'
+name: "step-01-preflight-and-context"
+description: "Determine mode, verify framework, and load context and knowledge"
+outputFile: "{test_artifacts}/automation-summary.md"
+nextStepFile: "{skill-root}/steps-c/step-02-identify-targets.md"
+knowledgeIndex: "./resources/tea-index.csv"
 ---
 
 # Step 1: Preflight & Context Loading
@@ -207,9 +207,9 @@ Summarize loaded artifacts, framework, and knowledge fragments, then proceed.
 
   ```yaml
   ---
-  stepsCompleted: ['step-01-preflight-and-context']
-  lastStep: 'step-01-preflight-and-context'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-01-preflight-and-context"]
+  lastStep: "step-01-preflight-and-context"
+  lastSaved: "{date}"
   ---
   ```
 

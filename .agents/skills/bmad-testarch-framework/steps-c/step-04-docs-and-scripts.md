@@ -1,9 +1,9 @@
 ---
-name: 'step-04-docs-and-scripts'
-description: 'Document setup and add package.json scripts'
-nextStepFile: '{skill-root}/steps-c/step-05-validate-and-summary.md'
-outputFile: '{test_dir}/README.md'
-progressFile: '{test_artifacts}/framework-setup-progress.md'
+name: "step-04-docs-and-scripts"
+description: "Document setup and add package.json scripts"
+nextStepFile: "{skill-root}/steps-c/step-05-validate-and-summary.md"
+outputFile: "{test_dir}/README.md"
+progressFile: "{test_artifacts}/framework-setup-progress.md"
 ---
 
 # Step 4: Documentation & Scripts
@@ -77,9 +77,9 @@ Add the idiomatic test commands for the detected framework:
 
   ```yaml
   ---
-  stepsCompleted: ['step-04-docs-and-scripts']
-  lastStep: 'step-04-docs-and-scripts'
-  lastSaved: '{date}'
+  stepsCompleted: ["step-04-docs-and-scripts"]
+  lastStep: "step-04-docs-and-scripts"
+  lastSaved: "{date}"
   ---
   ```
 
