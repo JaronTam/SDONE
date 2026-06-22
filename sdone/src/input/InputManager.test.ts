@@ -1228,14 +1228,14 @@ describe('InputManager', () => {
       // Click on node1
       dispatchMouseEvent(canvas, 'mousedown', 0, 100, 100);
       mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 100, clientY: 100 }));
-      expect(selectSpy).toHaveBeenCalledWith('node1');
+      expect(selectSpy).toHaveBeenCalledWith('node1', false);
 
       // Click on node2 — different module, should NOT be double-click
       dispatchMouseEvent(canvas, 'mousedown', 0, 300, 100);
       mouseupFn(new MouseEvent('mouseup', { button: 0, clientX: 300, clientY: 100 }));
       expect(dblClickSpy).not.toHaveBeenCalled();
       expect(selectSpy).toHaveBeenCalledTimes(2);
-      expect(selectSpy).toHaveBeenLastCalledWith('node2');
+      expect(selectSpy).toHaveBeenLastCalledWith('node2', false);
 
       input.destroy();
     });
@@ -2871,7 +2871,7 @@ describe('Story 8.5 — Resize Drag (Corner Handles)', () => {
 
       // Should still select the module (existing behavior preserved)
       // RED: diamond/handle hit-test not yet added → selection works normally
-      expect(selectSpy).toHaveBeenCalledWith('mod1');
+      expect(selectSpy).toHaveBeenCalledWith('mod1', false);
       // FIXME: after impl, verify this still works (diamond/handle checks must fall through)
 
       input.destroy();

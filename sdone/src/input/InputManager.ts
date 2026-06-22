@@ -260,6 +260,16 @@ export class InputManager {
   /** True after diamond mousedown, transitions to isDraggingConnection after threshold. */
   private _pendingConnectionDrag: boolean = false;
 
+  // ── Marquee (rubber-band) selection state ─────────────────────
+  /** True while the user is actively dragging a marquee rectangle. */
+  private isMarqueeSelecting = false;
+  /** Screen-space start point of the marquee rectangle (null when not started). */
+  private _marqueeStart: Vec2 | null = null;
+  /** Screen-space end point of the marquee rectangle (null when not started). */
+  private _marqueeEnd: Vec2 | null = null;
+  /** Module IDs currently intersected by the marquee rectangle (live preview). */
+  private _marqueeIntersectedIds: string[] = [];
+
   // ── Story 3.6: Edge-drag connection state ─────────────────────
   private isDraggingConnection = false;
   private edgeDragSourceId: string | null = null;
@@ -278,8 +288,9 @@ export class InputManager {
   /** Story 3.7: Provides current connections for hit-testing. */
   public connectionsProvider: (() => Record<string, Connection>) | null = null;
 
-  /** Called when user clicks a module (select) or empty space (deselect). */
-  public onModuleSelect: ((moduleId: string | null) => void) | null = null;
+  /** Called when user clicks a module (select) or empty space (deselect).
+   *  @param additive — true when Ctrl/Meta is held (toggle/add to selection). */
+  public onModuleSelect: ((moduleId: string | null, additive?: boolean) => void) | null = null;
 
   /** Called when user drag crosses the threshold and begins moving a module. */
   public onModuleDragStart: ((moduleId: string) => void) | null = null;
@@ -330,6 +341,15 @@ export class InputManager {
 
   /** Story 6.5 — Called when user clicks empty canvas space (no module/connection hit). */
   public onCanvasClickEmpty: ((worldPos: Vec2) => void) | null = null;
+
+  /** Called when a marquee (rubber-band) selection completes with the intersected module IDs. */
+  public onMarqueeSelect: ((moduleIds: string[]) => void) | null = null;
+
+  /** Called when the marquee rectangle changes (null when marquee ends). */
+  public onMarqueeRectChange: ((rect: { start: Vec2; end: Vec2 } | null) => void) | null = null;
+
+  /** Called with currently intersected module IDs during marquee drag (live preview). */
+  public onMarqueePreview: ((moduleIds: string[]) => void) | null = null;
 
   /** Story 3.7: Called when user presses Delete and a connection is selected. */
   public onConnectionDelete: (() => void) | null = null;
@@ -610,6 +630,15 @@ export class InputManager {
     if (this.isDraggingFeedback || this._feedbackDragStockId !== null) {
       this.cancelFeedbackDrag();
     }
+    // Cancel marquee selection on blur
+    if (this.isMarqueeSelecting || this._marqueeStart) {
+      this.isMarqueeSelecting = false;
+      this._marqueeStart = null;
+      this._marqueeEnd = null;
+      this._marqueeIntersectedIds = [];
+      this.onMarqueeRectChange?.(null);
+      this.onMarqueePreview?.([]);
+    }
     this.canvas.style.cursor = '';
   }
 
@@ -736,9 +765,9 @@ export class InputManager {
       );
       if (!hasSourceInflow) continue;
 
-      // Handle position: bottom-right of stock
-      const hw = STOCK_WIDTH / 2;
-      const hh = STOCK_HEIGHT / 2;
+      // Handle position: bottom-right of stock (resize-aware)
+      const hw = (stock.width ?? STOCK_WIDTH) / 2;
+      const hh = (stock.height ?? STOCK_HEIGHT) / 2;
       const handleWorldX = stock.position.x + hw - FEEDBACK_HANDLE_RADIUS;
       const handleWorldY = stock.position.y + hh - FEEDBACK_HANDLE_RADIUS;
       const handleScreenPos = this.viewportManager.worldToScreen(
@@ -771,12 +800,12 @@ export class InputManager {
       if (!stockNode || stockNode.type !== 'stock') continue;
       const stock = stockNode as StockNode;
 
-      const hw = STOCK_WIDTH / 2;
-      const hh = STOCK_HEIGHT / 2;
       const sx = stock.position.x;
       const sy = stock.position.y;
 
-      // Match the rendering constants from SceneRenderer
+      // Match the rendering constants from SceneRenderer (resize-aware)
+      const hw = (stock.width ?? STOCK_WIDTH) / 2;
+      const hh = (stock.height ?? STOCK_HEIGHT) / 2;
       const startX = sx + hw - FEEDBACK_HANDLE_RADIUS;
       const startY = sy + hh - FEEDBACK_HANDLE_RADIUS;
       const endX = sx;
@@ -937,6 +966,8 @@ export class InputManager {
       this.hoveredHandle = null;
       this.onHandleHover?.(null, null, this.lastScreenPos);
     }
+    // FIX: Reset cursor on mouse leave so it doesn't stay stuck in resize/crosshair shape
+    this.canvas.style.cursor = '';
   }
 
   // -------------------------------------------------------------------
@@ -1038,6 +1069,10 @@ export class InputManager {
       if (hitId) {
         // Story 5.4: on any interaction start, clear connection hover
         this.clearHoveredConnection();
+      } else if (!this.spaceHeld) {
+        // Start marquee selection on empty canvas (not during Space pan)
+        this._marqueeStart = screenPos;
+        this._marqueeEnd = screenPos;
       }
     }
   }
@@ -1180,6 +1215,29 @@ export class InputManager {
       return;
     }
 
+    // ── Marquee (rubber-band) selection ──────────────────────────
+    if (
+      this._marqueeStart &&
+      this.mouseDownModuleId === null &&
+      !this.isPanning &&
+      !this.spaceHeld
+    ) {
+      if (!this.isMarqueeSelecting) {
+        if (distance(current, this.mouseDownPos) >= DRAG_THRESHOLD_PX) {
+          this.isMarqueeSelecting = true;
+          this.clearHoveredConnection();
+        } else {
+          return; // Still waiting for drag threshold
+        }
+      }
+      // Active marquee — update end point and compute intersections
+      this._marqueeEnd = current;
+      this.onMarqueeRectChange?.({ start: this._marqueeStart, end: this._marqueeEnd });
+      this.canvas.style.cursor = 'crosshair';
+      this.updateMarqueeIntersections();
+      return;
+    }
+
     // ── Module drag (Story 2.3) ─────────────────────────────────
     if (this.mouseDownModuleId !== null) {
       const dist = distance(current, this.mouseDownPos);
@@ -1275,6 +1333,12 @@ export class InputManager {
       if (!this.spaceHeld && this.hoveredHandle) {
         const nwse = this.hoveredHandle.corner === 'nw' || this.hoveredHandle.corner === 'se';
         this.canvas.style.cursor = nwse ? 'nwse-resize' : 'nesw-resize';
+      }
+      // FIX: When neither diamond nor handle is hovered (mouse moved off),
+      // reset cursor so it doesn't stay stuck in resize/crosshair shape.
+      // Space pan has global priority per UX-DR5.
+      if (!this.spaceHeld && !this.hoveredDiamond && !this.hoveredHandle) {
+        this.canvas.style.cursor = '';
       }
     }
 
@@ -1415,6 +1479,29 @@ export class InputManager {
       return;
     }
 
+    // ── Marquee selection complete ──────────────────────────────
+    if (e.button === 0 && this.isMarqueeSelecting && this._marqueeStart) {
+      this.updateMarqueeIntersections();
+      this.onMarqueeSelect?.(this._marqueeIntersectedIds);
+      this.isMarqueeSelecting = false;
+      this._marqueeStart = null;
+      this._marqueeEnd = null;
+      this._marqueeIntersectedIds = [];
+      this.onMarqueeRectChange?.(null);
+      this.onMarqueePreview?.([]);
+      this.mouseDownModuleId = null;
+      this._mouseDownOnCanvas = false;
+      this.canvas.style.cursor = '';
+      return;
+    }
+
+    // Marquee started but threshold not crossed — treat as normal click
+    if (e.button === 0 && this._marqueeStart && !this.isMarqueeSelecting) {
+      this._marqueeStart = null;
+      this._marqueeEnd = null;
+      // Fall through to normal click handling below
+    }
+
     // ── Story 2.3: Module click / drag release ──────────────────
     if (e.button === 0) {
       // Guard: ignore mouseup if the mousedown did not originate on the
@@ -1472,7 +1559,7 @@ export class InputManager {
             if (connId) {
               this.onConnectionSelect?.(connId);
             } else {
-              this.onModuleSelect?.(hitId);
+              this.onModuleSelect?.(hitId, e.ctrlKey || e.metaKey);
               // PATCH-1a fix: reset selection-scoped state on selection change
               // (clicking a different module also needs reset, not just deselect)
               this.resetSelectionState();
@@ -1582,7 +1669,8 @@ export class InputManager {
         this.isDragging ||
         this._feedbackDragStockId !== null ||
         this._isResizing ||
-        this._pendingConnectionDrag;
+        this._pendingConnectionDrag ||
+        this.isMarqueeSelecting;
       if (this.isDraggingFeedback || this._feedbackDragStockId !== null) {
         this.cancelFeedbackDrag();
       }
@@ -1617,6 +1705,16 @@ export class InputManager {
         this.connectionDragSourceId = null;
         this.connectionDragWorldPosition = null;
         this.onConnectionDragCancel?.();
+        this.canvas.style.cursor = '';
+      }
+      // Cancel marquee selection
+      if (this.isMarqueeSelecting || this._marqueeStart) {
+        this.isMarqueeSelecting = false;
+        this._marqueeStart = null;
+        this._marqueeEnd = null;
+        this._marqueeIntersectedIds = [];
+        this.onMarqueeRectChange?.(null);
+        this.onMarqueePreview?.([]);
         this.canvas.style.cursor = '';
       }
       // AC10: If no drag was active and a module is selected, deselect
@@ -1724,6 +1822,43 @@ export class InputManager {
     return vec2(this.canvas.clientWidth / 2, this.canvas.clientHeight / 2);
   }
 
+  /** Compute modules intersected by the current marquee rectangle and fire preview callback. */
+  private updateMarqueeIntersections(): void {
+    if (!this._marqueeStart || !this._marqueeEnd) return;
+    const nodes = this.nodesProvider?.();
+    if (!nodes) return;
+
+    const canvasCenter = this.getCanvasCenter();
+    const zoom = this.viewportManager.viewport.zoom;
+
+    const rectMinX = Math.min(this._marqueeStart.x, this._marqueeEnd.x);
+    const rectMaxX = Math.max(this._marqueeStart.x, this._marqueeEnd.x);
+    const rectMinY = Math.min(this._marqueeStart.y, this._marqueeEnd.y);
+    const rectMaxY = Math.max(this._marqueeStart.y, this._marqueeEnd.y);
+
+    const intersectedIds: string[] = [];
+    for (const [id, node] of Object.entries(nodes)) {
+      const screenPos = this.viewportManager.worldToScreen(node.position, canvasCenter);
+      const w = (node.width ?? (node.type === 'stock' ? STOCK_WIDTH : DEFAULT_MODULE_WIDTH)) * zoom;
+      const h =
+        (node.height ?? (node.type === 'stock' ? STOCK_HEIGHT : DEFAULT_MODULE_HEIGHT)) * zoom;
+      const minX = screenPos.x - w / 2;
+      const maxX = screenPos.x + w / 2;
+      const minY = screenPos.y - h / 2;
+      const maxY = screenPos.y + h / 2;
+      if (maxX >= rectMinX && minX <= rectMaxX && maxY >= rectMinY && minY <= rectMaxY) {
+        intersectedIds.push(id);
+      }
+    }
+
+    // Only fire preview callback if intersection changed
+    const prev = this._marqueeIntersectedIds;
+    if (prev.length !== intersectedIds.length || !prev.every((id, i) => id === intersectedIds[i])) {
+      this._marqueeIntersectedIds = intersectedIds;
+      this.onMarqueePreview?.(intersectedIds);
+    }
+  }
+
   // -------------------------------------------------------------------
   // Drag cancellation
   // -------------------------------------------------------------------
@@ -1743,6 +1878,15 @@ export class InputManager {
     this.dragModuleWorldStart = null;
     this.mouseDownModuleId = null;
     this._mouseDownOnCanvas = false;
+    // Cancel marquee selection if active
+    if (this.isMarqueeSelecting || this._marqueeStart) {
+      this.isMarqueeSelecting = false;
+      this._marqueeStart = null;
+      this._marqueeEnd = null;
+      this._marqueeIntersectedIds = [];
+      this.onMarqueeRectChange?.(null);
+      this.onMarqueePreview?.([]);
+    }
     if (this.isDraggingConnection) {
       this.cancelConnectionDrag();
     }

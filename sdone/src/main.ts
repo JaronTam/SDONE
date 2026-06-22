@@ -264,7 +264,7 @@ inputManager.onConnectionHover = (connectionId, screenPos) => {
 sceneRenderer.hoveredConnectionProvider = () => inputManager.getHoveredConnectionId();
 
 // ── Story 2.3: Module Selection ──────────────────────────────────────
-inputManager.onModuleSelect = (moduleId: string | null) => {
+inputManager.onModuleSelect = (moduleId: string | null, additive?: boolean) => {
   if (moduleId === null) {
     // Story 8.6: Hide toolbar on deselect (AC2)
     toolbarController.hide();
@@ -285,7 +285,34 @@ inputManager.onModuleSelect = (moduleId: string | null) => {
     minimapRenderer.markDirty();
     return;
   }
-  // Select single module AND deselect connections (mutually exclusive)
+  // Ctrl/Cmd+click: toggle module in/out of selection (additive mode)
+  if (additive) {
+    const isSelected = currentState.selectedModuleIds.includes(moduleId);
+    const nextSelected = isSelected
+      ? currentState.selectedModuleIds.filter((id) => id !== moduleId)
+      : [...currentState.selectedModuleIds, moduleId];
+
+    currentState = {
+      ...currentState,
+      selectedModuleIds: nextSelected,
+      selectedConnectionIds: [],
+      version: currentState.version + 1,
+    };
+    rateEditorPanel.setConnection(null);
+
+    // Toolbar: show only when exactly one module selected
+    if (nextSelected.length === 1) {
+      updateToolbarForModule(nextSelected[0]);
+    } else {
+      toolbarController.hide();
+    }
+    refreshAnalyticsPanel();
+    refreshCountdownPanels();
+    minimapRenderer.markDirty();
+    return;
+  }
+
+  // Normal click: select single module AND deselect connections (mutually exclusive)
   if (!currentState.selectedModuleIds.includes(moduleId)) {
     currentState = {
       ...currentState,
@@ -301,33 +328,80 @@ inputManager.onModuleSelect = (moduleId: string | null) => {
   // Story 7.2: Update countdown panels on module selection
   refreshCountdownPanels();
 
-  // Story 8.6: Show toolbar with module data on select (AC1, AC4)
-  const node = currentState.nodes[moduleId];
-  if (node) {
-    // Compute stock-specific dataText (net change)
-    let dataText = '';
-    let dataTextColor: string | undefined;
-    if (node.type === 'stock') {
-      const stats = computeStockAnalytics(currentState, moduleId);
-      if (stats) {
-        const netChange = stats.netChange;
-        dataText = `净变化：${netChange >= 0 ? '+' : ''}${netChange.toFixed(1)}`;
-        dataTextColor = netChange > 0 ? '#10b981' : netChange < 0 ? '#ef4444' : undefined;
-      }
-    }
-
-    toolbarController.show();
-    toolbarController.updateData({
-      moduleId,
-      moduleType: node.type,
-      label: node.label ?? node.type,
-      color: node.color,
-      dataText,
-      dataTextColor,
-    });
-  }
+  updateToolbarForModule(moduleId);
 
   minimapRenderer.markDirty();
+};
+
+/** Helper: update toolbar data for a single selected module. */
+function updateToolbarForModule(moduleId: string): void {
+  const node = currentState.nodes[moduleId];
+  if (!node) return;
+  // Compute stock-specific dataText (net change)
+  let dataText = '';
+  let dataTextColor: string | undefined;
+  if (node.type === 'stock') {
+    const stats = computeStockAnalytics(currentState, moduleId);
+    if (stats) {
+      const netChange = stats.netChange;
+      dataText = `净变化：${netChange >= 0 ? '+' : ''}${netChange.toFixed(1)}`;
+      dataTextColor = netChange > 0 ? '#10b981' : netChange < 0 ? '#ef4444' : undefined;
+    }
+  }
+
+  toolbarController.show();
+  toolbarController.updateData({
+    moduleId,
+    moduleType: node.type,
+    label: node.label ?? node.type,
+    color: node.color,
+    dataText,
+    dataTextColor,
+  });
+}
+
+// ── Marquee (rubber-band) selection ──────────────────────────────────
+inputManager.onMarqueeSelect = (moduleIds: string[]) => {
+  if (moduleIds.length === 0) {
+    // Empty marquee → deselect all
+    currentState = {
+      ...currentState,
+      selectedModuleIds: [],
+      selectedConnectionIds: [],
+      version: currentState.version + 1,
+    };
+    toolbarController.hide();
+    rateEditorPanel.setConnection(null);
+    analyticsPanel.setStock(null);
+    refreshCountdownPanels();
+    minimapRenderer.markDirty();
+    return;
+  }
+  // Replace selection with marquee intersection
+  currentState = {
+    ...currentState,
+    selectedModuleIds: moduleIds,
+    selectedConnectionIds: [],
+    version: currentState.version + 1,
+  };
+  rateEditorPanel.setConnection(null);
+  // Toolbar: show only when exactly one module selected
+  if (moduleIds.length === 1) {
+    updateToolbarForModule(moduleIds[0]);
+  } else {
+    toolbarController.hide();
+  }
+  refreshAnalyticsPanel();
+  refreshCountdownPanels();
+  minimapRenderer.markDirty();
+};
+
+inputManager.onMarqueeRectChange = (rect) => {
+  sceneRenderer.marqueeRect = rect;
+};
+
+inputManager.onMarqueePreview = (moduleIds) => {
+  sceneRenderer.marqueePreviewIds = moduleIds;
 };
 
 // ── Story 3.7: Connection Selection ──────────────────────────────────
@@ -390,19 +464,58 @@ inputManager.onConnectionSelect = (connectionId: string | null) => {
 };
 
 // ── Story 2.3: Module Drag-Start ──────────────────────────────────────
+// Capture initial positions of other selected modules for batch drag delta calculation.
+// dragModuleWorldStart (passed as fromWorld to onModuleMove) is constant during drag,
+// so dx/dy is the cumulative total displacement. Using node.position + dx each frame
+// would accumulate drift because node.position already includes prior frames' deltas.
+let otherStartPositions: Record<string, import('./shared/Vec2.js').Vec2> = {};
+
 inputManager.onModuleDragStart = () => {
-  // No-op: history snapshot is pushed at dragEnd (POST-mutation).
+  otherStartPositions = {};
+  const selectedIds = currentState.selectedModuleIds;
+  if (selectedIds.length > 1) {
+    for (const id of selectedIds) {
+      const node = currentState.nodes[id];
+      if (node) {
+        otherStartPositions[id] = { x: node.position.x, y: node.position.y };
+      }
+    }
+  }
 };
 
 // ── Story 2.3: Module Move (drag) ────────────────────────────────────
+// Supports multi-select batch drag: when multiple modules are selected,
+// all selected modules move together by the same delta.
 inputManager.onModuleMove = (
   moduleId: string,
-  _fromWorld: import('./shared/Vec2.js').Vec2,
+  fromWorld: import('./shared/Vec2.js').Vec2,
   toWorld: import('./shared/Vec2.js').Vec2,
 ) => {
   // Only move if we can find the module
   if (!currentState.nodes[moduleId]) return;
+
+  // Compute the delta (how far the dragged module moved)
+  const dx = toWorld.x - fromWorld.x;
+  const dy = toWorld.y - fromWorld.y;
+
+  // Move the primary dragged module to its new absolute position
   currentState = moveModule(currentState, moduleId, toWorld);
+
+  // If multiple modules are selected, move all other selected modules by the same delta.
+  // Use captured start positions (not current node.position) to avoid drift:
+  // fromWorld (=dragModuleWorldStart) is constant, so dx/dy is cumulative total.
+  // node.position already includes prior frames' deltas — adding dx again compounds.
+  const selectedIds = currentState.selectedModuleIds;
+  if (selectedIds.length > 1) {
+    for (const id of selectedIds) {
+      if (id === moduleId) continue; // Already moved above
+      const startPos = otherStartPositions[id];
+      if (!startPos) continue;
+      const newPos = { x: startPos.x + dx, y: startPos.y + dy };
+      currentState = moveModule(currentState, id, newPos);
+    }
+  }
+
   minimapRenderer.markDirty();
 };
 

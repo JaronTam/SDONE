@@ -53,6 +53,8 @@ export const FEEDBACK_ARC_OFFSET = 60;
 const DIAMOND_ARROW_LENGTH = 10;
 /** Diamond arrowhead half-width for feedback connections. */
 const DIAMOND_ARROW_HALF_WIDTH = 3;
+/** Marquee preview highlight: dashed ring around modules under the selection rectangle. */
+const MARQUEE_PREVIEW_COLOR = 'rgba(59, 130, 246, 0.6)';
 
 // ── Story 4.6 AC1–AC4 — Warning arc constants (exported for rendering tests) ──
 /** Muted grey arc color. */
@@ -141,21 +143,41 @@ export function getVisualEdgeDistance(moduleType: string): number {
   }
 }
 
-export function getModuleBoundingRadius(node: { type: string }): number {
+export function getModuleBoundingRadius(node: {
+  type: string;
+  width?: number;
+  height?: number;
+}): number {
   switch (node.type) {
-    case 'source':
-      return SOURCE_CLOUD_RADIUS * 2 + SELECTION_RING_OFFSET;
-    case 'stock':
-      return Math.sqrt(STOCK_WIDTH ** 2 + STOCK_HEIGHT ** 2) / 2 + SELECTION_RING_OFFSET;
-    case 'sink':
-      return SINK_RADIUS + SELECTION_RING_OFFSET;
+    case 'source': {
+      // FIX: Scale bounding radius with node dimensions (resize support)
+      const w = node.width ?? DEFAULT_MODULE_WIDTH;
+      const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+      const scaleX = w / DEFAULT_MODULE_WIDTH;
+      const scaleY = h / DEFAULT_MODULE_HEIGHT;
+      return SOURCE_CLOUD_RADIUS * 2 * Math.min(scaleX, scaleY) + SELECTION_RING_OFFSET;
+    }
+    case 'stock': {
+      // FIX: Use node dimensions for bounding radius (resize support)
+      const w = node.width ?? STOCK_WIDTH;
+      const h = node.height ?? STOCK_HEIGHT;
+      return Math.sqrt(w ** 2 + h ** 2) / 2 + SELECTION_RING_OFFSET;
+    }
+    case 'sink': {
+      // FIX: Scale bounding radius with node dimensions (resize support)
+      const w = node.width ?? DEFAULT_MODULE_WIDTH;
+      const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+      const scaleX = w / DEFAULT_MODULE_WIDTH;
+      const scaleY = h / DEFAULT_MODULE_HEIGHT;
+      return SINK_RADIUS * Math.min(scaleX, scaleY) + SELECTION_RING_OFFSET;
+    }
     default:
       return SINK_RADIUS + SELECTION_RING_OFFSET;
   }
 }
 
 export function getEdgePoint(
-  node: { type: string; position: { x: number; y: number } },
+  node: { type: string; position: { x: number; y: number }; width?: number; height?: number },
   towardWorld: { x: number; y: number },
 ): { x: number; y: number } {
   const cx = node.position.x;
@@ -168,15 +190,29 @@ export function getEdgePoint(
   const ny = dy / dist;
   switch (node.type) {
     case 'source': {
-      const r = SOURCE_CLOUD_RADIUS * 1.6;
+      // FIX: Scale edge radius with node dimensions (resize support)
+      const w = node.width ?? DEFAULT_MODULE_WIDTH;
+      const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+      const scaleX = w / DEFAULT_MODULE_WIDTH;
+      const scaleY = h / DEFAULT_MODULE_HEIGHT;
+      const r = SOURCE_CLOUD_RADIUS * 1.6 * Math.min(scaleX, scaleY);
       return { x: cx + nx * r, y: cy + ny * r };
     }
     case 'sink': {
-      return { x: cx + nx * SINK_RADIUS, y: cy + ny * SINK_RADIUS };
+      // FIX: Scale edge radius with node dimensions (resize support)
+      const w = node.width ?? DEFAULT_MODULE_WIDTH;
+      const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+      const scaleX = w / DEFAULT_MODULE_WIDTH;
+      const scaleY = h / DEFAULT_MODULE_HEIGHT;
+      const r = SINK_RADIUS * Math.min(scaleX, scaleY);
+      return { x: cx + nx * r, y: cy + ny * r };
     }
     case 'stock': {
-      const hw = STOCK_WIDTH / 2;
-      const hh = STOCK_HEIGHT / 2;
+      // FIX: Use node dimensions for edge point (resize support)
+      const w = node.width ?? STOCK_WIDTH;
+      const h = node.height ?? STOCK_HEIGHT;
+      const hw = w / 2;
+      const hh = h / 2;
       const tx = nx !== 0 ? hw / Math.abs(nx) : Infinity;
       const ty = ny !== 0 ? hh / Math.abs(ny) : Infinity;
       const t = Math.min(tx, ty);
@@ -271,6 +307,13 @@ export class SceneRenderer {
 
   private rafId: number | null = null;
   private graphState: GraphState | null = null;
+
+  // ── Marquee (rubber-band) selection rendering ─────────────────
+  /** Screen-space marquee rectangle (null when not active). Set by main.ts. */
+  public marqueeRect: { start: { x: number; y: number }; end: { x: number; y: number } } | null =
+    null;
+  /** Module IDs currently intersected by the marquee (for preview highlight). */
+  public marqueePreviewIds: string[] = [];
   private readonly pulseStartTime: number;
 
   public stateProvider: (() => GraphState) | null = null;
@@ -427,6 +470,7 @@ export class SceneRenderer {
       this.drawModules(this.graphState);
       this.drawSelectionOverlay(this.graphState); // Story 8.5 — diamonds + handles above modules
       this.drawBorderFlash(this.graphState); // Story 5.5 AC2: flash rings around achieved stack
+      this.drawMarqueeRect(); // Marquee (rubber-band) selection rectangle
       this.drawSnapTargetEdgeGlow(); // Story 5.4 AC4 — between modules and connections
       this.drawConnections(this.graphState);
     }
@@ -672,6 +716,7 @@ export class SceneRenderer {
   private drawModules(state: GraphState): void {
     const { ctx } = this;
     const selectedIds = new Set(state.selectedModuleIds);
+    const previewIds = new Set(this.marqueePreviewIds);
     for (const id of selectedIds) {
       const node = state.nodes[id];
       if (!node) continue;
@@ -684,6 +729,22 @@ export class SceneRenderer {
       ctx.beginPath();
       ctx.arc(node.position.x, node.position.y, r, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }
+    // Marquee preview: highlight modules that will be selected on mouseup
+    for (const id of previewIds) {
+      if (selectedIds.has(id)) continue; // Don't double-highlight already-selected
+      const node = state.nodes[id];
+      if (!node) continue;
+      const r = getModuleBoundingRadius(node);
+      ctx.save();
+      ctx.strokeStyle = MARQUEE_PREVIEW_COLOR;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.arc(node.position.x, node.position.y, r + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     }
     for (const [_id, node] of Object.entries(state.nodes)) {
@@ -720,7 +781,12 @@ export class SceneRenderer {
     ctx.save();
     const { x, y } = node.position;
     const fillColor = node.color ?? SOURCE_DEFAULT_FILL;
-    const r = SOURCE_CLOUD_RADIUS;
+    // FIX: Scale cloud radius proportionally to node dimensions (resize support)
+    const w = node.width ?? DEFAULT_MODULE_WIDTH;
+    const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+    const scaleX = w / DEFAULT_MODULE_WIDTH;
+    const scaleY = h / DEFAULT_MODULE_HEIGHT;
+    const r = SOURCE_CLOUD_RADIUS * Math.min(scaleX, scaleY);
     const offsets: Vec2[] = [
       vec2(-r * 0.7, 0),
       vec2(r * 0.7, 0),
@@ -748,14 +814,17 @@ export class SceneRenderer {
   private drawStock(node: StockNode): void {
     const { ctx } = this;
     const { x, y } = node.position;
-    const hw = STOCK_WIDTH / 2;
-    const hh = STOCK_HEIGHT / 2;
+    // FIX: Use node.width/node.height for resize support (was hardcoded STOCK_WIDTH/STOCK_HEIGHT)
+    const w = node.width ?? STOCK_WIDTH;
+    const h = node.height ?? STOCK_HEIGHT;
+    const hw = w / 2;
+    const hh = h / 2;
     const cr = STOCK_CORNER_RADIUS;
     ctx.fillStyle = STOCK_FILL;
     ctx.strokeStyle = STOCK_STROKE;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
+    this.roundedRect(ctx, x - hw, y - hh, w, h, cr);
     ctx.fill();
     ctx.stroke();
     const targetRatio = computeFillRatio(node.value, node.capacity);
@@ -765,16 +834,16 @@ export class SceneRenderer {
     if (ratio > 0 && node.capacity > 0) {
       ctx.save();
       ctx.beginPath();
-      this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
+      this.roundedRect(ctx, x - hw, y - hh, w, h, cr);
       ctx.clip();
-      const fillHeight = STOCK_HEIGHT * ratio;
+      const fillHeight = h * ratio;
       // AC4: Overflow tint — red when value exceeds capacity
       const isOverflow = targetRatio > 1.0;
       ctx.fillStyle = isOverflow ? STOCK_FILL_OVERFLOW : STOCK_FILL_BLUE;
-      ctx.fillRect(x - hw, y + hh - fillHeight, STOCK_WIDTH, fillHeight);
+      ctx.fillRect(x - hw, y + hh - fillHeight, w, fillHeight);
       ctx.restore();
       ctx.beginPath();
-      this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
+      this.roundedRect(ctx, x - hw, y - hh, w, h, cr);
       ctx.stroke();
     }
 
@@ -794,7 +863,7 @@ export class SceneRenderer {
       ctx.shadowBlur = BREATHING_GLOW_BLUR;
       ctx.fillStyle = BREATHING_GLOW_COLOR;
       ctx.beginPath();
-      this.roundedRect(ctx, x - hw, y - hh, STOCK_WIDTH, STOCK_HEIGHT, cr);
+      this.roundedRect(ctx, x - hw, y - hh, w, h, cr);
       ctx.fill();
       ctx.restore();
     }
@@ -844,7 +913,12 @@ export class SceneRenderer {
     ctx.save();
     const { x, y } = node.position;
     const fillColor = node.color ?? SINK_DEFAULT_FILL;
-    const r = SINK_RADIUS;
+    // FIX: Scale sink radius proportionally to node dimensions (resize support)
+    const w = node.width ?? DEFAULT_MODULE_WIDTH;
+    const h = node.height ?? DEFAULT_MODULE_HEIGHT;
+    const scaleX = w / DEFAULT_MODULE_WIDTH;
+    const scaleY = h / DEFAULT_MODULE_HEIGHT;
+    const r = SINK_RADIUS * Math.min(scaleX, scaleY);
     ctx.fillStyle = fillColor;
     ctx.strokeStyle = 'rgba(0,0,0,0.3)';
     ctx.lineWidth = 1.5;
@@ -982,8 +1056,9 @@ export class SceneRenderer {
         const stock = fromNode as StockNode;
         const sx = stock.position.x;
         const sy = stock.position.y;
-        const hw = STOCK_WIDTH / 2;
-        const hh = STOCK_HEIGHT / 2;
+        // FIX: Use node dimensions for feedback connection (resize support)
+        const hw = (stock.width ?? STOCK_WIDTH) / 2;
+        const hh = (stock.height ?? STOCK_HEIGHT) / 2;
 
         // Start: bottom-right of stock (feedback handle position)
         const startX = sx + hw - FEEDBACK_HANDLE_RADIUS;
@@ -1222,6 +1297,29 @@ export class SceneRenderer {
    * Story 5.5 AC2 — Draw a pulsing gold ring around each module in the
    * achievement group, fading out over ~1.5s.
    */
+  /** Draw the marquee (rubber-band) selection rectangle. */
+  private drawMarqueeRect(): void {
+    if (!this.marqueeRect) return;
+    const { ctx } = this;
+    const { start, end } = this.marqueeRect;
+    const x = Math.min(start.x, end.x);
+    const y = Math.min(start.y, end.y);
+    const w = Math.abs(end.x - start.x);
+    const h = Math.abs(end.y - start.y);
+
+    ctx.save();
+    // Semi-transparent fill
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+    ctx.fillRect(x, y, w, h);
+    // Dashed border
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 3]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
   private drawBorderFlash(state: GraphState): void {
     const flash = this.borderFlashProvider?.();
     if (!flash || flash.life <= 0) return;
@@ -1499,8 +1597,9 @@ export class SceneRenderer {
     const stockNode = state.nodes[stockId];
     if (!stockNode || stockNode.type !== 'stock') return;
     const stock = stockNode as StockNode;
-    const hw = STOCK_WIDTH / 2;
-    const hh = STOCK_HEIGHT / 2;
+    // FIX: Use node dimensions for feedback drag preview (resize support)
+    const hw = (stock.width ?? STOCK_WIDTH) / 2;
+    const hh = (stock.height ?? STOCK_HEIGHT) / 2;
     const startX = stock.position.x + hw - FEEDBACK_HANDLE_RADIUS;
     const startY = stock.position.y + hh - FEEDBACK_HANDLE_RADIUS;
 
